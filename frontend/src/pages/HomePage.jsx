@@ -533,7 +533,9 @@ export default function HomePage() {
             </div>
           ) : filteredThoughts.length === 0 ? (
             <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
-              <p className="font-serif">No thoughts found matching "{searchQuery}".</p>
+              <p className="font-serif">
+                {searchQuery ? `No thoughts found matching "${searchQuery}".` : 'No thoughts added'}
+              </p>
             </div>
           ) : (
             filteredThoughts.map((thought) => (
