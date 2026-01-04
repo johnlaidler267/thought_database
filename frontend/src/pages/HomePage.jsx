@@ -213,7 +213,7 @@ export default function HomePage() {
       <header className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-sm font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Voice Notepad</h1>
+            <h1 className="text-sm font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Axiom</h1>
             <p className="text-xs text-muted-foreground mt-0.5 font-serif" style={{ color: 'var(--muted-foreground)' }}>Capture your thoughts</p>
           </div>
           <div className="flex items-center gap-4 text-xs font-serif">

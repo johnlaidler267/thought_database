@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thought-notary-v1'
+const CACHE_NAME = 'axiom-v1'
 const urlsToCache = [
   '/',
   '/index.html',

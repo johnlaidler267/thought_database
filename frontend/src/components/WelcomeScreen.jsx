@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
       <div className="max-w-md w-full text-center">
         {/* Title */}
         <h1 className="text-5xl font-serif font-normal tracking-tight text-white mb-4">
-          Thought Notary
+          Axiom
         </h1>
         <p className="text-lg text-white/70 font-serif mb-12">
           A clean technical manual for personal thoughts
@@ -148,7 +148,7 @@ export default function WelcomeScreen() {
 
         {/* Privacy Note */}
         <p className="mt-12 text-sm text-white/50 font-serif leading-relaxed max-w-sm mx-auto">
-          Your thoughts are private. We use industry-standard secure sign-on to ensure only you can access your notary.
+          Your thoughts are private. We use industry-standard secure sign-on to ensure only you can access your account.
         </p>
       </div>
     </div>

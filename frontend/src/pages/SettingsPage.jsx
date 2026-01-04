@@ -87,7 +87,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
               <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
-                Use this key to access the Voice Notepad API from your applications
+                Use this key to access the Axiom API from your applications
               </p>
             </div>
           </Card>

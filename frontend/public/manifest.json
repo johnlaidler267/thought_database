@@ -1,7 +1,7 @@
 {
-  "name": "Thought Notary",
-  "short_name": "Thought Notary",
-  "description": "A minimalist PWA Insight Engine for personal thoughts",
+  "name": "Axiom",
+  "short_name": "Axiom",
+  "description": "Axiom - Capture and organize your thoughts",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f5f5",

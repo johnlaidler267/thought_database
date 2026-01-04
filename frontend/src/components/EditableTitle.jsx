@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 
 export default function EditableTitle() {
   const [title, setTitle] = useState(() => {
-    const saved = localStorage.getItem('thoughtNotaryTitle')
-    return saved || 'Thought Notary'
+    const saved = localStorage.getItem('axiomTitle')
+    return saved || 'Axiom'
   })
   const [isEditing, setIsEditing] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -11,7 +11,7 @@ export default function EditableTitle() {
   const inputRef = useRef(null)
 
   useEffect(() => {
-    localStorage.setItem('thoughtNotaryTitle', title)
+    localStorage.setItem('axiomTitle', title)
   }, [title])
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function EditableTitle() {
   const handleTitleBlur = () => {
     setIsEditing(false)
     if (title.trim() === '') {
-      setTitle('Thought Notary')
+      setTitle('Axiom')
     }
   }
 
@@ -59,7 +59,7 @@ export default function EditableTitle() {
     if (e.key === 'Enter') {
       e.target.blur()
     } else if (e.key === 'Escape') {
-      setTitle(localStorage.getItem('thoughtNotaryTitle') || 'Thought Notary')
+      setTitle(localStorage.getItem('axiomTitle') || 'Axiom')
       e.target.blur()
     }
   }
