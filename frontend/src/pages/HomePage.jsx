@@ -17,6 +17,7 @@ export default function HomePage() {
     return saved ? JSON.parse(saved) : ['All']
   })
   const [activeCategory, setActiveCategory] = useState('All')
+  const [hoveredCategory, setHoveredCategory] = useState(null)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [isRecording, setIsRecording] = useState(false)
@@ -220,6 +221,18 @@ export default function HomePage() {
     }
   }
 
+  // Handle deleting a category
+  const handleDeleteCategory = (category) => {
+    if (category === "All") return // Prevent deleting "All" category
+
+    setCategories(categories.filter((cat) => cat !== category))
+
+    // If the deleted category was active, switch to "All"
+    if (activeCategory === category) {
+      setActiveCategory("All")
+    }
+  }
+
   // Filter thoughts based on search query (by tag) and active category
   const filteredThoughts = thoughts.filter((thought) => {
     // Filter by category (if not "All")
@@ -335,7 +348,9 @@ export default function HomePage() {
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
-              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-colors ${
+              onMouseEnter={() => setHoveredCategory(category)}
+              onMouseLeave={() => setHoveredCategory(null)}
+              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center ${
                 activeCategory === category
                   ? "text-paper"
                   : "border text-muted-foreground hover:text-ink hover:border-ink"
@@ -343,22 +358,38 @@ export default function HomePage() {
               style={{
                 backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
                 borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
-                color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)'
-              }}
-              onMouseEnter={(e) => {
-                if (activeCategory !== category) {
-                  e.currentTarget.style.color = 'var(--ink)'
-                  e.currentTarget.style.borderColor = 'var(--ink)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeCategory !== category) {
-                  e.currentTarget.style.color = 'var(--muted-foreground)'
-                  e.currentTarget.style.borderColor = 'var(--stroke)'
-                }
+                color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
+                paddingRight: hoveredCategory === category && category !== "All" ? 0 : '1rem',
+                minHeight: '2.5rem',
+                height: '2.5rem'
               }}
             >
-              {category}
+              <span>{category}</span>
+              {/* Delete button shown on hover (except for "All") */}
+              {hoveredCategory === category && category !== "All" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteCategory(category)
+                  }}
+                  className="transition-colors ml-1 flex items-center justify-center"
+                  style={{ 
+                    color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
+                    width: '0.75rem',
+                    height: '0.75rem',
+                    flexShrink: 0
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--destructive)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)'
+                  }}
+                  aria-label={`Delete ${category} category`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </button>
           ))}
 
