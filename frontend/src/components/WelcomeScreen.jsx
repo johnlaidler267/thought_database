@@ -19,8 +19,8 @@ export default function WelcomeScreen() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#2c2c2e' }}>
-        <div className="text-white/60">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--paper)' }}>
+        <div style={{ color: 'var(--muted-foreground)' }}>Loading...</div>
       </div>
     )
   }
@@ -67,14 +67,14 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-8" style={{ background: '#2c2c2e' }}>
+    <div className="min-h-screen flex items-center justify-center px-8" style={{ background: 'var(--paper)' }}>
       <div className="max-w-md w-full text-center">
         {/* Title */}
-        <h1 className="text-5xl font-serif font-normal tracking-tight text-white mb-4">
+        <h1 className="text-5xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
           Axiom
         </h1>
-        <p className="text-lg text-white/70 font-serif mb-12">
-          A clean technical manual for personal thoughts
+        <p className="text-lg font-serif mb-12" style={{ color: 'var(--muted-foreground)' }}>
+          Never waste a good thought
         </p>
 
         {/* Sign In Options */}
@@ -83,7 +83,20 @@ export default function WelcomeScreen() {
           <button
             onClick={handleAppleSignIn}
             disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-3xl bg-white/5 border border-white/10 text-white font-medium transition-all duration-200 hover:bg-white/8 hover:border-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-3xl border font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--stroke)',
+              color: 'var(--ink)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--muted)'
+              e.currentTarget.style.borderColor = 'var(--ink)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--card)'
+              e.currentTarget.style.borderColor = 'var(--stroke)'
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -95,7 +108,20 @@ export default function WelcomeScreen() {
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-3xl bg-white/5 border border-white/10 text-white font-medium transition-all duration-200 hover:bg-white/8 hover:border-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-3xl border font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--stroke)',
+              color: 'var(--ink)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--muted)'
+              e.currentTarget.style.borderColor = 'var(--ink)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--card)'
+              e.currentTarget.style.borderColor = 'var(--stroke)'
+            }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M19.6 10.227c0-.709-.064-1.39-.182-2.045H10v3.868h5.382a4.6 4.6 0 0 1-1.996 3.018v2.51h3.232c1.891-1.742 2.982-4.305 2.982-7.35z" fill="#4285F4"/>
@@ -118,23 +144,49 @@ export default function WelcomeScreen() {
                 placeholder="Enter your email"
                 required
                 disabled={loading}
-                className="w-full px-6 py-4 rounded-3xl bg-white/5 border border-white/10 text-white placeholder-white/40 font-medium focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20 disabled:opacity-50"
-                style={{ fontFamily: 'inherit' }}
+                className="w-full px-6 py-4 rounded-3xl border font-medium focus:outline-none focus:ring-2 disabled:opacity-50"
+                style={{ 
+                  fontFamily: 'inherit',
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--stroke)',
+                  color: 'var(--ink)'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--ink)'
+                  e.target.style.boxShadow = '0 0 0 2px var(--ring)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'var(--stroke)'
+                  e.target.style.boxShadow = 'none'
+                }}
               />
             </div>
             <button
               type="submit"
               disabled={loading || !email}
-              className="w-full px-6 py-4 rounded-3xl bg-white/10 border border-white/20 text-white font-medium transition-all duration-200 hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-6 py-4 rounded-3xl border font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'var(--muted)',
+                borderColor: 'var(--stroke)',
+                color: 'var(--ink)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--ink)'
+                e.currentTarget.style.color = 'var(--paper)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+                e.currentTarget.style.color = 'var(--ink)'
+              }}
             >
               {loading ? 'Sending...' : 'Send Magic Link'}
             </button>
           </form>
         ) : (
-          <div className="p-6 rounded-3xl bg-white/5 border border-white/10">
-            <p className="text-white/90 font-medium mb-2">Check your email</p>
-            <p className="text-white/60 text-sm">
-              We've sent a magic link to <strong className="text-white/80">{email}</strong>. Click the link to sign in.
+          <div className="p-6 rounded-3xl border" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--stroke)' }}>
+            <p className="font-medium mb-2" style={{ color: 'var(--ink)' }}>Check your email</p>
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              We've sent a magic link to <strong style={{ color: 'var(--ink)' }}>{email}</strong>. Click the link to sign in.
             </p>
           </div>
         )}
@@ -147,7 +199,7 @@ export default function WelcomeScreen() {
         )}
 
         {/* Privacy Note */}
-        <p className="mt-12 text-sm text-white/50 font-serif leading-relaxed max-w-sm mx-auto">
+        <p className="mt-12 text-sm font-serif leading-relaxed max-w-sm mx-auto" style={{ color: 'var(--muted-foreground)' }}>
           Your thoughts are private. We use industry-standard secure sign-on to ensure only you can access your account.
         </p>
       </div>

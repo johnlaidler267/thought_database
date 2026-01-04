@@ -249,7 +249,7 @@ export default function HomePage() {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-sm font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Axiom</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 font-serif" style={{ color: 'var(--muted-foreground)' }}>Capture your thoughts</p>
+            <p className="text-xs text-muted-foreground mt-0.5 font-serif" style={{ color: 'var(--muted-foreground)' }}>Never waste a good thought</p>
           </div>
           <div className="flex items-center gap-4 text-xs font-serif">
             <span className="text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>Status:</span>

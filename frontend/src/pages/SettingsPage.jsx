@@ -4,9 +4,11 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Eye, EyeOff, Copy, Check, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth()
+  const { isDark, toggleDarkMode } = useTheme()
   const navigate = useNavigate()
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -150,21 +152,23 @@ export default function SettingsPage() {
                   <p className="text-sm font-serif" style={{ color: 'var(--ink)' }}>Dark Mode</p>
                   <p className="text-xs font-serif mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Switch to dark color scheme</p>
                 </div>
-                <div 
+                <button
+                  onClick={toggleDarkMode}
                   className="relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors cursor-pointer"
                   style={{
                     borderColor: 'var(--stroke)',
-                    backgroundColor: 'var(--muted)'
+                    backgroundColor: isDark ? 'var(--ink)' : 'var(--muted)'
                   }}
+                  aria-label="Toggle dark mode"
                 >
                   <span 
                     className="inline-block h-4 w-4 transform rounded-full transition-transform"
                     style={{
-                      backgroundColor: 'var(--ink)',
-                      transform: 'translateX(1px)'
+                      backgroundColor: isDark ? 'var(--paper)' : 'var(--ink)',
+                      transform: isDark ? 'translateX(21px)' : 'translateX(1px)'
                     }}
                   />
-                </div>
+                </button>
               </div>
             </div>
           </Card>
