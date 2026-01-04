@@ -283,8 +283,13 @@ export default function HomePage() {
             {user && (
               <button
                 onClick={handleProfileClick}
-                className="text-muted-foreground hover:text-ink transition-colors p-1.5 rounded-md"
-                style={{ color: 'var(--muted-foreground)' }}
+                className="text-muted-foreground hover:text-ink transition-colors rounded-full flex items-center justify-center"
+                style={{ 
+                  color: 'var(--muted-foreground)',
+                  width: '2rem',
+                  height: '2rem',
+                  padding: 0
+                }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = 'var(--ink)'
                   e.currentTarget.style.backgroundColor = 'var(--muted)'
