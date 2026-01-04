@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import WelcomeScreen from './components/WelcomeScreen'
 import HomePage from './pages/HomePage'
+import SettingsPage from './pages/SettingsPage'
 import TimelinePage from './pages/TimelinePage'
 import './index.css'
 
@@ -28,6 +29,14 @@ createRoot(document.getElementById('root')).render(
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/welcome" element={<WelcomeScreen />} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/timeline"
             element={

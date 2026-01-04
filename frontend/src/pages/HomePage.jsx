@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 
 export default function HomePage() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -193,9 +193,8 @@ export default function HomePage() {
     }
   }
 
-  const handleSignOut = async () => {
-    await signOut()
-    navigate('/welcome', { replace: true })
+  const handleProfileClick = () => {
+    navigate('/settings')
   }
 
   // Filter thoughts based on search query (by tag)
@@ -232,14 +231,20 @@ export default function HomePage() {
             </div>
             {user && (
               <button
-                onClick={handleSignOut}
-                className="text-muted-foreground hover:text-ink transition-colors text-xs font-serif"
+                onClick={handleProfileClick}
+                className="text-muted-foreground hover:text-ink transition-colors p-1.5 rounded-md"
                 style={{ color: 'var(--muted-foreground)' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-                aria-label="Sign out"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--ink)'
+                  e.currentTarget.style.backgroundColor = 'var(--muted)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                aria-label="Account settings"
               >
-                Sign Out
+                <User className="w-5 h-5" />
               </button>
             )}
           </div>
