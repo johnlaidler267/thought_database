@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
@@ -12,6 +12,13 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [categories, setCategories] = useState(() => {
+    const saved = localStorage.getItem('axiomCategories')
+    return saved ? JSON.parse(saved) : ['All']
+  })
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [isAddingCategory, setIsAddingCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
@@ -197,15 +204,43 @@ export default function HomePage() {
     navigate('/settings')
   }
 
-  // Filter thoughts based on search query (by tag)
-  const filteredThoughts = searchQuery
-    ? thoughts.filter((thought) => {
-        if (!thought.tags || thought.tags.length === 0) return false
-        return thought.tags.some((tag) =>
-          tag.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      })
-    : thoughts
+  // Save categories to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('axiomCategories', JSON.stringify(categories))
+  }, [categories])
+
+  // Handle adding a new category
+  const handleAddCategory = () => {
+    const trimmedName = newCategoryName.trim()
+    if (trimmedName && !categories.includes(trimmedName)) {
+      setCategories([...categories, trimmedName])
+      setActiveCategory(trimmedName)
+      setIsAddingCategory(false)
+      setNewCategoryName('')
+    }
+  }
+
+  // Filter thoughts based on search query (by tag) and active category
+  const filteredThoughts = thoughts.filter((thought) => {
+    // Filter by category (if not "All")
+    if (activeCategory !== 'All') {
+      // For now, we'll check if any tag matches the category
+      // In the future, you might want to add a category field to thoughts
+      if (!thought.tags || !thought.tags.includes(activeCategory)) {
+        return false
+      }
+    }
+
+    // Filter by search query (by tag)
+    if (searchQuery) {
+      if (!thought.tags || thought.tags.length === 0) return false
+      return thought.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    return true
+  })
 
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
@@ -290,6 +325,130 @@ export default function HomePage() {
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="border-b border-stroke px-6 py-3 overflow-x-auto" style={{ borderColor: 'var(--stroke)' }}>
+        <div className="max-w-2xl mx-auto flex items-center gap-2">
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-colors ${
+                activeCategory === category
+                  ? "text-paper"
+                  : "border text-muted-foreground hover:text-ink hover:border-ink"
+              }`}
+              style={{
+                backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
+                borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
+                color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)'
+              }}
+              onMouseEnter={(e) => {
+                if (activeCategory !== category) {
+                  e.currentTarget.style.color = 'var(--ink)'
+                  e.currentTarget.style.borderColor = 'var(--ink)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeCategory !== category) {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                }
+              }}
+            >
+              {category}
+            </button>
+          ))}
+
+          {isAddingCategory ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddCategory()
+                  if (e.key === "Escape") {
+                    setIsAddingCategory(false)
+                    setNewCategoryName("")
+                  }
+                }}
+                placeholder="Category name..."
+                className="px-3 py-2 rounded border text-sm font-serif focus:outline-none w-32"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  backgroundColor: 'var(--card)',
+                  color: 'var(--ink)'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--ink)'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'var(--stroke)'
+                }}
+                autoFocus
+              />
+              <button
+                onClick={handleAddCategory}
+                className="px-3 py-2 rounded font-serif text-sm transition-colors"
+                style={{
+                  backgroundColor: 'var(--ink)',
+                  color: 'var(--paper)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--muted-foreground)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--ink)'
+                }}
+              >
+                Add
+              </button>
+              <button
+                onClick={() => {
+                  setIsAddingCategory(false)
+                  setNewCategoryName("")
+                }}
+                className="px-3 py-2 rounded border font-serif text-sm transition-colors"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  color: 'var(--muted-foreground)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--ink)'
+                  e.currentTarget.style.borderColor = 'var(--ink)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAddingCategory(true)}
+              className="px-3 py-2 rounded border border-dashed transition-colors flex items-center gap-2 font-serif text-sm"
+              style={{
+                borderColor: 'var(--stroke)',
+                color: 'var(--muted-foreground)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.borderColor = 'var(--ink)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--muted-foreground)'
+                e.currentTarget.style.borderColor = 'var(--stroke)'
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add</span>
+            </button>
+          )}
         </div>
       </div>
 
