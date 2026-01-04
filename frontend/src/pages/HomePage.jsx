@@ -1,49 +1,200 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2 } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { useAudioRecorder } from '../hooks/useAudioRecorder'
+import { supabase } from '../services/supabase'
+import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 
 export default function HomePage() {
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const [thoughts, setThoughts] = useState([])
   const [isRecording, setIsRecording] = useState(false)
-  const [thoughts] = useState([
-    {
-      id: "1",
-      content:
-        "The essence of minimalism lies not in the absence of elements, but in the presence of only what matters most. Each decision should serve a purpose.",
-      timestamp: "18:45:23",
-      duration: "00:12",
-    },
-    {
-      id: "2",
-      content: "Voice notes capture the raw immediacy of thought—unfiltered, authentic, and ephemeral in their nature.",
-      timestamp: "17:32:15",
-      duration: "00:08",
-    },
-    {
-      id: "3",
-      content:
-        "Consider how the interface becomes invisible when done correctly. The technology recedes, and only the human experience remains.",
-      timestamp: "16:18:47",
-      duration: "00:15",
-    },
-    {
-      id: "4",
-      content:
-        "Monochrome palettes force designers to think about hierarchy, weight, and rhythm rather than relying on color as a crutch.",
-      timestamp: "14:52:31",
-      duration: "00:11",
-    },
-  ])
+  const [loading, setLoading] = useState(false)
+  const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
+
+  // Load thoughts from Supabase on mount
+  useEffect(() => {
+    async function loadThoughts() {
+      if (!user) return
+
+      // In dev mode (no Supabase), use mock data
+      if (!supabase) {
+        const mockThoughts = [
+          {
+            id: '1',
+            raw_transcript: 'Um, so I was thinking, like, you know, maybe we should, uh, consider doing this project differently? Like, what if we, um, started with a simpler approach?',
+            cleaned_text: 'I was thinking maybe we should consider doing this project differently. What if we started with a simpler approach?',
+            tags: ['Idea', 'Task'],
+            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: '2',
+            raw_transcript: 'Oh, I need to remember to call Sarah tomorrow. She mentioned something about, um, the meeting? Yeah, the meeting on Friday.',
+            cleaned_text: 'I need to remember to call Sarah tomorrow. She mentioned something about the meeting on Friday.',
+            tags: ['Person', 'Task'],
+            created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: '3',
+            raw_transcript: 'The idea of, like, building a personal knowledge base is really interesting. It could help me, um, organize my thoughts better and, you know, make connections between different concepts.',
+            cleaned_text: 'The idea of building a personal knowledge base is really interesting. It could help me organize my thoughts better and make connections between different concepts.',
+            tags: ['Idea'],
+            created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          },
+        ]
+        setThoughts(mockThoughts)
+        return
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('thoughts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        if (data) {
+          setThoughts(data)
+        }
+      } catch (err) {
+        console.error('Error loading thoughts:', err)
+      }
+    }
+
+    loadThoughts()
+  }, [user])
+
+  const handleDeleteThought = async (thoughtId) => {
+    if (window.confirm('Are you sure you want to delete this thought?')) {
+      if (supabase && user) {
+        try {
+          const { error } = await supabase
+            .from('thoughts')
+            .delete()
+            .eq('id', thoughtId)
+            .eq('user_id', user.id)
+
+          if (error) throw error
+        } catch (err) {
+          console.error('Failed to delete from Supabase:', err)
+        }
+      }
+
+      setThoughts(prev => prev.filter(thought => thought.id !== thoughtId))
+    }
+  }
+
+  const handleRecordStart = () => {
+    setIsRecording(true)
+    startRecording()
+  }
+
+  const handleRecordStop = async () => {
+    try {
+      setIsRecording(false)
+      setLoading(true)
+      const audioBlob = await stopRecording()
+
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error('No audio recorded. Please try again.')
+      }
+
+      // Transcribe
+      let transcript
+      try {
+        const result = await transcribeAudio(audioBlob)
+        transcript = result.transcript
+        if (!transcript || transcript.trim().length === 0) {
+          throw new Error('No speech detected in recording.')
+        }
+      } catch (err) {
+        throw new Error('Failed to transcribe audio. Please check your backend is running and API keys are configured.')
+      }
+
+      // Clean transcript
+      let cleanedText
+      try {
+        cleanedText = await cleanTranscript(transcript)
+        if (!cleanedText || cleanedText.trim().length === 0) {
+          cleanedText = transcript
+        }
+      } catch (err) {
+        console.warn('Cleaning failed, using raw transcript:', err)
+        cleanedText = transcript
+      }
+
+      // Extract tags
+      let tags = []
+      try {
+        tags = await extractTags(cleanedText)
+        if (!Array.isArray(tags)) {
+          tags = []
+        }
+      } catch (err) {
+        console.warn('Tag extraction failed:', err)
+        tags = []
+      }
+
+      // Save to Supabase
+      const newThought = {
+        user_id: user?.id,
+        raw_transcript: transcript,
+        cleaned_text: cleanedText,
+        tags: tags,
+        created_at: new Date().toISOString(),
+      }
+
+      if (supabase && user) {
+        try {
+          const { data, error } = await supabase
+            .from('thoughts')
+            .insert([newThought])
+            .select()
+            .single()
+
+          if (error) throw error
+          setThoughts(prev => [data, ...prev])
+        } catch (err) {
+          console.error('Failed to save to Supabase:', err)
+          const mockThought = {
+            ...newThought,
+            id: Date.now().toString(),
+          }
+          setThoughts(prev => [mockThought, ...prev])
+          throw new Error('Saved locally, but failed to sync to cloud.')
+        }
+      } else {
+        // Dev mode - save locally
+        const mockThought = {
+          ...newThought,
+          id: Date.now().toString(),
+        }
+        setThoughts(prev => [mockThought, ...prev])
+      }
+    } catch (err) {
+      console.error('Error processing recording:', err)
+      const errorMessage = err.message || 'Failed to process recording. Please try again.'
+      alert(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleRecordClick = () => {
-    if (isRecording) {
-      setIsRecording(false)
-      // Navigate to timeline after recording
-      navigate('/timeline')
+    if (isAudioRecording) {
+      handleRecordStop()
     } else {
-      setIsRecording(true)
+      handleRecordStart()
     }
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/welcome', { replace: true })
   }
 
   return (
@@ -59,15 +210,27 @@ export default function HomePage() {
             <span className="text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>Status:</span>
             <div className="flex items-center gap-2">
               <div
-                className={`w-1.5 h-1.5 rounded-full ${isRecording ? "animate-pulse" : ""}`}
+                className={`w-1.5 h-1.5 rounded-full ${isAudioRecording ? "animate-pulse" : ""}`}
                 style={{
-                  backgroundColor: isRecording ? 'var(--ink)' : 'var(--muted-foreground)'
+                  backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--muted-foreground)'
                 }}
               />
               <span className="uppercase tracking-wider" style={{ color: 'var(--ink)' }}>
-                {isRecording ? "Recording" : "Ready"}
+                {isAudioRecording ? "Recording" : "Ready"}
               </span>
             </div>
+            {user && (
+              <button
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-ink transition-colors text-xs font-serif"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
+                aria-label="Sign out"
+              >
+                Sign Out
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -75,35 +238,52 @@ export default function HomePage() {
       {/* Timeline */}
       <main className="flex-1 overflow-y-auto px-6 py-12 pb-40">
         <div className="max-w-2xl mx-auto space-y-6">
-          {thoughts.map((thought) => (
-            <Card
-              key={thought.id}
-              className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 p-6 shadow-none"
-              style={{
-                borderColor: 'var(--stroke)',
-                backgroundColor: 'var(--card)'
+          {recordingError && (
+            <div 
+              className="mb-6 p-4 rounded-xl border text-sm"
+              style={{ 
+                background: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(239, 68, 68, 0.3)',
+                color: 'var(--ink)'
               }}
+              role="alert"
+              aria-live="assertive"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground font-serif" style={{ color: 'var(--muted-foreground)' }}>
-                  <span className="tracking-wide">{thought.timestamp}</span>
-                  <span className="w-px h-3 bg-stroke" style={{ backgroundColor: 'var(--stroke)' }} />
-                  <span className="tracking-wide">{thought.duration}</span>
-                </div>
-                <button 
-                  className="text-muted-foreground hover:text-ink transition-colors"
-                  style={{ color: 'var(--muted-foreground)' }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
+              {recordingError}
+            </div>
+          )}
+          
+          {loading && (
+            <div 
+              className="mb-6 p-4 rounded-xl border text-sm"
+              style={{ 
+                background: 'var(--muted)',
+                borderColor: 'var(--stroke)',
+                color: 'var(--ink)'
+              }}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--ink)' }}></div>
+                <span>Processing your thought...</span>
               </div>
-              <p className="text-base leading-relaxed font-serif text-ink text-pretty" style={{ color: 'var(--ink)' }}>
-                {thought.content}
-              </p>
-            </Card>
-          ))}
+            </div>
+          )}
+
+          {thoughts.length === 0 ? (
+            <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="font-serif">No thoughts yet. Start recording to capture your first thought.</p>
+            </div>
+          ) : (
+            thoughts.map((thought) => (
+              <ThoughtCard
+                key={thought.id}
+                thought={thought}
+                onDelete={handleDeleteThought}
+              />
+            ))
+          )}
         </div>
       </main>
 
@@ -113,25 +293,25 @@ export default function HomePage() {
           <button
             onClick={handleRecordClick}
             className="group relative"
-            aria-label={isRecording ? "Stop recording" : "Start recording"}
+            aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
           >
             {/* Outer ring */}
             <div
               className={`absolute inset-0 rounded-full border-2 transition-all duration-300 ${
-                isRecording
+                isAudioRecording
                   ? "scale-110 animate-pulse"
                   : "group-hover:scale-105"
               }`}
               style={{
-                borderColor: isRecording ? 'var(--ink)' : 'var(--stroke)',
+                borderColor: isAudioRecording ? 'var(--ink)' : 'var(--stroke)',
               }}
               onMouseEnter={(e) => {
-                if (!isRecording) {
+                if (!isAudioRecording) {
                   e.currentTarget.style.borderColor = 'var(--ink)'
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isRecording) {
+                if (!isAudioRecording) {
                   e.currentTarget.style.borderColor = 'var(--stroke)'
                 }
               }}
@@ -140,17 +320,17 @@ export default function HomePage() {
             {/* Main button */}
             <div
               className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
-                isRecording 
+                isAudioRecording 
                   ? "" 
                   : "group-hover:bg-muted/50"
               }`}
               style={{
-                backgroundColor: isRecording ? 'var(--ink)' : 'var(--paper)',
-                color: isRecording ? 'var(--paper)' : 'var(--ink)',
-                borderColor: isRecording ? 'transparent' : 'var(--stroke)',
+                backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--paper)',
+                color: isAudioRecording ? 'var(--paper)' : 'var(--ink)',
+                borderColor: isAudioRecording ? 'transparent' : 'var(--stroke)',
               }}
             >
-              {isRecording ? (
+              {isAudioRecording ? (
                 <Pause className="w-8 h-8" strokeWidth={1.5} />
               ) : (
                 <Mic className="w-8 h-8" strokeWidth={1.5} />
@@ -163,3 +343,183 @@ export default function HomePage() {
   )
 }
 
+// Thought Card Component with View Raw functionality
+function ThoughtCard({ thought, onDelete }) {
+  const [showRaw, setShowRaw] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const menuRef = useRef(null)
+
+  const displayText = showRaw ? (thought.raw_transcript || thought.content) : (thought.cleaned_text || thought.content)
+  const timestamp = thought.created_at 
+    ? new Date(thought.created_at).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : thought.timestamp || ''
+
+  const duration = thought.duration || ''
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showMenu])
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(thought.cleaned_text || thought.content)
+      setCopied(true)
+      setShowMenu(false)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const handleDelete = () => {
+    setShowMenu(false)
+    onDelete(thought.id)
+  }
+
+  return (
+    <Card
+      className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 p-6 shadow-none relative"
+      style={{
+        borderColor: 'var(--stroke)',
+        backgroundColor: 'var(--card)'
+      }}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground font-serif" style={{ color: 'var(--muted-foreground)' }}>
+          <span className="tracking-wide">{timestamp}</span>
+          {duration && (
+            <>
+              <span className="w-px h-3 bg-stroke" style={{ backgroundColor: 'var(--stroke)' }} />
+              <span className="tracking-wide">{duration}</span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {/* View Raw Toggle */}
+          {thought.raw_transcript && thought.raw_transcript !== thought.cleaned_text && (
+            <button
+              onClick={() => setShowRaw(!showRaw)}
+              className="text-xs px-3 py-1.5 rounded-md border transition-colors font-serif"
+              style={{
+                color: 'var(--muted-foreground)',
+                borderColor: 'var(--stroke)',
+                backgroundColor: showRaw ? 'var(--muted)' : 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.borderColor = 'var(--ink)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--muted-foreground)'
+                e.currentTarget.style.borderColor = 'var(--stroke)'
+              }}
+              aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
+            >
+              {showRaw ? 'View Cleaned' : 'View Raw'}
+            </button>
+          )}
+          {/* Overflow Menu Button */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-muted-foreground hover:text-ink transition-colors p-1 rounded-md"
+              style={{ color: 'var(--muted-foreground)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
+              aria-label="More options"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            
+            {/* Dropdown Menu */}
+            {showMenu && (
+              <div
+                className="absolute right-0 top-full mt-1 min-w-[140px] rounded-md border shadow-lg z-10"
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--stroke)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <button
+                  onClick={handleCopy}
+                  className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
+                  style={{
+                    color: 'var(--ink)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--muted)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
+                  style={{
+                    color: 'var(--ink)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--muted)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Tags */}
+      {thought.tags && thought.tags.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {thought.tags.map((tag, index) => (
+            <span
+              key={index}
+              className="text-xs px-2 py-1 rounded-full border font-serif"
+              style={{
+                color: 'var(--muted-foreground)',
+                borderColor: 'var(--stroke)',
+                backgroundColor: 'var(--muted)'
+              }}
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p className="text-base leading-relaxed font-serif text-ink text-pretty" style={{ color: 'var(--ink)' }}>
+        {displayText}
+      </p>
+    </Card>
+  )
+}
