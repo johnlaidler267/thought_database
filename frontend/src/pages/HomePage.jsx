@@ -20,6 +20,7 @@ export default function HomePage() {
   const [hoveredCategory, setHoveredCategory] = useState(null)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
+  const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
@@ -214,6 +215,15 @@ export default function HomePage() {
     localStorage.setItem('axiomCategories', JSON.stringify(categories))
   }, [categories])
 
+  // Cleanup hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current)
+      }
+    }
+  }, [])
+
   // Handle adding a new category
   const handleAddCategory = () => {
     const trimmedName = newCategoryName.trim()
@@ -356,8 +366,24 @@ export default function HomePage() {
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
-              onMouseEnter={() => setHoveredCategory(category)}
-              onMouseLeave={() => setHoveredCategory(null)}
+              onMouseEnter={() => {
+                // Clear any existing timeout
+                if (hoverTimeoutRef.current) {
+                  clearTimeout(hoverTimeoutRef.current)
+                }
+                // Set hovered category after 500ms delay
+                hoverTimeoutRef.current = setTimeout(() => {
+                  setHoveredCategory(category)
+                }, 350)
+              }}
+              onMouseLeave={() => {
+                // Clear timeout if mouse leaves before delay completes
+                if (hoverTimeoutRef.current) {
+                  clearTimeout(hoverTimeoutRef.current)
+                  hoverTimeoutRef.current = null
+                }
+                setHoveredCategory(null)
+              }}
               className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center ${
                 activeCategory === category
                   ? "text-paper"
