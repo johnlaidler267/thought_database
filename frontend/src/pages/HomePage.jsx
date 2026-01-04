@@ -37,6 +37,7 @@ export default function HomePage() {
             raw_transcript: 'Um, so I was thinking, like, you know, maybe we should, uh, consider doing this project differently? Like, what if we, um, started with a simpler approach?',
             cleaned_text: 'I was thinking maybe we should consider doing this project differently. What if we started with a simpler approach?',
             tags: ['Idea', 'Task'],
+            category: null,
             created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           },
           {
@@ -44,6 +45,7 @@ export default function HomePage() {
             raw_transcript: 'Oh, I need to remember to call Sarah tomorrow. She mentioned something about, um, the meeting? Yeah, the meeting on Friday.',
             cleaned_text: 'I need to remember to call Sarah tomorrow. She mentioned something about the meeting on Friday.',
             tags: ['Person', 'Task'],
+            category: null,
             created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
           },
           {
@@ -51,6 +53,7 @@ export default function HomePage() {
             raw_transcript: 'The idea of, like, building a personal knowledge base is really interesting. It could help me, um, organize my thoughts better and, you know, make connections between different concepts.',
             cleaned_text: 'The idea of building a personal knowledge base is really interesting. It could help me organize my thoughts better and make connections between different concepts.',
             tags: ['Idea'],
+            category: null,
             created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
           },
         ]
@@ -154,6 +157,7 @@ export default function HomePage() {
         raw_transcript: transcript,
         cleaned_text: cleanedText,
         tags: tags,
+        category: activeCategory !== 'All' ? activeCategory : null,
         created_at: new Date().toISOString(),
       }
 
@@ -237,9 +241,8 @@ export default function HomePage() {
   const filteredThoughts = thoughts.filter((thought) => {
     // Filter by category (if not "All")
     if (activeCategory !== 'All') {
-      // For now, we'll check if any tag matches the category
-      // In the future, you might want to add a category field to thoughts
-      if (!thought.tags || !thought.tags.includes(activeCategory)) {
+      // Check if thought's category matches the active category
+      if (thought.category !== activeCategory) {
         return false
       }
     }
