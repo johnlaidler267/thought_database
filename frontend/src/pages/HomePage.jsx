@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2 } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
@@ -11,6 +11,7 @@ export default function HomePage() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
@@ -197,6 +198,16 @@ export default function HomePage() {
     navigate('/welcome', { replace: true })
   }
 
+  // Filter thoughts based on search query (by tag)
+  const filteredThoughts = searchQuery
+    ? thoughts.filter((thought) => {
+        if (!thought.tags || thought.tags.length === 0) return false
+        return thought.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      })
+    : thoughts
+
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
@@ -234,6 +245,48 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+
+      {/* Search Bar */}
+      <div className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
+        <div className="max-w-2xl mx-auto">
+          <div className="relative">
+            <Search 
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" 
+              style={{ color: 'var(--muted-foreground)' }}
+            />
+            <input
+              type="text"
+              placeholder="Search by tag..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-card border rounded pl-11 pr-11 py-3 text-sm font-serif placeholder:text-muted-foreground focus:outline-none focus:border-ink transition-colors"
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--stroke)',
+                color: 'var(--ink)'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = 'var(--ink)'
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'var(--stroke)'
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Timeline */}
       <main className="flex-1 overflow-y-auto px-6 py-12 pb-40">
@@ -275,8 +328,12 @@ export default function HomePage() {
             <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
               <p className="font-serif">No thoughts yet. Start recording to capture your first thought.</p>
             </div>
+          ) : filteredThoughts.length === 0 ? (
+            <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="font-serif">No thoughts found matching "{searchQuery}".</p>
+            </div>
           ) : (
-            thoughts.map((thought) => (
+            filteredThoughts.map((thought) => (
               <ThoughtCard
                 key={thought.id}
                 thought={thought}
