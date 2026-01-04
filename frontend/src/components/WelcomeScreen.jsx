@@ -70,10 +70,10 @@ export default function WelcomeScreen() {
     <div className="min-h-screen flex items-center justify-center px-8" style={{ background: 'var(--paper)' }}>
       <div className="max-w-md w-full text-center">
         {/* Title */}
-        <h1 className="text-5xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
+        <h1 className="text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
           Axiom
         </h1>
-        <p className="text-lg font-serif mb-12" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="text-xl font-serif mb-12" style={{ color: 'var(--muted-foreground)' }}>
           Never waste a good thought
         </p>
 
