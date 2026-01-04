@@ -559,29 +559,29 @@ function ThoughtCard({ thought, onDelete }) {
           </div>
         </div>
       </div>
+
+      <p className="text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
+        {displayText}
+      </p>
       
       {/* Tags */}
       {thought.tags && thought.tags.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {thought.tags.map((tag, index) => (
+        <div className="flex flex-wrap gap-2">
+          {thought.tags.map((tag) => (
             <span
-              key={index}
-              className="text-xs px-2 py-1 rounded-full border font-serif"
+              key={tag}
+              className="px-2 py-1 text-xs font-serif border border-stroke rounded bg-muted/50 text-muted-foreground"
               style={{
-                color: 'var(--muted-foreground)',
                 borderColor: 'var(--stroke)',
-                backgroundColor: 'var(--muted)'
+                backgroundColor: 'var(--muted)',
+                color: 'var(--muted-foreground)'
               }}
             >
-              #{tag}
+              {tag}
             </span>
           ))}
         </div>
       )}
-
-      <p className="text-base leading-relaxed font-serif text-ink text-pretty" style={{ color: 'var(--ink)' }}>
-        {displayText}
-      </p>
     </Card>
   )
 }
