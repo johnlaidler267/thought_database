@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import RecordButton from '../components/RecordButton'
 import ThoughtTimeline from '../components/ThoughtTimeline'
 import EditableTitle from '../components/EditableTitle'
@@ -8,7 +9,8 @@ import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 
 export default function TimelinePage() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
   const [loading, setLoading] = useState(false)
   const { isRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
