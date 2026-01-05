@@ -247,7 +247,7 @@ export default function HomePage() {
     }
   }
 
-  // Filter thoughts based on search query (by tag) and active category
+  // Filter thoughts based on search query (by tag and content) and active category
   const filteredThoughts = thoughts.filter((thought) => {
     // Filter by category (if not "All")
     if (activeCategory !== 'All') {
@@ -257,12 +257,25 @@ export default function HomePage() {
       }
     }
 
-    // Filter by search query (by tag)
+    // Filter by search query (by tag and content)
     if (searchQuery) {
-      if (!thought.tags || thought.tags.length === 0) return false
-      return thought.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      const query = searchQuery.toLowerCase()
+      
+      // Search in tags
+      const matchesTag = thought.tags && thought.tags.some((tag) =>
+        tag.toLowerCase().includes(query)
       )
+      
+      // Search in cleaned text
+      const matchesCleanedText = thought.cleaned_text && 
+        thought.cleaned_text.toLowerCase().includes(query)
+      
+      // Search in raw transcript
+      const matchesRawText = thought.raw_transcript && 
+        thought.raw_transcript.toLowerCase().includes(query)
+      
+      // Return true if any of these match
+      return matchesTag || matchesCleanedText || matchesRawText
     }
 
     return true
