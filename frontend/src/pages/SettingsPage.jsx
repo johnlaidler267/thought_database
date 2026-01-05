@@ -1,32 +1,177 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { Eye, EyeOff, Copy, Check, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { supabase } from '../services/supabase'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 export default function SettingsPage() {
-  const { user, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const { isDark, toggleDarkMode } = useTheme()
   const navigate = useNavigate()
-  const [apiKeyVisible, setApiKeyVisible] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const handleCopyApiKey = async () => {
-    try {
-      // Example placeholder - replace with actual API key from your backend
-      await navigator.clipboard.writeText("sk_live_EXAMPLE_PLACEHOLDER_REPLACE_WITH_REAL_KEY")
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
+  const [customerId, setCustomerId] = useState(null)
+  const [openaiApiKey, setOpenaiApiKey] = useState('')
+  const [savingKey, setSavingKey] = useState(false)
+  
+  // Determine user tier
+  const getTier = () => {
+    if (!profile) return 'trial'
+    
+    // Check for Sovereign mode (has OpenAI API key)
+    if (profile.openai_api_key) {
+      return 'sovereign'
     }
+    
+    // Check subscription tier from profile
+    if (profile.tier === 'apprentice' || profile.tier === 'pro') {
+      return profile.tier
+    }
+    
+    // Default to trial
+    return 'trial'
   }
+  
+  const tier = getTier()
+  const hasStripeSubscription = profile?.stripe_subscription_id || false
 
   const handleLogOut = async () => {
     await signOut()
     navigate('/welcome', { replace: true })
+  }
+
+  // Load OpenAI API key and customer ID on mount
+  useEffect(() => {
+    if (profile) {
+      setOpenaiApiKey(profile.openai_api_key || '')
+      setCustomerId(profile.stripe_customer_id || null)
+    }
+  }, [profile])
+
+  // Handle Subscribe/Upgrade button click
+  const handleSubscribe = async (targetTier = 'pro') => {
+    if (!user?.id || !user?.email) {
+      console.error('User ID or email not available')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          tier: targetTier,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session')
+      }
+
+      const data = await response.json()
+      
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error)
+      alert('Failed to start checkout. Please try again.')
+    }
+  }
+  
+  // Handle saving OpenAI API key
+  const handleSaveOpenAIKey = async () => {
+    if (!user?.id || !supabase) {
+      console.error('User ID or Supabase not available')
+      return
+    }
+    
+    setSavingKey(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          openai_api_key: openaiApiKey,
+          tier: openaiApiKey ? 'sovereign' : 'trial'
+        })
+        .eq('id', user.id)
+      
+      if (error) throw error
+      
+      // Reload profile
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      
+      if (data) {
+        // Refresh profile in context
+        await refreshProfile()
+      }
+    } catch (error) {
+      console.error('Error saving API key:', error)
+      alert('Failed to save API key. Please try again.')
+    } finally {
+      setSavingKey(false)
+    }
+  }
+
+  // Handle Manage Billing button click
+  const handleManageBilling = async () => {
+    const customerIdToUse = customerId || profile?.stripe_customer_id
+    
+    if (!customerIdToUse) {
+      console.error('Customer ID not available')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/stripe/create-portal-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: customerIdToUse,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create portal session')
+      }
+
+      const data = await response.json()
+      
+      // Redirect to Stripe Customer Portal
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (error) {
+      console.error('Error creating portal session:', error)
+      alert('Failed to open billing portal. Please try again.')
+    }
+  }
+  
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return null
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+  
+  // Calculate usage percentage
+  const getUsagePercentage = (used, total) => {
+    if (!total || total === 0) return 0
+    return Math.min((used / total) * 100, 100)
   }
 
   return (
@@ -50,50 +195,6 @@ export default function SettingsPage() {
 
       <main className="flex-1 overflow-y-auto px-6 py-12">
         <div className="max-w-2xl mx-auto space-y-8">
-          {/* API Key Section */}
-          <Card 
-            className="border-stroke bg-card p-6 shadow-none"
-            style={{
-              borderColor: 'var(--stroke)',
-              backgroundColor: 'var(--card)'
-            }}
-          >
-            <h2 className="text-sm font-serif tracking-wide mb-4 uppercase" style={{ color: 'var(--ink)' }}>API Key</h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div 
-                  className="flex-1 border rounded px-4 py-3 font-mono text-sm"
-                  style={{
-                    backgroundColor: 'var(--muted)',
-                    borderColor: 'var(--stroke)',
-                    color: 'var(--ink)'
-                  }}
-                >
-                  {apiKeyVisible ? "sk_live_EXAMPLE_PLACEHOLDER_REPLACE_WITH_REAL_KEY" : "••••••••••••••••••••••••••••••••"}
-                </div>
-                <Button
-                  onClick={() => setApiKeyVisible(!apiKeyVisible)}
-                  variant="outline"
-                  size="icon"
-                  className="border-stroke hover:bg-muted"
-                >
-                  {apiKeyVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-                <Button
-                  onClick={handleCopyApiKey}
-                  variant="outline"
-                  size="icon"
-                  className="border-stroke hover:bg-muted bg-transparent"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
-              <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
-                Use this key to access the Axiom API from your applications
-              </p>
-            </div>
-          </Card>
-
           {/* Subscription Section */}
           <Card 
             className="border-stroke bg-card p-6 shadow-none"
@@ -104,35 +205,156 @@ export default function SettingsPage() {
           >
             <h2 className="text-sm font-serif tracking-wide mb-4 uppercase" style={{ color: 'var(--ink)' }}>Subscription</h2>
             <div className="space-y-4">
+              {/* Tier Display */}
               <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: 'var(--stroke)' }}>
                 <div>
-                  <p className="text-base font-serif" style={{ color: 'var(--ink)' }}>Current Plan</p>
-                  <p className="text-xs font-serif mt-1" style={{ color: 'var(--muted-foreground)' }}>Billed monthly</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-base font-serif" style={{ color: 'var(--ink)' }}>Professional</p>
-                  <p className="text-xs font-serif mt-1" style={{ color: 'var(--muted-foreground)' }}>$29/month</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-serif">
-                  <span style={{ color: 'var(--muted-foreground)' }}>Notes this month</span>
-                  <span style={{ color: 'var(--ink)' }}>347 / Unlimited</span>
-                </div>
-                <div className="flex justify-between text-sm font-serif">
-                  <span style={{ color: 'var(--muted-foreground)' }}>Storage used</span>
-                  <span style={{ color: 'var(--ink)' }}>2.4 GB / 50 GB</span>
-                </div>
-                <div className="flex justify-between text-sm font-serif">
-                  <span style={{ color: 'var(--muted-foreground)' }}>Next billing date</span>
-                  <span style={{ color: 'var(--ink)' }}>Feb 15, 2026</span>
+                  <p className="text-base font-serif" style={{ color: 'var(--ink)' }}>
+                    {tier === 'trial' && 'Free Trial'}
+                    {tier === 'sovereign' && 'Sovereign Mode'}
+                    {tier === 'apprentice' && 'Apprentice Tier'}
+                    {tier === 'pro' && 'Notary Pro'}
+                  </p>
+                  {tier === 'apprentice' && (
+                    <p className="text-xs font-serif mt-1" style={{ color: 'var(--muted-foreground)' }}>$5/month</p>
+                  )}
+                  {tier === 'pro' && (
+                    <p className="text-xs font-serif mt-1" style={{ color: 'var(--muted-foreground)' }}>$12/month</p>
+                  )}
                 </div>
               </div>
+              
+              {/* Usage Display */}
+              <div className="space-y-3">
+                {tier === 'trial' && (
+                  <>
+                    <div className="flex justify-between text-sm font-serif">
+                      <span style={{ color: 'var(--muted-foreground)' }}>Credits used</span>
+                      <span style={{ color: 'var(--ink)' }}>
+                        {profile?.credits_used || 0} / 20
+                      </span>
+                    </div>
+                    {/* Usage Bar */}
+                    <div className="w-full h-1 rounded-full" style={{ backgroundColor: 'var(--muted)' }}>
+                      <div 
+                        className="h-full rounded-full transition-all"
+                        style={{ 
+                          width: `${getUsagePercentage(profile?.credits_used || 0, 20)}%`,
+                          backgroundColor: 'var(--ink)'
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+                
+                {tier === 'sovereign' && (
+                  <div className="flex justify-between text-sm font-serif">
+                    <span style={{ color: 'var(--muted-foreground)' }}>API Key</span>
+                    <span style={{ color: 'var(--ink)' }} className="font-mono">
+                      {profile?.openai_api_key ? `sk-...${profile.openai_api_key.slice(-4)}` : 'Not set'}
+                    </span>
+                  </div>
+                )}
+                
+                {tier === 'apprentice' && (
+                  <>
+                    <div className="flex justify-between text-sm font-serif">
+                      <span style={{ color: 'var(--muted-foreground)' }}>Minutes used this month</span>
+                      <span style={{ color: 'var(--ink)' }}>
+                        {profile?.minutes_used || 0} / 300
+                      </span>
+                    </div>
+                    {/* Usage Bar */}
+                    <div className="w-full h-1 rounded-full" style={{ backgroundColor: 'var(--muted)' }}>
+                      <div 
+                        className="h-full rounded-full transition-all"
+                        style={{ 
+                          width: `${getUsagePercentage(profile?.minutes_used || 0, 300)}%`,
+                          backgroundColor: 'var(--ink)'
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+                
+                {tier === 'pro' && (
+                  <div className="flex justify-between text-sm font-serif">
+                    <span style={{ color: 'var(--muted-foreground)' }}>Notarizations</span>
+                    <span style={{ color: 'var(--ink)' }}>Unlimited</span>
+                  </div>
+                )}
+                
+                {/* Next Billing Date (for paid subscriptions) */}
+                {(tier === 'apprentice' || tier === 'pro') && profile?.next_billing_date && (
+                  <div className="flex justify-between text-sm font-serif">
+                    <span style={{ color: 'var(--muted-foreground)' }}>Next billing date</span>
+                    <span style={{ color: 'var(--ink)' }}>
+                      {formatDate(profile.next_billing_date)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* OpenAI API Key Input (for Sovereign mode or when not in Sovereign) */}
+              {(tier === 'sovereign' || tier === 'trial') && (
+                <div className="pt-2 space-y-2">
+                  <label className="text-xs font-serif uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+                    OpenAI API Key
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={openaiApiKey}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="flex-1 border rounded px-4 py-2 text-sm font-mono"
+                      style={{
+                        backgroundColor: 'var(--muted)',
+                        borderColor: 'var(--stroke)',
+                        color: 'var(--ink)'
+                      }}
+                    />
+                    <Button
+                      onClick={handleSaveOpenAIKey}
+                      variant="outline"
+                      className="border-stroke hover:bg-muted font-serif text-sm bg-transparent"
+                      disabled={savingKey}
+                    >
+                      {savingKey ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                  {tier === 'trial' && (
+                    <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+                      Enter your OpenAI API key to enable Sovereign Mode
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              {/* Action Button */}
               <Button
                 variant="outline"
+                onClick={() => {
+                  if (hasStripeSubscription) {
+                    handleManageBilling()
+                  } else if (tier === 'trial') {
+                    handleSubscribe('pro')
+                  } else if (tier === 'sovereign' && hasStripeSubscription) {
+                    handleManageBilling()
+                  }
+                }}
                 className="w-full border-stroke hover:bg-muted font-serif text-sm mt-4 bg-transparent"
+                disabled={tier === 'sovereign' && !hasStripeSubscription}
               >
-                Cancel Subscription
+                {hasStripeSubscription 
+                  ? 'Manage Billing'
+                  : tier === 'trial'
+                  ? 'Upgrade to Pro'
+                  : tier === 'sovereign'
+                  ? 'Manage Subscription'
+                  : tier === 'apprentice' || tier === 'pro'
+                  ? 'Manage Billing'
+                  : 'Subscribe'
+                }
               </Button>
             </div>
           </Card>

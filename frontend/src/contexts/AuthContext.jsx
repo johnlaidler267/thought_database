@@ -166,6 +166,12 @@ export const AuthProvider = ({ children }) => {
     setProfile(null)
   }
 
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await loadProfile(user.id)
+    }
+  }
+
   const value = {
     user,
     profile,
@@ -174,6 +180,7 @@ export const AuthProvider = ({ children }) => {
     signInWithGoogle,
     signInWithEmail,
     signOut,
+    refreshProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import transcribeRouter from './routes/transcribe.js'
 import cleanRouter from './routes/clean.js'
 import tagsRouter from './routes/tags.js'
+import stripeRouter from './routes/stripe.js'
 
 dotenv.config()
 
@@ -18,6 +19,7 @@ app.use(express.json())
 app.use('/api/transcribe', transcribeRouter)
 app.use('/api/clean', cleanRouter)
 app.use('/api/tags', tagsRouter)
+app.use('/api/stripe', stripeRouter)
 
 // Health check
 app.get('/api/health', (req, res) => {
