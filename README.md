@@ -16,7 +16,7 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 - **Frontend**: Vite + React + Tailwind CSS
 - **Backend**: Node.js + Express
 - **Storage**: Supabase
-- **APIs**: OpenAI Whisper (transcription), Anthropic Claude (cleaning & tagging)
+- **APIs**: Local Whisper (transcription - free, runs locally), Anthropic Claude (cleaning & tagging)
 
 ## Setup
 
@@ -25,8 +25,8 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 - Node.js (v18 or higher) - Required for File API support in backend
 - npm or yarn
 - Supabase account
-- OpenAI API key (for Whisper transcription)
 - Anthropic API key (for Claude cleaning and tagging)
+- **Note**: Whisper transcription now runs locally (free, no API key needed!)
 
 ### Frontend Setup
 
@@ -77,9 +77,10 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 4. Fill in your environment variables:
    ```
    PORT=3001
-   OPENAI_API_KEY=your_openai_api_key
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
+   
+   **Note**: No OpenAI API key needed! Whisper now runs locally for free.
 
 5. Start the server:
    ```bash
