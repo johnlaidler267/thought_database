@@ -4,6 +4,7 @@ nodemodules# =====================
 node_modules/
 backend/node_modules/
 bower_components/
+.bin/
 
 # =====================
 # Build / Output
