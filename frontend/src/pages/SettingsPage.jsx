@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { ArrowLeft } from 'lucide-react'
@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { isDark, toggleDarkMode } = useTheme()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [customerId, setCustomerId] = useState(null)
   const [openaiApiKey, setOpenaiApiKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
@@ -42,6 +43,37 @@ export default function SettingsPage() {
     await signOut()
     navigate('/welcome', { replace: true })
   }
+
+  // Handle checkout success - verify session when returning from Stripe
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id')
+    if (sessionId && user?.id) {
+      const verifySession = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/stripe/verify-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          })
+
+          if (response.ok) {
+            // Remove session_id from URL
+            searchParams.delete('session_id')
+            setSearchParams(searchParams, { replace: true })
+            
+            // Refresh profile to get updated subscription status
+            await refreshProfile()
+          }
+        } catch (error) {
+          console.error('Error verifying session:', error)
+        }
+      }
+
+      verifySession()
+    }
+  }, [searchParams, user, refreshProfile, setSearchParams])
 
   // Load OpenAI API key and customer ID on mount
   useEffect(() => {
@@ -340,20 +372,21 @@ export default function SettingsPage() {
                     handleSubscribe('pro')
                   } else if (tier === 'sovereign' && hasStripeSubscription) {
                     handleManageBilling()
+                  } else if (tier === 'apprentice' || tier === 'pro') {
+                    // If they have a tier but no subscription ID, they might need to re-subscribe
+                    handleManageBilling()
                   }
                 }}
                 className="w-full border-stroke hover:bg-muted font-serif text-sm mt-4 bg-transparent"
                 disabled={tier === 'sovereign' && !hasStripeSubscription}
               >
                 {hasStripeSubscription 
-                  ? 'Manage Billing'
+                  ? 'Manage Subscription'
                   : tier === 'trial'
                   ? 'Upgrade to Pro'
                   : tier === 'sovereign'
                   ? 'Manage Subscription'
-                  : tier === 'apprentice' || tier === 'pro'
-                  ? 'Manage Billing'
-                  : 'Subscribe'
+                  : 'Upgrade to Pro'
                 }
               </Button>
             </div>

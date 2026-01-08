@@ -1,10 +1,16 @@
 import express from 'express'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 const router = express.Router()
 
 // Initialize Stripe (will be undefined if STRIPE_SECRET_KEY is not set)
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
+
+// Initialize Supabase client for backend operations
+const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null
 
 // Create Stripe Checkout Session
 router.post('/create-checkout-session', async (req, res) => {
@@ -17,6 +23,37 @@ router.post('/create-checkout-session', async (req, res) => {
 
     if (!userId || !email) {
       return res.status(400).json({ error: 'userId and email are required' })
+    }
+
+    // Check if user already has a Stripe customer ID
+    let customerId = null
+    if (supabase) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', userId)
+        .single()
+      
+      customerId = profile?.stripe_customer_id || null
+    }
+
+    // If no customer ID exists, create a new Stripe customer
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: email,
+        metadata: {
+          userId: userId,
+        },
+      })
+      customerId = customer.id
+
+      // Save customer ID to database
+      if (supabase) {
+        await supabase
+          .from('profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', userId)
+      }
     }
 
     // Determine price based on tier (default to 'pro' for "Upgrade to Pro" button)
@@ -35,6 +72,7 @@ router.post('/create-checkout-session', async (req, res) => {
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      customer: customerId,
       line_items: [
         {
           price_data: {
@@ -54,7 +92,6 @@ router.post('/create-checkout-session', async (req, res) => {
       mode: 'subscription',
       success_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173'}/settings?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173'}/settings`,
-      customer_email: email,
       metadata: {
         userId: userId,
         tier: tier || 'pro',
@@ -101,29 +138,111 @@ router.get('/subscription-status/:userId', async (req, res) => {
     return res.json({ 
       hasSubscription: false,
       customerId: null,
-      subscriptionId: null
+      subscriptionId: null,
+      tier: null
     })
   }
 
   try {
     const { userId } = req.params
 
-    // In a real implementation, you would:
-    // 1. Look up the Stripe customer ID from your database using userId
-    // 2. Check if they have an active subscription
-    // For now, this is a placeholder that returns false
-    
-    // TODO: Implement database lookup for customerId based on userId
-    // const customerId = await getCustomerIdFromDatabase(userId)
-    // const subscriptions = await stripe.subscriptions.list({ customer: customerId, status: 'active' })
-    
+    // Look up the Stripe customer ID from database
+    let customerId = null
+    let subscriptionId = null
+    let tier = null
+
+    if (supabase) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('stripe_customer_id, stripe_subscription_id, tier')
+        .eq('id', userId)
+        .single()
+      
+      if (profile) {
+        customerId = profile.stripe_customer_id
+        subscriptionId = profile.stripe_subscription_id
+        tier = profile.tier
+      }
+    }
+
+    // If we have a customer ID, verify subscription status with Stripe
+    let hasSubscription = false
+    if (customerId && subscriptionId) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        hasSubscription = subscription.status === 'active' || subscription.status === 'trialing'
+      } catch (error) {
+        // Subscription might not exist in Stripe, treat as no subscription
+        console.error('Error retrieving subscription:', error)
+      }
+    }
+
     res.json({ 
-      hasSubscription: false,
-      customerId: null,
-      subscriptionId: null
+      hasSubscription,
+      customerId,
+      subscriptionId,
+      tier
     })
   } catch (error) {
     console.error('Error checking subscription status:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Verify checkout session (called after successful checkout)
+router.post('/verify-session', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured' })
+  }
+
+  try {
+    const { sessionId } = req.body
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' })
+    }
+
+    // Retrieve the checkout session
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['subscription', 'customer'],
+    })
+
+    if (session.payment_status === 'paid' && session.mode === 'subscription') {
+      const userId = session.metadata?.userId
+      const customerId = session.customer
+      const subscriptionId = session.subscription
+
+      if (userId && customerId && subscriptionId && supabase) {
+        // Get subscription details to determine tier and billing date
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const tier = session.metadata?.tier || 'pro'
+        const nextBillingDate = new Date(subscription.current_period_end * 1000).toISOString()
+
+        // Update user profile in database
+        await supabase
+          .from('profiles')
+          .update({
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+            tier: tier,
+            next_billing_date: nextBillingDate,
+          })
+          .eq('id', userId)
+
+        res.json({ 
+          success: true,
+          tier,
+          customerId,
+          subscriptionId
+        })
+      } else {
+        res.status(400).json({ error: 'Missing required session data' })
+      }
+    } else {
+      res.status(400).json({ error: 'Session not paid or not a subscription' })
+    }
+  } catch (error) {
+    console.error('Error verifying session:', error)
     res.status(500).json({ error: error.message })
   }
 })

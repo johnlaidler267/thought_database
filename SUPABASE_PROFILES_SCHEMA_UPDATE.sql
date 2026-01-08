@@ -1,4 +1,6 @@
 -- Update profiles table to support subscription tiers and usage tracking
+-- IMPORTANT: Run this AFTER SUPABASE_SCHEMA.sql and SUPABASE_PROFILES_SCHEMA.sql
+-- Or use SUPABASE_COMPLETE_SETUP.sql which includes everything in the correct order
 -- Run this SQL in your Supabase SQL editor
 
 -- Add new columns to profiles table

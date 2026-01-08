@@ -1,5 +1,6 @@
 -- Profiles table for Thought Notary
--- Run this SQL in your Supabase SQL editor
+-- IMPORTANT: Run SUPABASE_SCHEMA.sql FIRST to create the thoughts table
+-- Run this SQL in your Supabase SQL editor AFTER running SUPABASE_SCHEMA.sql
 
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
