@@ -55,22 +55,43 @@ async function convertAudioToRaw(audioBuffer, mimeType) {
         .audioCodec('pcm_s16le') // 16-bit PCM
         .format('s16le')
         .output(outputPath)
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine)
+        })
+        .on('progress', (progress) => {
+          console.log('FFmpeg progress:', progress.percent + '%')
+        })
         .on('end', () => {
+          console.log('FFmpeg conversion completed')
           try {
             // Read the raw audio data
             const rawAudioData = fs.readFileSync(outputPath)
+            
+            console.log(`FFmpeg output file size: ${rawAudioData.length} bytes`)
             
             if (rawAudioData.length === 0) {
               throw new Error('FFmpeg produced empty audio file')
             }
             
-            // Convert to Float32Array (normalized to -1.0 to 1.0)
-            const samples = new Float32Array(rawAudioData.length / 2)
-            const int16Array = new Int16Array(rawAudioData.buffer, rawAudioData.byteOffset, rawAudioData.length / 2)
-            
-            for (let i = 0; i < samples.length; i++) {
-              samples[i] = int16Array[i] / 32768.0
+            if (rawAudioData.length < 100) {
+              console.warn(`Warning: FFmpeg output is very small (${rawAudioData.length} bytes)`)
             }
+            
+            // Convert to Float32Array (normalized to -1.0 to 1.0)
+            // Use Buffer's readInt16LE method for proper little-endian conversion
+            const sampleCount = rawAudioData.length / 2
+            const samples = new Float32Array(sampleCount)
+            
+            // Read 16-bit little-endian signed integers and normalize
+            for (let i = 0; i < sampleCount; i++) {
+              const int16Value = rawAudioData.readInt16LE(i * 2)
+              // Normalize to -1.0 to 1.0
+              samples[i] = int16Value / 32768.0
+            }
+            
+            // Check a sample of the converted audio
+            const sampleMax = Math.max(...Array.from(samples.slice(0, Math.min(1000, samples.length)).map(s => Math.abs(s))))
+            console.log(`Converted audio: ${samples.length} samples, sample max amplitude: ${sampleMax.toFixed(6)}`)
             
             // Clean up temp files
             fs.unlinkSync(inputPath)
@@ -110,51 +131,57 @@ router.post('/', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' })
     }
 
+    if (!req.file.buffer || req.file.buffer.length === 0) {
+      return res.status(400).json({ error: 'Audio file is empty' })
+    }
+
+    console.log(`Received audio: ${req.file.buffer.length} bytes, type: ${req.file.mimetype}`)
+
     // Get the transcriber (loads model on first use)
     const model = await getTranscriber()
 
     // Convert audio buffer to raw format
     const audioData = await convertAudioToRaw(req.file.buffer, req.file.mimetype)
-
-    // Check if audio has content (not all zeros/silence)
-    const hasAudio = audioData.raw.some(sample => Math.abs(sample) > 0.001)
     
-    if (!hasAudio) {
+    if (!audioData || !audioData.raw || audioData.raw.length === 0) {
+      return res.status(500).json({ 
+        error: 'Failed to process audio file',
+        details: 'Audio conversion produced no data'
+      })
+    }
+
+    // Log audio info for debugging
+    console.log(`Audio samples: ${audioData.raw.length}, Sample rate: ${audioData.sampling_rate}`)
+    
+    // Check if audio has any significant content (very lenient check)
+    // We'll let Whisper handle actual silence detection since it's better at it
+    const sampleCount = Math.min(10000, audioData.raw.length) // Check up to 10000 samples
+    const maxAmplitude = Math.max(...audioData.raw.slice(0, sampleCount).map(s => Math.abs(s)))
+    const avgAmplitude = audioData.raw.slice(0, sampleCount).reduce((sum, s) => sum + Math.abs(s), 0) / sampleCount
+    
+    console.log(`Audio stats - Max amplitude: ${maxAmplitude.toFixed(6)}, Avg amplitude: ${avgAmplitude.toFixed(6)}`)
+    
+    // Only reject if audio is completely flat (all zeros or near-zero)
+    // Very lenient threshold - let Whisper handle actual silence
+    if (maxAmplitude < 0.00001 && avgAmplitude < 0.000001) {
+      console.log(`Audio appears completely silent (max: ${maxAmplitude}, avg: ${avgAmplitude})`)
       return res.status(400).json({ 
-        error: 'Audio appears to be silent or empty',
+        error: 'Audio appears to be completely silent',
         details: 'Please ensure your microphone is working and you are speaking'
       })
     }
     
-    // Transcribe audio - try different formats for compatibility
+    // Transcribe audio - pass Float32Array directly (this is what the model expects)
     let result
-    let lastError = null
-    
-    // Try 1: Object format with minimal options
     try {
-      result = await model(audioData, {
+      // The model expects a Float32Array, not an object
+      result = await model(audioData.raw, {
         return_timestamps: false,
+        chunk_length_s: 30, // Process in 30-second chunks
       })
     } catch (err) {
-      lastError = err
-      // Try 2: Float32Array directly
-      try {
-        result = await model(audioData.raw, {
-          return_timestamps: false,
-        })
-      } catch (err2) {
-        lastError = err2
-        // Try 3: Float32Array with explicit sampling_rate
-        result = await model(audioData.raw, {
-          return_timestamps: false,
-          sampling_rate: 16000,
-        })
-      }
-    }
-    
-    // If all failed, throw the last error
-    if (!result && lastError) {
-      throw lastError
+      console.error('Transcription failed:', err.message)
+      throw new Error(`Transcription failed: ${err.message}`)
     }
     
     // Extract text from result
@@ -170,9 +197,10 @@ router.post('/', upload.single('audio'), async (req, res) => {
     res.json({ transcript: transcriptText })
   } catch (error) {
     console.error('Transcription error:', error)
-    res.status(500).json({ 
-      error: 'Failed to transcribe audio',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    const statusCode = error.message?.includes('silent') || error.message?.includes('empty') ? 400 : 500
+    res.status(statusCode).json({ 
+      error: error.message || 'Failed to transcribe audio',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 })

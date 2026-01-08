@@ -12,15 +12,25 @@ export async function transcribeAudio(audioBlob) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || 'Transcription failed')
+      const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: Transcription failed`
+      throw new Error(errorMessage)
     }
 
-    return response.json()
+    const data = await response.json()
+    if (!data.transcript) {
+      throw new Error('No transcript returned from server')
+    }
+    return data
   } catch (err) {
-    if (err.message) {
+    // Re-throw if it's already an Error with a message
+    if (err instanceof Error && err.message) {
       throw err
     }
-    throw new Error('Failed to connect to transcription service. Please check your backend is running.')
+    // Handle network errors
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error('Failed to connect to backend. Please ensure the server is running on ' + API_URL)
+    }
+    throw new Error('Failed to transcribe audio: ' + (err.message || 'Unknown error'))
   }
 }
 

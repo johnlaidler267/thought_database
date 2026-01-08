@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
@@ -23,6 +23,9 @@ export default function HomePage() {
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [draftTranscript, setDraftTranscript] = useState('')
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false)
+  const transcriptTextareaRef = useRef(null)
   const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
 
   // Load thoughts from Supabase on mount
@@ -125,19 +128,54 @@ export default function HomePage() {
           throw new Error('No speech detected in recording.')
         }
       } catch (err) {
-        throw new Error('Failed to transcribe audio. Please check your backend is running and API keys are configured.')
+        console.error('Transcription error:', err)
+        const errorMessage = err.message || 'Failed to transcribe audio'
+        throw new Error(`Transcription failed: ${errorMessage}. Please ensure your backend is running.`)
       }
+
+      // Show transcript in editable textbox
+      setDraftTranscript(transcript)
+      setIsEditingTranscript(true)
+      setLoading(false)
+      
+      // Focus textarea after a brief delay to ensure it's rendered
+      setTimeout(() => {
+        if (transcriptTextareaRef.current) {
+          transcriptTextareaRef.current.focus()
+          // Move cursor to end
+          transcriptTextareaRef.current.setSelectionRange(
+            transcriptTextareaRef.current.value.length,
+            transcriptTextareaRef.current.value.length
+          )
+        }
+      }, 100)
+    } catch (err) {
+      console.error('Error processing recording:', err)
+      const errorMessage = err.message || 'Failed to process recording. Please try again.'
+      alert(errorMessage)
+      setLoading(false)
+    }
+  }
+
+  const handleSubmitTranscript = async () => {
+    if (!draftTranscript.trim()) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      const editedTranscript = draftTranscript.trim()
 
       // Clean transcript
       let cleanedText
       try {
-        cleanedText = await cleanTranscript(transcript)
+        cleanedText = await cleanTranscript(editedTranscript)
         if (!cleanedText || cleanedText.trim().length === 0) {
-          cleanedText = transcript
+          cleanedText = editedTranscript
         }
       } catch (err) {
-        console.warn('Cleaning failed, using raw transcript:', err)
-        cleanedText = transcript
+        console.warn('Cleaning failed, using edited transcript:', err)
+        cleanedText = editedTranscript
       }
 
       // Extract tags
@@ -155,7 +193,7 @@ export default function HomePage() {
       // Save to Supabase
       const newThought = {
         user_id: user?.id,
-        raw_transcript: transcript,
+        raw_transcript: editedTranscript,
         cleaned_text: cleanedText,
         tags: tags,
         category: activeCategory !== 'All' ? activeCategory : null,
@@ -189,13 +227,22 @@ export default function HomePage() {
         }
         setThoughts(prev => [mockThought, ...prev])
       }
+
+      // Clear draft and close editor
+      setDraftTranscript('')
+      setIsEditingTranscript(false)
     } catch (err) {
-      console.error('Error processing recording:', err)
-      const errorMessage = err.message || 'Failed to process recording. Please try again.'
+      console.error('Error saving thought:', err)
+      const errorMessage = err.message || 'Failed to save thought. Please try again.'
       alert(errorMessage)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCancelEdit = () => {
+    setDraftTranscript('')
+    setIsEditingTranscript(false)
   }
 
   const handleRecordClick = () => {
@@ -531,7 +578,9 @@ export default function HomePage() {
       </div>
 
       {/* Timeline */}
-      <main className="flex-1 overflow-y-auto px-6 pt-6 pb-40">
+      <main className={`flex-1 overflow-y-auto px-6 pt-6 transition-all duration-300 ${
+        isEditingTranscript ? 'pb-80' : 'pb-40'
+      }`}>
         <div className="max-w-2xl mx-auto space-y-6">
           {recordingError && (
             <div 
@@ -588,13 +637,127 @@ export default function HomePage() {
         </div>
       </main>
 
+      {/* Transcript Editor - Fixed at bottom */}
+      {isEditingTranscript && (
+        <div 
+          className="fixed bottom-0 left-0 right-0 z-50 border-t transition-all duration-300 ease-out"
+          style={{ 
+            borderColor: 'var(--stroke)',
+            backgroundColor: 'var(--paper)',
+            boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <div className="max-w-2xl mx-auto px-6 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <label 
+                  className="block text-xs font-serif mb-2 tracking-wide uppercase"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  Edit Transcript
+                </label>
+                <textarea
+                  ref={transcriptTextareaRef}
+                  value={draftTranscript}
+                  onChange={(e) => setDraftTranscript(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Submit on Cmd/Ctrl + Enter
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault()
+                      handleSubmitTranscript()
+                    }
+                    // Cancel on Escape
+                    if (e.key === 'Escape') {
+                      handleCancelEdit()
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-lg border resize-none font-serif text-base leading-relaxed focus:outline-none transition-colors"
+                  style={{
+                    backgroundColor: 'var(--card)',
+                    borderColor: 'var(--stroke)',
+                    color: 'var(--ink)',
+                    minHeight: '120px',
+                    maxHeight: '300px'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--ink)'
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--stroke)'
+                  }}
+                  placeholder="Edit your transcript here..."
+                  rows={4}
+                />
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+                    Press <kbd className="px-1.5 py-0.5 rounded border" style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--muted)' }}>⌘</kbd> + <kbd className="px-1.5 py-0.5 rounded border" style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--muted)' }}>Enter</kbd> to save
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-4 py-2 rounded-lg border font-serif text-sm transition-colors flex items-center gap-2"
+                      style={{
+                        borderColor: 'var(--stroke)',
+                        color: 'var(--muted-foreground)',
+                        backgroundColor: 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = 'var(--ink)'
+                        e.currentTarget.style.borderColor = 'var(--ink)'
+                        e.currentTarget.style.backgroundColor = 'var(--muted)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--muted-foreground)'
+                        e.currentTarget.style.borderColor = 'var(--stroke)'
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSubmitTranscript}
+                      disabled={!draftTranscript.trim() || loading}
+                      className="px-4 py-2 rounded-lg font-serif text-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: 'var(--ink)',
+                        color: 'var(--paper)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!e.currentTarget.disabled) {
+                          e.currentTarget.style.backgroundColor = 'var(--muted-foreground)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!e.currentTarget.disabled) {
+                          e.currentTarget.style.backgroundColor = 'var(--ink)'
+                        }
+                      }}
+                    >
+                      <Check className="w-4 h-4" />
+                      {loading ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fixed Record Button */}
-      <div className="fixed bottom-0 left-0 right-0 pb-12 pt-8 bg-gradient-to-t from-paper via-paper to-transparent pointer-events-none" style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}>
+      <div 
+        className={`fixed bottom-0 left-0 right-0 pb-12 pt-8 bg-gradient-to-t from-paper via-paper to-transparent pointer-events-none transition-all duration-300 ${
+          isEditingTranscript ? 'opacity-0 translate-y-full' : 'opacity-100'
+        }`}
+        style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}
+      >
         <div className="max-w-2xl mx-auto flex justify-center pointer-events-auto">
           <button
             onClick={handleRecordClick}
             className="group relative"
             aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
+            disabled={isEditingTranscript}
           >
             {/* Outer ring */}
             <div
@@ -607,7 +770,7 @@ export default function HomePage() {
                 borderColor: isAudioRecording ? 'var(--ink)' : 'var(--stroke)',
               }}
               onMouseEnter={(e) => {
-                if (!isAudioRecording) {
+                if (!isAudioRecording && !isEditingTranscript) {
                   e.currentTarget.style.borderColor = 'var(--ink)'
                 }
               }}
@@ -629,6 +792,7 @@ export default function HomePage() {
                 backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--paper)',
                 color: isAudioRecording ? 'var(--paper)' : 'var(--ink)',
                 borderColor: isAudioRecording ? 'transparent' : 'var(--stroke)',
+                opacity: isEditingTranscript ? 0.5 : 1
               }}
             >
               {isAudioRecording ? (
