@@ -7,7 +7,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import WelcomeScreen from './components/WelcomeScreen'
 import HomePage from './pages/HomePage'
 import SettingsPage from './pages/SettingsPage'
-import TimelinePage from './pages/TimelinePage'
 import './index.css'
 
 // Register service worker for PWA
@@ -36,14 +35,6 @@ createRoot(document.getElementById('root')).render(
               element={
                 <ProtectedRoute>
                   <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/timeline"
-              element={
-                <ProtectedRoute>
-                  <TimelinePage />
                 </ProtectedRoute>
               }
             />

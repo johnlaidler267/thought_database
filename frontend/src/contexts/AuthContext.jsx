@@ -125,7 +125,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'apple',
       options: {
-        redirectTo: `${window.location.origin}/timeline`,
+        redirectTo: `${window.location.origin}/`,
       },
     })
     
@@ -138,7 +138,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/timeline`,
+        redirectTo: `${window.location.origin}/`,
       },
     })
     
@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/timeline`,
+        emailRedirectTo: `${window.location.origin}/`,
       },
     })
     

@@ -13,7 +13,7 @@ export default function WelcomeScreen() {
   useEffect(() => {
     // In dev mode (no Supabase), user is automatically set, so redirect immediately
     if (!authLoading && user) {
-      navigate('/timeline', { replace: true })
+      navigate('/', { replace: true })
     }
   }, [user, authLoading, navigate])
 

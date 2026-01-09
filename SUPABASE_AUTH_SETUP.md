@@ -40,10 +40,10 @@ In your Supabase dashboard:
 ## 5. Set Redirect URLs
 
 In **Authentication** > **URL Configuration**:
-- **Site URL**: Your produ ction URL (e.g., `https://yourdomain.com`)
+- **Site URL**: Your production URL (e.g., `https://yourdomain.com`)
 - **Redirect URLs**: Add your local and production URLs:
-  - `http://localhost:5173/timeline`
-  - `https://yourdomain.com/timeline`
+  - `http://localhost:5173/`
+  - `https://yourdomain.com/`
 
 ## 6. Run Database Schema
 
@@ -57,5 +57,5 @@ Run the SQL from `SUPABASE_PROFILES_SCHEMA.sql` in your Supabase SQL editor to:
 1. Start your frontend: `npm run dev`
 2. Navigate to `http://localhost:5173`
 3. Try signing in with Apple, Google, or Email
-4. You should be redirected to `/timeline` after successful authentication
+4. You should be redirected to the homepage (`/`) after successful authentication
 
