@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [customerId, setCustomerId] = useState(null)
   const [openaiApiKey, setOpenaiApiKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   
   // Determine user tier
   const getTier = () => {
@@ -84,41 +85,46 @@ export default function SettingsPage() {
   }, [profile])
 
   // Handle Subscribe/Upgrade button click
-  const handleSubscribe = async (targetTier = 'pro') => {
-    if (!user?.id || !user?.email) {
-      console.error('User ID or email not available')
-      return
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/stripe/create-checkout-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          email: user.email,
-          tier: targetTier,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session')
-      }
-
-      const data = await response.json()
-      
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error)
-      alert('Failed to start checkout. Please try again.')
-    }
+  // Handle Subscribe/Upgrade button click
+const handleSubscribe = async (targetTier = 'pro') => {
+  if (!user?.id || !user?.email) {
+    console.error('User ID or email not available')
+    return
   }
-  
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/stripe/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        tier: targetTier,
+      }),
+    })
+
+    if (!response.ok) {
+      // Get the actual error message from the response
+      const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+      throw new Error(errorData.error || 'Failed to create checkout session')
+    }
+
+    const data = await response.json()
+    
+    // Redirect to Stripe Checkout
+    if (data.url) {
+      window.location.href = data.url
+    } else {
+      throw new Error('No checkout URL returned')
+    }
+  } catch (error) {
+    console.error('Error creating checkout session:', error)
+    // Show the actual error message
+    alert(`Failed to start checkout: ${error.message}. Please check the console for details.`)
+  }
+}
   // Handle saving OpenAI API key
   const handleSaveOpenAIKey = async () => {
     if (!user?.id || !supabase) {
@@ -369,7 +375,7 @@ export default function SettingsPage() {
                   if (hasStripeSubscription) {
                     handleManageBilling()
                   } else if (tier === 'trial') {
-                    handleSubscribe('pro')
+                    setShowUpgradeModal(true)
                   } else if (tier === 'sovereign' && hasStripeSubscription) {
                     handleManageBilling()
                   } else if (tier === 'apprentice' || tier === 'pro') {
@@ -383,7 +389,7 @@ export default function SettingsPage() {
                 {hasStripeSubscription 
                   ? 'Manage Subscription'
                   : tier === 'trial'
-                  ? 'Upgrade to Pro'
+                  ? 'Upgrade'
                   : tier === 'sovereign'
                   ? 'Manage Subscription'
                   : 'Upgrade to Pro'
@@ -492,6 +498,113 @@ export default function SettingsPage() {
           </Card>
         </div>
       </main>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => setShowUpgradeModal(false)}
+        >
+          <Card
+            className="border-stroke bg-card p-6 shadow-lg max-w-md w-full"
+            style={{
+              borderColor: 'var(--stroke)',
+              backgroundColor: 'var(--card)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>
+                  Choose Your Plan
+                </h2>
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="text-muted-foreground hover:text-ink transition-colors"
+                  style={{ color: 'var(--muted-foreground)' }}
+                  aria-label="Close"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Apprentice Plan */}
+              <Card
+                className="border-stroke bg-card p-4 cursor-pointer transition-all"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  backgroundColor: 'var(--card)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--ink)'
+                  e.currentTarget.style.backgroundColor = 'var(--muted)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                  e.currentTarget.style.backgroundColor = 'var(--card)'
+                }}
+                onClick={() => {
+                  setShowUpgradeModal(false)
+                  handleSubscribe('apprentice')
+                }}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-serif" style={{ color: 'var(--ink)' }}>
+                      Apprentice
+                    </h3>
+                    <span className="text-lg font-serif" style={{ color: 'var(--ink)' }}>
+                      $5<span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>/month</span>
+                    </span>
+                  </div>
+                  <p className="text-sm font-serif" style={{ color: 'var(--muted-foreground)' }}>
+                    300 minutes per month
+                  </p>
+                </div>
+              </Card>
+
+              {/* Pro Plan */}
+              <Card
+                className="border-stroke bg-card p-4 cursor-pointer transition-all"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  backgroundColor: 'var(--card)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--ink)'
+                  e.currentTarget.style.backgroundColor = 'var(--muted)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                  e.currentTarget.style.backgroundColor = 'var(--card)'
+                }}
+                onClick={() => {
+                  setShowUpgradeModal(false)
+                  handleSubscribe('pro')
+                }}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-serif" style={{ color: 'var(--ink)' }}>
+                      Notary Pro
+                    </h3>
+                    <span className="text-lg font-serif" style={{ color: 'var(--ink)' }}>
+                      $12<span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>/month</span>
+                    </span>
+                  </div>
+                  <p className="text-sm font-serif" style={{ color: 'var(--muted-foreground)' }}>
+                    Unlimited notarizations
+                  </p>
+                </div>
+              </Card>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
