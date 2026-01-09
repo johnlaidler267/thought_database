@@ -218,12 +218,12 @@ const handleSubscribe = async (targetTier = 'pro') => {
       <header className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="text-muted-foreground hover:text-ink transition-colors"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
             onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-            aria-label="Go back"
+            aria-label="Go to homepage"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
