@@ -146,7 +146,7 @@ export default function WelcomeScreen() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                placeholder="Enter your email to sign in or sign up"
                 required
                 disabled={loading}
                 className="w-full px-6 py-4 rounded-3xl border font-medium focus:outline-none focus:ring-2 disabled:opacity-50"
@@ -184,15 +184,25 @@ export default function WelcomeScreen() {
                 e.currentTarget.style.color = 'var(--ink)'
               }}
             >
-              {loading ? 'Sending...' : 'Send Magic Link'}
+              {loading ? 'Sending...' : 'Continue with Email'}
             </button>
           </form>
         ) : (
           <div className="p-6 rounded-3xl border" style={{ backgroundColor: 'var(--card)', borderColor: 'var(--stroke)' }}>
             <p className="font-medium mb-2" style={{ color: 'var(--ink)' }}>Check your email</p>
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              We've sent a magic link to <strong style={{ color: 'var(--ink)' }}>{email}</strong>. Click the link to sign in.
+            <p className="text-sm mb-4" style={{ color: 'var(--muted-foreground)' }}>
+              We've sent a magic link to <strong style={{ color: 'var(--ink)' }}>{email}</strong>. Click the link to sign in or create your account.
             </p>
+            <button
+              onClick={() => {
+                setEmailSent(false)
+                setEmail('')
+              }}
+              className="text-sm underline"
+              style={{ color: 'var(--muted-foreground)' }}
+            >
+              Use a different email
+            </button>
           </div>
         )}
 

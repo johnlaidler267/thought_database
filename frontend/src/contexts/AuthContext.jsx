@@ -40,57 +40,73 @@ export const AuthProvider = ({ children }) => {
     // Get initial session and handle OAuth callback
     const initializeAuth = async () => {
       try {
-        // Check if we're returning from OAuth (check both hash and query params)
+        // Check if we're returning from OAuth or Magic Link (check both hash and query params)
         const hashParams = window.location.hash
         const searchParams = window.location.search
         const hasCode = searchParams && searchParams.includes('code=')
         const hasAccessToken = (hashParams && hashParams.includes('access_token')) || 
                               (searchParams && searchParams.includes('access_token'))
+        const hasMagicLinkToken = searchParams && (searchParams.includes('token=') && 
+                              (searchParams.includes('type=magiclink') || searchParams.includes('type=email')))
         const isOAuthCallback = hasCode || hasAccessToken
+        const isMagicLinkCallback = hasMagicLinkToken
         
-        if (isOAuthCallback) {
-          // OAuth callback detected - Supabase should process this automatically
-          console.log('Processing OAuth callback...', { 
+        if (isOAuthCallback || isMagicLinkCallback) {
+          // OAuth or Magic Link callback detected - Supabase should process this automatically
+          console.log('Processing auth callback...', { 
             hasCode, 
             hasAccessToken,
+            hasMagicLinkToken,
+            isOAuthCallback,
+            isMagicLinkCallback,
             search: searchParams?.substring(0, 100) 
           })
           
           // DON'T clear the URL yet - let Supabase's detectSessionInUrl process it first
           // Try to get the session immediately, with a short retry loop if needed
-          let oauthSession = null
-          let oauthError = null
+          let authSession = null
+          let authError = null
           let attempts = 0
-          const maxAttempts = 5
+          const maxAttempts = isMagicLinkCallback ? 3 : 5 // Magic links are usually faster
           
-          while (attempts < maxAttempts && !oauthSession) {
+          while (attempts < maxAttempts && !authSession) {
             const { data: { session }, error } = await supabase.auth.getSession()
-            oauthSession = session
-            oauthError = error
+            authSession = session
+            authError = error
             
-            if (oauthSession) break
+            if (authSession) break
             
-            // Wait a bit before retrying (only for OAuth callback)
-            await new Promise(resolve => setTimeout(resolve, 200))
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, isMagicLinkCallback ? 100 : 200))
             attempts++
           }
           
-          if (oauthSession) {
-            console.log('Session established from OAuth callback')
-            setUser(oauthSession.user)
-            // Clear OAuth hash from URL now that session is established
+          if (authSession) {
+            const callbackType = isMagicLinkCallback ? 'Magic Link' : 'OAuth'
+            console.log(`Session established from ${callbackType} callback`)
+            setUser(authSession.user)
+            // Clear auth params from URL now that session is established
             const cleanUrl = window.location.origin + window.location.pathname
             window.history.replaceState(null, '', cleanUrl)
-            console.log('Cleaned OAuth hash from URL')
+            console.log(`Cleaned ${callbackType} params from URL`)
             // Set loading to false immediately, load profile in background
             setLoading(false)
             isInitializingRef.current = false
-            loadProfile(oauthSession.user.id).catch(err => {
+            loadProfile(authSession.user.id).catch(err => {
               console.warn('Background profile load failed:', err)
             })
             return
           } else {
-            console.error('Failed to establish session from OAuth callback:', oauthError)
+            const callbackType = isMagicLinkCallback ? 'Magic Link' : 'OAuth'
+            console.error(`Failed to establish session from ${callbackType} callback:`, authError)
+            
+            // For magic links, if we can't establish session, it might be expired or invalid
+            if (isMagicLinkCallback) {
+              console.warn('Magic link may be expired or invalid')
+              setLoading(false)
+              isInitializingRef.current = false
+              return
+            }
             // Try manual extraction as fallback
             if (hasAccessToken && hashParams) {
               try {
@@ -459,10 +475,15 @@ export const AuthProvider = ({ children }) => {
   const signInWithEmail = async (email) => {
     if (!supabase) return { error: 'Supabase not configured' }
     
+    // signInWithOtp automatically handles both sign up and sign in
+    // If the user doesn't exist, it will create an account
+    // If they do exist, it will sign them in
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
+        // This makes it work for both sign up and sign in
+        shouldCreateUser: true,
       },
     })
     
