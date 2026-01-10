@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleteError, setDeleteError] = useState(null)
+  const [exportingData, setExportingData] = useState(false)
   
   // Determine user tier
   const getTier = () => {
@@ -47,6 +48,69 @@ export default function SettingsPage() {
   const handleLogOut = async () => {
     await signOut()
     navigate('/welcome', { replace: true })
+  }
+
+  const handleExportData = async () => {
+    if (!user?.id || !supabase) {
+      alert('Unable to export data. Please ensure you are logged in.')
+      return
+    }
+
+    setExportingData(true)
+    try {
+      // Fetch all thoughts for the user
+      const { data: thoughts, error: thoughtsError } = await supabase
+        .from('thoughts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (thoughtsError) {
+        throw new Error(`Failed to fetch thoughts: ${thoughtsError.message}`)
+      }
+
+      // Prepare export data
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        user: {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+        },
+        profile: profile ? {
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
+          tier: profile.tier,
+          notary_credits: profile.notary_credits,
+          credits_used: profile.credits_used,
+          minutes_used: profile.minutes_used,
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
+        } : null,
+        thoughts: thoughts || [],
+        summary: {
+          totalThoughts: thoughts?.length || 0,
+          totalTags: thoughts?.reduce((acc, thought) => acc + (thought.tags?.length || 0), 0) || 0,
+        }
+      }
+
+      // Create JSON blob and download
+      const jsonString = JSON.stringify(exportData, null, 2)
+      const blob = new Blob([jsonString], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `axiom-export-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting data:', error)
+      alert(`Failed to export data: ${error.message}`)
+    } finally {
+      setExportingData(false)
+    }
   }
 
   const handleDeleteAccountClick = () => {
@@ -482,9 +546,11 @@ const handleSubscribe = async (targetTier = 'pro') => {
             <div className="space-y-3">
               <Button
                 variant="outline"
-                className="w-full border-stroke hover:bg-muted font-serif text-sm justify-start bg-transparent"
+                onClick={handleExportData}
+                disabled={exportingData}
+                className="w-full border-stroke hover:bg-muted font-serif text-sm justify-start bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Export All Data
+                {exportingData ? 'Exporting...' : 'Export All Data'}
               </Button>
               <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
                 Download all your voice notes and metadata in JSON format
