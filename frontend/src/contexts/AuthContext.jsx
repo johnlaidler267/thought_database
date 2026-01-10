@@ -504,6 +504,49 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const deleteAccount = async () => {
+    if (!supabase || !user?.id) {
+      return { error: 'User not authenticated' }
+    }
+
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+    try {
+      // Get the current session token for authentication
+      const { data: { session } } = await supabase.auth.getSession()
+      const authToken = session?.access_token
+
+      // Call backend endpoint to delete account
+      const response = await fetch(`${API_BASE_URL}/api/stripe/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+        },
+        body: JSON.stringify({ userId: user.id }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete account' }))
+        throw new Error(errorData.error || 'Failed to delete account')
+      }
+
+      // Sign out locally
+      setUser(null)
+      setProfile(null)
+      
+      // Sign out from Supabase (in case user still has session)
+      if (supabase) {
+        await supabase.auth.signOut()
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      return { error: error.message || 'Failed to delete account' }
+    }
+  }
+
   const value = {
     user,
     profile,
@@ -513,6 +556,7 @@ export const AuthProvider = ({ children }) => {
     signInWithEmail,
     signOut,
     refreshProfile,
+    deleteAccount,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

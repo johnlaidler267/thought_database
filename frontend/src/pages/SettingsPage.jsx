@@ -10,7 +10,7 @@ import { supabase } from '../services/supabase'
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 export default function SettingsPage() {
-  const { user, profile, signOut, refreshProfile } = useAuth()
+  const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth()
   const { isDark, toggleDarkMode } = useTheme()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -18,6 +18,10 @@ export default function SettingsPage() {
   const [openaiApiKey, setOpenaiApiKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deleteError, setDeleteError] = useState(null)
   
   // Determine user tier
   const getTier = () => {
@@ -43,6 +47,38 @@ export default function SettingsPage() {
   const handleLogOut = async () => {
     await signOut()
     navigate('/welcome', { replace: true })
+  }
+
+  const handleDeleteAccountClick = () => {
+    setShowDeleteModal(true)
+    setDeleteConfirmation('')
+    setDeleteError(null)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      setDeleteError('You must type "DELETE" exactly to confirm.')
+      return
+    }
+
+    setDeletingAccount(true)
+    setDeleteError(null)
+    
+    try {
+      const result = await deleteAccount()
+      
+      if (result.error) {
+        setDeleteError(result.error)
+        setDeletingAccount(false)
+      } else {
+        // Account deleted successfully, redirect to welcome page
+        navigate('/welcome', { replace: true })
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      setDeleteError(error.message || 'Failed to delete account')
+      setDeletingAccount(false)
+    }
   }
 
   // Handle checkout success - verify session when returning from Stripe
@@ -475,21 +511,25 @@ const handleSubscribe = async (targetTier = 'pro') => {
               </Button>
               <Button
                 variant="outline"
-                className="w-full border-stroke hover:bg-destructive hover:text-destructive-foreground font-serif text-sm bg-transparent"
+                onClick={handleDeleteAccountClick}
+                disabled={deletingAccount}
+                className="w-full border-stroke hover:bg-destructive hover:text-destructive-foreground font-serif text-sm bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   color: 'var(--destructive)',
                   borderColor: 'var(--stroke)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--destructive)'
-                  e.currentTarget.style.color = 'var(--destructive-foreground)'
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = 'var(--destructive)'
+                    e.currentTarget.style.color = 'var(--destructive-foreground)'
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
                   e.currentTarget.style.color = 'var(--destructive)'
                 }}
               >
-                Delete Account
+                {deletingAccount ? 'Deleting Account...' : 'Delete Account'}
               </Button>
               <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
                 Permanently delete your account and all associated data
@@ -601,6 +641,137 @@ const handleSubscribe = async (targetTier = 'pro') => {
                   </p>
                 </div>
               </Card>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onClick={() => !deletingAccount && setShowDeleteModal(false)}
+        >
+          <Card
+            className="border-stroke bg-card p-6 shadow-lg max-w-md w-full"
+            style={{
+              borderColor: 'var(--stroke)',
+              backgroundColor: 'var(--card)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>
+                  Delete Account
+                </h2>
+                {!deletingAccount && (
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="text-muted-foreground hover:text-ink transition-colors"
+                    style={{ color: 'var(--muted-foreground)' }}
+                    aria-label="Close"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-serif" style={{ color: 'var(--ink)' }}>
+                  Are you sure you want to delete your account? This action cannot be undone.
+                </p>
+                
+                <div className="space-y-2">
+                  <p className="text-xs font-serif font-medium" style={{ color: 'var(--ink)' }}>
+                    This will:
+                  </p>
+                  <ul className="text-xs font-serif space-y-1 ml-4" style={{ color: 'var(--muted-foreground)' }}>
+                    <li>• Cancel your subscription (if active)</li>
+                    <li>• Delete all your thoughts and data</li>
+                    <li>• Permanently delete your account</li>
+                  </ul>
+                </div>
+
+                <div className="pt-2">
+                  <label 
+                    htmlFor="delete-confirmation"
+                    className="block text-xs font-serif uppercase tracking-wide mb-2" 
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
+                    Type "DELETE" to confirm:
+                  </label>
+                  <input
+                    id="delete-confirmation"
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => {
+                      setDeleteConfirmation(e.target.value)
+                      setDeleteError(null)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !deletingAccount) {
+                        handleDeleteAccount()
+                      }
+                    }}
+                    disabled={deletingAccount}
+                    className="w-full px-4 py-2 border rounded text-sm font-mono focus:outline-none disabled:opacity-50"
+                    style={{
+                      backgroundColor: 'var(--muted)',
+                      borderColor: deleteError ? 'var(--destructive)' : 'var(--stroke)',
+                      color: 'var(--ink)'
+                    }}
+                    placeholder="DELETE"
+                    autoFocus
+                  />
+                  {deleteError && (
+                    <p className="text-xs font-serif mt-2" style={{ color: 'var(--destructive)' }}>
+                      {deleteError}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setDeleteConfirmation('')
+                    setDeleteError(null)
+                  }}
+                  disabled={deletingAccount}
+                  className="flex-1 border-stroke hover:bg-muted font-serif text-sm bg-transparent disabled:opacity-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount || deleteConfirmation !== 'DELETE'}
+                  className="flex-1 border-destructive hover:bg-destructive hover:text-destructive-foreground font-serif text-sm bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    color: 'var(--destructive)',
+                    borderColor: 'var(--destructive)'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!e.currentTarget.disabled) {
+                      e.currentTarget.style.backgroundColor = 'var(--destructive)'
+                      e.currentTarget.style.color = 'var(--destructive-foreground)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.color = 'var(--destructive)'
+                  }}
+                >
+                  {deletingAccount ? 'Deleting...' : 'Delete Account'}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

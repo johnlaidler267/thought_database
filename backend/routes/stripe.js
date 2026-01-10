@@ -247,5 +247,62 @@ router.post('/verify-session', async (req, res) => {
   }
 })
 
+// Delete user account (cancels subscription and deletes user)
+router.post('/delete-account', async (req, res) => {
+  try {
+    const { userId } = req.body
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' })
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase is not configured' })
+    }
+
+    // Verify user exists before attempting deletion
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId)
+    if (authError || !authUser) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Get user profile to check for subscription
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('stripe_subscription_id, stripe_customer_id')
+      .eq('id', userId)
+      .single()
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('Error fetching profile:', profileError)
+    }
+
+    // Cancel Stripe subscription if one exists
+    if (stripe && profile?.stripe_subscription_id) {
+      try {
+        await stripe.subscriptions.cancel(profile.stripe_subscription_id)
+        console.log(`Cancelled subscription ${profile.stripe_subscription_id} for user ${userId}`)
+      } catch (stripeError) {
+        // Log but don't fail - subscription might already be cancelled
+        console.warn('Error cancelling subscription:', stripeError.message)
+      }
+    }
+
+    // Delete user from Supabase Auth (this will cascade delete profile and thoughts)
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(userId)
+
+    if (deleteError) {
+      console.error('Error deleting user:', deleteError)
+      return res.status(500).json({ error: 'Failed to delete user account' })
+    }
+
+    console.log(`Successfully deleted account for user ${userId}`)
+    res.json({ success: true, message: 'Account deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting account:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router
 
