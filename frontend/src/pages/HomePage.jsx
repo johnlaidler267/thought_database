@@ -212,22 +212,42 @@ export default function HomePage() {
         raw_transcript: editedTranscript,
         cleaned_text: cleanedText,
         tags: tags,
-        category: activeCategory !== 'All' ? activeCategory : null,
+        // Note: category column doesn't exist in thoughts table, removed
         created_at: new Date().toISOString(),
       }
 
       if (supabase && user) {
         try {
+          // Verify session before inserting
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+          if (sessionError || !session) {
+            console.error('No valid session when saving thought:', sessionError)
+            throw new Error('Session expired. Please log in again.')
+          }
+          
+          console.log('Saving thought to Supabase with user_id:', user.id)
           const { data, error } = await supabase
             .from('thoughts')
             .insert([newThought])
             .select()
             .single()
 
-          if (error) throw error
+          if (error) {
+            console.error('Supabase insert error:', error)
+            throw error
+          }
+          
+          console.log('Thought saved successfully:', data)
           setThoughts(prev => [data, ...prev])
         } catch (err) {
           console.error('Failed to save to Supabase:', err)
+          console.error('Error details:', {
+            message: err.message,
+            code: err.code,
+            details: err.details,
+            hint: err.hint,
+            status: err.status
+          })
           const mockThought = {
             ...newThought,
             id: Date.now().toString(),

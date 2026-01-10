@@ -127,11 +127,18 @@ export const AuthProvider = ({ children }) => {
                         const sessionData = {
                           access_token: accessToken,
                           refresh_token: refreshToken,
-                          expires_at: parseInt(hashParamsObj.get('expires_at')) || (Date.now() / 1000 + 3600),
+                          expires_at: parseInt(hashParamsObj.get('expires_at')) || Math.floor(Date.now() / 1000) + 3600,
                           expires_in: parseInt(hashParamsObj.get('expires_in')) || 3600,
                           token_type: 'bearer',
                           user: user
                         }
+                        
+                        console.log('Storing session data:', {
+                          hasAccessToken: !!sessionData.access_token,
+                          hasRefreshToken: !!sessionData.refresh_token,
+                          expiresAt: sessionData.expires_at,
+                          userId: sessionData.user?.id
+                        })
                         
                         localStorage.setItem(storageKey, JSON.stringify(sessionData))
                         console.log('Session stored in localStorage')
