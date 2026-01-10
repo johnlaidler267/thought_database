@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
@@ -8,8 +8,9 @@ import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 
 export default function HomePage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [thoughts, setThoughts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState(() => {
@@ -27,6 +28,21 @@ export default function HomePage() {
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
   const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
+
+  // Redirect to welcome screen if not authenticated
+  // Only redirect after auth loading is complete and user is confirmed to be null
+  useEffect(() => {
+    // Don't redirect while loading
+    if (authLoading) return
+    
+    // Don't redirect if we're already on welcome page (prevents loops)
+    if (location.pathname === '/welcome') return
+    
+    // Only redirect if user is definitely null (not just undefined during initial load)
+    if (!user) {
+      navigate('/welcome', { replace: true })
+    }
+  }, [user, authLoading, navigate, location.pathname])
 
   // Load thoughts from Supabase on mount
   useEffect(() => {
@@ -327,6 +343,20 @@ export default function HomePage() {
 
     return true
   })
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--paper)' }}>
+        <div style={{ color: 'var(--muted-foreground)' }}>Loading...</div>
+      </div>
+    )
+  }
+
+  // Don't render if no user (will redirect)
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>

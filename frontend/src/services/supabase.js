@@ -17,3 +17,18 @@ export const supabase = supabaseUrl && supabaseAnonKey
     })
   : null
 
+// Log Supabase config for debugging (only in dev)
+if (import.meta.env.DEV && supabase) {
+  console.log('Supabase client initialized:', {
+    url: supabaseUrl,
+    hasAnonKey: !!supabaseAnonKey,
+    anonKeyLength: supabaseAnonKey?.length,
+    anonKeyPrefix: supabaseAnonKey?.substring(0, 20) + '...'
+  })
+  
+  // Verify the anon key format (should start with eyJ)
+  if (supabaseAnonKey && !supabaseAnonKey.startsWith('eyJ')) {
+    console.warn('⚠️ Supabase anon key does not appear to be a valid JWT token')
+  }
+}
+

@@ -11,9 +11,14 @@ export default function WelcomeScreen() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // In dev mode (no Supabase), user is automatically set, so redirect immediately
+    // Redirect to home if user is logged in
     if (!authLoading && user) {
-      navigate('/', { replace: true })
+      // Add a small delay to ensure session is fully established
+      const timeoutId = setTimeout(() => {
+        navigate('/', { replace: true })
+      }, 50)
+      
+      return () => clearTimeout(timeoutId)
     }
   }, [user, authLoading, navigate])
 
