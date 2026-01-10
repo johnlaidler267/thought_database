@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../services/supabase'
 
 const AuthContext = createContext({})
@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const isInitializingRef = useRef(true)
 
   useEffect(() => {
     if (!supabase) {
@@ -56,11 +57,23 @@ export const AuthProvider = ({ children }) => {
           })
           
           // DON'T clear the URL yet - let Supabase's detectSessionInUrl process it first
-          // Wait longer for Supabase to process the hash and establish session
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          // Try to get the session immediately, with a short retry loop if needed
+          let oauthSession = null
+          let oauthError = null
+          let attempts = 0
+          const maxAttempts = 5
           
-          // Now try to get the session
-          const { data: { session: oauthSession }, error: oauthError } = await supabase.auth.getSession()
+          while (attempts < maxAttempts && !oauthSession) {
+            const { data: { session }, error } = await supabase.auth.getSession()
+            oauthSession = session
+            oauthError = error
+            
+            if (oauthSession) break
+            
+            // Wait a bit before retrying (only for OAuth callback)
+            await new Promise(resolve => setTimeout(resolve, 200))
+            attempts++
+          }
           
           if (oauthSession) {
             console.log('Session established from OAuth callback')
@@ -69,8 +82,12 @@ export const AuthProvider = ({ children }) => {
             const cleanUrl = window.location.origin + window.location.pathname
             window.history.replaceState(null, '', cleanUrl)
             console.log('Cleaned OAuth hash from URL')
-            // Load profile
-            await loadProfile(oauthSession.user.id)
+            // Set loading to false immediately, load profile in background
+            setLoading(false)
+            isInitializingRef.current = false
+            loadProfile(oauthSession.user.id).catch(err => {
+              console.warn('Background profile load failed:', err)
+            })
             return
           } else {
             console.error('Failed to establish session from OAuth callback:', oauthError)
@@ -151,7 +168,11 @@ export const AuthProvider = ({ children }) => {
                           setUser(manualSession.user)
                           const cleanUrl = window.location.origin + window.location.pathname
                           window.history.replaceState(null, '', cleanUrl)
-                          await loadProfile(manualSession.user.id)
+                          setLoading(false)
+                          isInitializingRef.current = false
+                          loadProfile(manualSession.user.id).catch(err => {
+                            console.warn('Background profile load failed:', err)
+                          })
                           return
                         } else {
                           // Fallback: use the decoded user directly
@@ -159,7 +180,11 @@ export const AuthProvider = ({ children }) => {
                           setUser(user)
                           const cleanUrl = window.location.origin + window.location.pathname
                           window.history.replaceState(null, '', cleanUrl)
-                          await loadProfile(user.id)
+                          setLoading(false)
+                          isInitializingRef.current = false
+                          loadProfile(user.id).catch(err => {
+                            console.warn('Background profile load failed:', err)
+                          })
                           return
                         }
                       }
@@ -181,7 +206,11 @@ export const AuthProvider = ({ children }) => {
                     setUser(manualSession.user)
                     const cleanUrl = window.location.origin + window.location.pathname
                     window.history.replaceState(null, '', cleanUrl)
-                    await loadProfile(manualSession.user.id)
+                    setLoading(false)
+                    isInitializingRef.current = false
+                    loadProfile(manualSession.user.id).catch(err => {
+                      console.warn('Background profile load failed:', err)
+                    })
                     return
                   } else {
                     console.error('Manual session extraction failed:', manualError)
@@ -191,11 +220,19 @@ export const AuthProvider = ({ children }) => {
                       error: manualError?.error,
                       fullError: manualError
                     })
+                    isInitializingRef.current = false
+                    setLoading(false)
                   }
                 }
               } catch (parseError) {
                 console.error('Error parsing hash:', parseError)
+                isInitializingRef.current = false
+                setLoading(false)
               }
+            } else {
+              // OAuth callback failed - no tokens found
+              isInitializingRef.current = false
+              setLoading(false)
             }
           }
         }
@@ -218,15 +255,22 @@ export const AuthProvider = ({ children }) => {
         
         setUser(session?.user ?? null)
         if (session?.user) {
-          // Wait a bit to ensure session is fully established
-          await new Promise(resolve => setTimeout(resolve, 300))
-          await loadProfile(session.user.id)
+          // Set loading to false immediately so UI can render
+          // Profile will load in the background
+          setLoading(false)
+          // Load profile in background (don't await - let it happen async)
+          loadProfile(session.user.id).catch(err => {
+            console.warn('Background profile load failed:', err)
+          })
         } else {
           setLoading(false)
         }
       } catch (err) {
         console.error('Error initializing auth:', err)
         setLoading(false)
+      } finally {
+        // Mark initialization as complete
+        isInitializingRef.current = false
       }
     }
     
@@ -238,17 +282,26 @@ export const AuthProvider = ({ children }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email)
       
-      // Handle OAuth callback - wait a bit for session to be fully established
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Small delay to ensure session is fully processed
-        await new Promise(resolve => setTimeout(resolve, 100))
+      // Skip INITIAL_SESSION event - initializeAuth handles it
+      // This prevents double-loading on page refresh
+      if (event === 'INITIAL_SESSION' && isInitializingRef.current) {
+        console.log('Skipping INITIAL_SESSION - already handled by initializeAuth')
+        return
       }
       
       setUser(session?.user ?? null)
       if (session?.user) {
-        // Wait a bit more before loading profile to ensure session is valid
-        await new Promise(resolve => setTimeout(resolve, 200))
-        await loadProfile(session.user.id)
+        // Set loading to false immediately if we're not initializing
+        if (!isInitializingRef.current) {
+          setLoading(false)
+        }
+        // Only load profile if not already initializing (to avoid double-loading)
+        // For SIGNED_IN events after initialization, load profile in background
+        if (!isInitializingRef.current || event !== 'INITIAL_SESSION') {
+          loadProfile(session.user.id).catch(err => {
+            console.warn('Background profile load failed:', err)
+          })
+        }
       } else {
         setProfile(null)
         setLoading(false)
@@ -260,9 +313,11 @@ export const AuthProvider = ({ children }) => {
 
   const loadProfile = async (userId, retryCount = 0) => {
     if (!supabase) {
-      setLoading(false)
       return
     }
+
+    // Note: We don't set loading here anymore - it's set to false when user is set
+    // This allows the UI to render immediately while profile loads in background
 
     try {
       console.log('Loading profile for user:', userId)
@@ -270,22 +325,35 @@ export const AuthProvider = ({ children }) => {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         console.error('No valid session when loading profile:', sessionError)
-        setLoading(false)
         return
       }
 
       console.log('Fetching profile from database...')
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      
+      // Fetch profile with timeout protection
+      const { data, error } = await Promise.race([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile query timeout after 2 seconds')), 2000)
+        )
+      ]).catch(async (timeoutError) => {
+        // If timeout, try one more time quickly
+        console.warn('Profile query timed out, retrying once...', timeoutError)
+        return await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+      })
 
       if (error && error.code === 'PGRST116') {
         // Profile doesn't exist, create it
         console.log('Profile not found, creating new profile...')
         await createProfile(userId)
-        setLoading(false)
       } else if (error) {
         console.error('Error fetching profile:', error)
         // If 401 or auth error, retry once after a delay
@@ -294,18 +362,16 @@ export const AuthProvider = ({ children }) => {
           await new Promise(resolve => setTimeout(resolve, 500))
           return loadProfile(userId, retryCount + 1)
         }
-        // For other errors, still set loading to false so UI doesn't hang
-        setLoading(false)
-        throw error
+        // Don't throw - just log and continue without profile
+        console.warn('Profile load failed, continuing without profile:', error)
       } else {
         console.log('Profile loaded successfully:', data)
         setProfile(data)
-        setLoading(false)
       }
     } catch (err) {
       console.error('Error loading profile:', err)
-      // Always set loading to false on error so UI doesn't hang
-      setLoading(false)
+      // Don't throw - allow app to continue without profile
+      console.warn('Profile load error, continuing without profile:', err)
     }
   }
 
@@ -322,32 +388,45 @@ export const AuthProvider = ({ children }) => {
         return
       }
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: userId,
-            display_name: authUser.user_metadata?.full_name || 
-                          authUser.user_metadata?.name || 
-                          authUser.email?.split('@')[0] || 
-                          'User',
-            avatar_url: authUser.user_metadata?.avatar_url || 
-                        authUser.user_metadata?.avatar_url || 
-                        null,
-            notary_credits: 20,
-          },
-        ])
-        .select()
-        .single()
+      // Create profile with timeout protection
+      const { data, error } = await Promise.race([
+        supabase
+          .from('profiles')
+          .insert([
+            {
+              id: userId,
+              display_name: authUser.user_metadata?.full_name || 
+                            authUser.user_metadata?.name || 
+                            authUser.email?.split('@')[0] || 
+                            'User',
+              avatar_url: authUser.user_metadata?.avatar_url || 
+                          authUser.user_metadata?.avatar_url || 
+                          null,
+              notary_credits: 20,
+            },
+          ])
+          .select()
+          .single(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile creation timeout after 2 seconds')), 2000)
+        )
+      ]).catch((timeoutError) => {
+        console.warn('Profile creation timed out:', timeoutError)
+        return { data: null, error: timeoutError }
+      })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error creating profile:', error)
+        // Don't throw - allow app to continue without profile
+        return
+      }
+      
       console.log('Profile created successfully:', data)
       setProfile(data)
       // Note: loading is set to false by the caller (loadProfile)
     } catch (err) {
       console.error('Error creating profile:', err)
-      // If profile creation fails, still set loading to false so UI doesn't hang
-      setLoading(false)
+      // Don't throw - allow app to continue without profile
     }
   }
 
