@@ -16,6 +16,25 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+  
+  // Skip caching for:
+  // 1. API requests (any path starting with /api/)
+  // 2. Non-GET requests (POST, PUT, DELETE, etc.)
+  // 3. External URLs (different origin, like backend API server)
+  // 4. Requests to localhost:3001 (backend server)
+  if (
+    url.pathname.startsWith('/api/') ||
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.hostname === 'localhost' && url.port === '3001'
+  ) {
+    // For API requests, bypass cache and go directly to network
+    event.respondWith(fetch(event.request))
+    return
+  }
+  
+  // For static assets, try cache first, then network
   event.respondWith(
     caches.match(event.request)
       .then((response) => {

@@ -531,14 +531,10 @@ export const AuthProvider = ({ children }) => {
         throw new Error(errorData.error || 'Failed to delete account')
       }
 
-      // Sign out locally
+      // Sign out locally - account is already deleted on backend
+      // No need to call supabase.auth.signOut() since the account no longer exists
       setUser(null)
       setProfile(null)
-      
-      // Sign out from Supabase (in case user still has session)
-      if (supabase) {
-        await supabase.auth.signOut()
-      }
 
       return { success: true }
     } catch (error) {
