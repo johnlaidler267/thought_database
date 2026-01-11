@@ -473,9 +473,9 @@ export default function HomePage() {
       <div className="border-b border-stroke px-6 py-3 overflow-x-auto" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-2xl mx-auto flex items-center gap-2">
           {categories.map((category) => (
-            <button
+            <div
               key={category}
-              onClick={() => setActiveCategory(category)}
+              className="relative flex items-center"
               onMouseEnter={() => {
                 // Clear any existing timeout
                 if (hoverTimeoutRef.current) {
@@ -494,21 +494,25 @@ export default function HomePage() {
                 }
                 setHoveredCategory(null)
               }}
-              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center ${
-                activeCategory === category
-                  ? "text-paper"
-                  : "border text-muted-foreground hover:text-ink hover:border-ink"
-              }`}
-              style={{
-                backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
-                borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
-                color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
-                paddingRight: hoveredCategory === category && category !== "All" ? 0 : '1rem',
-                minHeight: '2.5rem',
-                height: '2.5rem'
-              }}
             >
-              <span>{category}</span>
+              <button
+                onClick={() => setActiveCategory(category)}
+                className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center ${
+                  activeCategory === category
+                    ? "text-paper"
+                    : "border text-muted-foreground hover:text-ink hover:border-ink"
+                }`}
+                style={{
+                  backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
+                  borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
+                  color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
+                  paddingRight: hoveredCategory === category && category !== "All" ? '0.75rem' : '1rem',
+                  minHeight: '2.5rem',
+                  height: '2.5rem'
+                }}
+              >
+                <span>{category}</span>
+              </button>
               {/* Delete button shown on hover (except for "All") */}
               {hoveredCategory === category && category !== "All" && (
                 <button
@@ -516,7 +520,7 @@ export default function HomePage() {
                     e.stopPropagation()
                     handleDeleteCategory(category)
                   }}
-                  className="transition-colors ml-1 flex items-center justify-center"
+                  className="absolute right-1 transition-colors flex items-center justify-center"
                   style={{ 
                     color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
                     width: '0.75rem',
@@ -534,7 +538,7 @@ export default function HomePage() {
                   <X className="w-3 h-3" />
                 </button>
               )}
-            </button>
+            </div>
           ))}
 
           {isAddingCategory ? (
