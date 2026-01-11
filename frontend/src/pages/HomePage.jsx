@@ -503,15 +503,15 @@ export default function HomePage() {
       <div className="border-b border-stroke px-6 py-3 overflow-x-auto" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-2xl mx-auto flex items-center gap-2">
           {categories.map((category) => (
-            <div
+            <button
               key={category}
-              className="relative flex items-center"
+              onClick={() => setActiveCategory(category)}
               onMouseEnter={() => {
                 // Clear any existing timeout
                 if (hoverTimeoutRef.current) {
                   clearTimeout(hoverTimeoutRef.current)
                 }
-                // Set hovered category after 500ms delay
+                // Set hovered category after 350ms delay
                 hoverTimeoutRef.current = setTimeout(() => {
                   setHoveredCategory(category)
                 }, 350)
@@ -524,38 +524,42 @@ export default function HomePage() {
                 }
                 setHoveredCategory(null)
               }}
+              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+                activeCategory === category
+                  ? "text-paper"
+                  : "border text-muted-foreground hover:text-ink hover:border-ink"
+              }`}
+              style={{
+                backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
+                borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
+                color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
+                paddingRight: hoveredCategory === category && category !== "All" ? '0.75rem' : '1rem',
+                minHeight: '2.5rem',
+                height: '2.5rem'
+              }}
             >
-              <button
-                onClick={() => setActiveCategory(category)}
-                className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center ${
-                  activeCategory === category
-                    ? "text-paper"
-                    : "border text-muted-foreground hover:text-ink hover:border-ink"
-                }`}
-                style={{
-                  backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
-                  borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
-                  color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
-                  paddingRight: hoveredCategory === category && category !== "All" ? '0.75rem' : '1rem',
-                  minHeight: '2.5rem',
-                  height: '2.5rem'
-                }}
-              >
-                <span>{category}</span>
-              </button>
+              <span>{category}</span>
               {/* Delete button shown on hover (except for "All") */}
               {hoveredCategory === category && category !== "All" && (
-                <button
+                <span
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDeleteCategory(category)
                   }}
-                  className="absolute right-1 transition-colors flex items-center justify-center"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleDeleteCategory(category)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className="transition-colors flex items-center justify-center flex-shrink-0 cursor-pointer"
                   style={{ 
                     color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
-                    width: '0.75rem',
-                    height: '0.75rem',
-                    flexShrink: 0
+                    width: '1rem',
+                    height: '1rem'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = 'var(--destructive)'
@@ -566,9 +570,9 @@ export default function HomePage() {
                   aria-label={`Delete ${category} category`}
                 >
                   <X className="w-3 h-3" />
-                </button>
+                </span>
               )}
-            </div>
+            </button>
           ))}
 
           {isAddingCategory ? (
