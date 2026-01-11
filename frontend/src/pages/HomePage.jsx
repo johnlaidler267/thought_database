@@ -207,12 +207,15 @@ export default function HomePage() {
       }
 
       // Save to Supabase
+      // Save category if activeCategory is not "All", otherwise save null
+      const category = activeCategory !== 'All' ? activeCategory : null
+      
       const newThought = {
         user_id: user?.id,
         raw_transcript: editedTranscript,
         cleaned_text: cleanedText,
         tags: tags,
-        // Note: category column doesn't exist in thoughts table, removed
+        category: category,
         created_at: new Date().toISOString(),
       }
 
@@ -226,11 +229,38 @@ export default function HomePage() {
           }
           
           console.log('Saving thought to Supabase with user_id:', user.id)
-          const { data, error } = await supabase
+          let data, error
+          
+          // Try to insert with category first
+          const result = await supabase
             .from('thoughts')
             .insert([newThought])
             .select()
             .single()
+          
+          data = result.data
+          error = result.error
+
+          // If error is due to missing category column, retry without it
+          if (error && error.code === 'PGRST204' && error.message?.includes('category')) {
+            console.warn('Category column not found, retrying without category field')
+            const thoughtWithoutCategory = { ...newThought }
+            delete thoughtWithoutCategory.category
+            
+            const retryResult = await supabase
+              .from('thoughts')
+              .insert([thoughtWithoutCategory])
+              .select()
+              .single()
+            
+            data = retryResult.data
+            error = retryResult.error
+            
+            // Add category to the returned data for local state
+            if (data) {
+              data.category = newThought.category
+            }
+          }
 
           if (error) {
             console.error('Supabase insert error:', error)
