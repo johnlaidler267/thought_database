@@ -437,7 +437,7 @@ export default function HomePage() {
             />
             <input
               type="text"
-              placeholder="Search by tag..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-card border rounded pl-11 pr-11 py-3 text-sm font-serif placeholder:text-muted-foreground focus:outline-none focus:border-ink transition-colors"
