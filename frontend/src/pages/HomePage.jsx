@@ -538,7 +538,7 @@ export default function HomePage() {
           ))}
 
           {isAddingCategory ? (
-            <div className="flex items-center gap-2">
+            <div className="relative">
               <input
                 type="text"
                 value={newCategoryName}
@@ -551,56 +551,19 @@ export default function HomePage() {
                   }
                 }}
                 placeholder="Category name..."
-                className="px-3 py-2 rounded border text-sm font-serif focus:outline-none w-32"
+                className="px-4 py-2 pr-10 rounded border border-stroke bg-card text-sm font-serif focus:outline-none focus:border-ink w-40"
                 style={{
-                  borderColor: 'var(--stroke)',
-                  backgroundColor: 'var(--card)',
-                  color: 'var(--ink)'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'var(--ink)'
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'var(--stroke)'
+                  height: '2.5rem',
+                  minHeight: '2.5rem'
                 }}
                 autoFocus
               />
               <button
                 onClick={handleAddCategory}
-                className="px-3 py-2 rounded font-serif text-sm transition-colors"
-                style={{
-                  backgroundColor: 'var(--ink)',
-                  color: 'var(--paper)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--muted-foreground)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--ink)'
-                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-ink text-paper flex items-center justify-center hover:bg-muted-foreground transition-colors"
+                aria-label="Add category"
               >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setIsAddingCategory(false)
-                  setNewCategoryName("")
-                }}
-                className="px-3 py-2 rounded border font-serif text-sm transition-colors"
-                style={{
-                  borderColor: 'var(--stroke)',
-                  color: 'var(--muted-foreground)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--ink)'
-                  e.currentTarget.style.borderColor = 'var(--ink)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--muted-foreground)'
-                  e.currentTarget.style.borderColor = 'var(--stroke)'
-                }}
-              >
-                Cancel
+                <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
