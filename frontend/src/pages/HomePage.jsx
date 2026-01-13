@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
@@ -321,6 +321,18 @@ export default function HomePage() {
 
   const handleProfileClick = () => {
     navigate('/settings')
+  }
+
+  const handleKeyboardToggle = () => {
+    // Open transcript editor for typing
+    setDraftTranscript('')
+    setIsEditingTranscript(true)
+    // Focus the textarea after a brief delay to ensure it's rendered
+    setTimeout(() => {
+      if (transcriptTextareaRef.current) {
+        transcriptTextareaRef.current.focus()
+      }
+    }, 100)
   }
 
   // Save categories to localStorage when they change
@@ -804,55 +816,84 @@ export default function HomePage() {
         style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}
       >
         <div className="max-w-2xl mx-auto flex justify-center pointer-events-auto">
-          <button
-            onClick={handleRecordClick}
-            className="group relative"
-            aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
-            disabled={isEditingTranscript}
-          >
-            {/* Outer ring */}
-            <div
-              className={`absolute inset-0 rounded-full border-2 transition-all duration-300 ${
-                isAudioRecording
-                  ? "scale-110 animate-pulse"
-                  : "group-hover:scale-105"
-              }`}
+          <div className="relative">
+            <button
+              onClick={handleRecordClick}
+              className="group relative"
+              aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
+              disabled={isEditingTranscript}
+            >
+              {/* Outer ring */}
+              <div
+                className={`absolute inset-0 rounded-full border-2 transition-all duration-300 ${
+                  isAudioRecording
+                    ? "scale-110 animate-pulse"
+                    : "group-hover:scale-105"
+                }`}
+                style={{
+                  borderColor: isAudioRecording ? 'var(--ink)' : 'var(--stroke)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isAudioRecording && !isEditingTranscript) {
+                    e.currentTarget.style.borderColor = 'var(--ink)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isAudioRecording) {
+                    e.currentTarget.style.borderColor = 'var(--stroke)'
+                  }
+                }}
+              />
+
+              {/* Main button */}
+              <div
+                className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                  isAudioRecording 
+                    ? "" 
+                    : "group-hover:bg-muted/50"
+                }`}
+                style={{
+                  backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--paper)',
+                  color: isAudioRecording ? 'var(--paper)' : 'var(--ink)',
+                  borderColor: isAudioRecording ? 'transparent' : 'var(--stroke)',
+                  opacity: isEditingTranscript ? 0.5 : 1
+                }}
+              >
+                {isAudioRecording ? (
+                  <Pause className="w-8 h-8" strokeWidth={1.5} />
+                ) : (
+                  <Mic className="w-8 h-8" strokeWidth={1.5} />
+                )}
+              </div>
+            </button>
+
+            {/* Keyboard toggle button - positioned at bottom right of record button */}
+            <button
+              onClick={handleKeyboardToggle}
+              className="absolute text-muted-foreground hover:text-ink transition-colors"
+              aria-label="Switch to typing mode"
+              disabled={isEditingTranscript}
               style={{
-                borderColor: isAudioRecording ? 'var(--ink)' : 'var(--stroke)',
+                color: isEditingTranscript ? 'var(--muted-foreground)' : 'var(--muted-foreground)',
+                opacity: isEditingTranscript ? 0.5 : 1,
+                cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
+                bottom: '-1.3rem',
+                right: '-2.5rem'
               }}
               onMouseEnter={(e) => {
-                if (!isAudioRecording && !isEditingTranscript) {
-                  e.currentTarget.style.borderColor = 'var(--ink)'
+                if (!isEditingTranscript) {
+                  e.currentTarget.style.color = 'var(--ink)'
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isAudioRecording) {
-                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                if (!isEditingTranscript) {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
                 }
               }}
-            />
-
-            {/* Main button */}
-            <div
-              className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
-                isAudioRecording 
-                  ? "" 
-                  : "group-hover:bg-muted/50"
-              }`}
-              style={{
-                backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--paper)',
-                color: isAudioRecording ? 'var(--paper)' : 'var(--ink)',
-                borderColor: isAudioRecording ? 'transparent' : 'var(--stroke)',
-                opacity: isEditingTranscript ? 0.5 : 1
-              }}
             >
-              {isAudioRecording ? (
-                <Pause className="w-8 h-8" strokeWidth={1.5} />
-              ) : (
-                <Mic className="w-8 h-8" strokeWidth={1.5} />
-              )}
-            </div>
-          </button>
+              <Keyboard className="w-5 h-5" strokeWidth={1.5} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
