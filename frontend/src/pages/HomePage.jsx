@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
@@ -940,7 +940,6 @@ function ThoughtCard({ thought, onDelete }) {
     try {
       await navigator.clipboard.writeText(thought.cleaned_text || thought.content)
       setCopied(true)
-      setShowMenu(false)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
       console.error('Failed to copy:', err)
@@ -1018,22 +1017,6 @@ function ThoughtCard({ thought, onDelete }) {
                 }}
               >
                 <button
-                  onClick={handleCopy}
-                  className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
-                  style={{
-                    color: 'var(--ink)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--muted)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  }}
-                >
-                  <Copy className="w-4 h-4" />
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-                <button
                   onClick={handleDelete}
                   className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
                   style={{
@@ -1061,7 +1044,7 @@ function ThoughtCard({ thought, onDelete }) {
       
       {/* Tags */}
       {thought.tags && thought.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-4">
           {thought.tags.map((tag) => (
             <span
               key={tag}
@@ -1075,6 +1058,43 @@ function ThoughtCard({ thought, onDelete }) {
               {tag}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Copy Button - Bottom Right */}
+      <button
+        onClick={handleCopy}
+        className="absolute bottom-4 right-4 p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center"
+        style={{
+          color: 'var(--muted-foreground)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--ink)'
+          e.currentTarget.style.backgroundColor = 'var(--muted)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--muted-foreground)'
+          e.currentTarget.style.backgroundColor = 'transparent'
+        }}
+        aria-label="Copy to clipboard"
+      >
+        <Copy className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+      </button>
+
+      {/* Success Toast Popup */}
+      {copied && (
+        <div
+          className="absolute bottom-16 right-4 px-4 py-2.5 rounded-md shadow-lg z-20 flex items-center gap-2 transition-all duration-200"
+          style={{
+            backgroundColor: 'var(--card)',
+            borderColor: 'var(--stroke)',
+            border: '1px solid var(--stroke)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            animation: 'fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+        >
+          <CheckCircle className="w-4 h-4" style={{ color: 'var(--ink)' }} />
+          <span className="text-sm font-serif" style={{ color: 'var(--ink)' }}>Copied</span>
         </div>
       )}
     </Card>
