@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { supabase } from '../services/supabase'
+import { LANGUAGES } from '../services/translation'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -23,6 +24,14 @@ export default function SettingsPage() {
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleteError, setDeleteError] = useState(null)
   const [exportingData, setExportingData] = useState(false)
+  const [translationEnabled, setTranslationEnabled] = useState(() => {
+    const saved = localStorage.getItem('translationEnabled')
+    return saved ? JSON.parse(saved) : false
+  })
+  const [translationLanguage, setTranslationLanguage] = useState(() => {
+    const saved = localStorage.getItem('translationLanguage')
+    return saved || 'es'
+  })
   
   // Determine user tier
   const getTier = () => {
@@ -312,6 +321,17 @@ const handleSubscribe = async (targetTier = 'pro') => {
     return Math.min((used / total) * 100, 100)
   }
 
+  // Handle translation settings changes
+  const handleTranslationToggle = (enabled) => {
+    setTranslationEnabled(enabled)
+    localStorage.setItem('translationEnabled', JSON.stringify(enabled))
+  }
+
+  const handleTranslationLanguageChange = (langCode) => {
+    setTranslationLanguage(langCode)
+    localStorage.setItem('translationLanguage', langCode)
+  }
+
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
@@ -531,6 +551,69 @@ const handleSubscribe = async (targetTier = 'pro') => {
                   />
                 </button>
               </div>
+            </div>
+          </Card>
+
+          {/* Translation Section */}
+          <Card 
+            className="border-stroke bg-card p-6 shadow-none"
+            style={{
+              borderColor: 'var(--stroke)',
+              backgroundColor: 'var(--card)'
+            }}
+          >
+            <h2 className="text-sm font-serif tracking-wide mb-4 uppercase" style={{ color: 'var(--ink)' }}>Translation</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-2 border-b" style={{ borderColor: 'var(--stroke)' }}>
+                <div>
+                  <p className="text-sm font-serif" style={{ color: 'var(--ink)' }}>Enable Translation</p>
+                  <p className="text-xs font-serif mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Translate thought cards to your preferred language</p>
+                </div>
+                <button
+                  onClick={() => handleTranslationToggle(!translationEnabled)}
+                  className="relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors cursor-pointer"
+                  style={{
+                    borderColor: 'var(--stroke)',
+                    backgroundColor: translationEnabled ? 'var(--ink)' : 'var(--muted)'
+                  }}
+                  aria-label="Toggle translation"
+                >
+                  <span 
+                    className="inline-block h-4 w-4 transform rounded-full transition-transform"
+                    style={{
+                      backgroundColor: translationEnabled ? 'var(--paper)' : 'var(--ink)',
+                      transform: translationEnabled ? 'translateX(21px)' : 'translateX(1px)'
+                    }}
+                  />
+                </button>
+              </div>
+              
+              {translationEnabled && (
+                <div className="pt-2 space-y-2">
+                  <label className="text-xs font-serif uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+                    Target Language
+                  </label>
+                  <select
+                    value={translationLanguage}
+                    onChange={(e) => handleTranslationLanguageChange(e.target.value)}
+                    className="w-full border rounded px-4 py-2 text-sm font-serif focus:outline-none"
+                    style={{
+                      backgroundColor: 'var(--muted)',
+                      borderColor: 'var(--stroke)',
+                      color: 'var(--ink)'
+                    }}
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+                    Select the language to translate your thoughts to
+                  </p>
+                </div>
+              )}
             </div>
           </Card>
 

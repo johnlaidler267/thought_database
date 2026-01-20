@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
+import { translateText } from '../services/translation'
 
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth()
@@ -905,9 +906,17 @@ function ThoughtCard({ thought, onDelete }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isTranslated, setIsTranslated] = useState(false)
+  const [translatedText, setTranslatedText] = useState('')
+  const [isTranslating, setIsTranslating] = useState(false)
   const menuRef = useRef(null)
 
-  const displayText = showRaw ? (thought.raw_transcript || thought.content) : (thought.cleaned_text || thought.content)
+  // Get translation settings from localStorage
+  const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
+  const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
+
+  const originalText = showRaw ? (thought.raw_transcript || thought.content) : (thought.cleaned_text || thought.content)
+  const displayText = isTranslated && translatedText ? translatedText : originalText
   const timestamp = thought.created_at 
     ? new Date(thought.created_at).toLocaleString('en-US', {
         month: 'short',
@@ -949,6 +958,31 @@ function ThoughtCard({ thought, onDelete }) {
   const handleDelete = () => {
     setShowMenu(false)
     onDelete(thought.id)
+  }
+
+  const handleTranslate = async () => {
+    if (!translationEnabled) {
+      return
+    }
+
+    if (isTranslated) {
+      // Toggle back to original
+      setIsTranslated(false)
+      return
+    }
+
+    // Translate to target language
+    setIsTranslating(true)
+    try {
+      const translated = await translateText(originalText, translationLanguage)
+      setTranslatedText(translated)
+      setIsTranslated(true)
+    } catch (error) {
+      console.error('Translation failed:', error)
+      alert('Failed to translate. Please try again.')
+    } finally {
+      setIsTranslating(false)
+    }
   }
 
   return (
@@ -1061,25 +1095,59 @@ function ThoughtCard({ thought, onDelete }) {
         </div>
       )}
 
-      {/* Copy Button - Bottom Right */}
-      <button
-        onClick={handleCopy}
-        className="absolute bottom-4 right-4 p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center"
-        style={{
-          color: 'var(--muted-foreground)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = 'var(--ink)'
-          e.currentTarget.style.backgroundColor = 'var(--muted)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'var(--muted-foreground)'
-          e.currentTarget.style.backgroundColor = 'transparent'
-        }}
-        aria-label="Copy to clipboard"
-      >
-        <Copy className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
-      </button>
+      {/* Action Buttons - Bottom Right */}
+      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+        {/* Translate Button */}
+        {translationEnabled && (
+          <button
+            onClick={handleTranslate}
+            disabled={isTranslating}
+            className="p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              color: isTranslated ? 'var(--ink)' : 'var(--muted-foreground)',
+            }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isTranslated) {
+                e.currentTarget.style.color = 'var(--muted-foreground)'
+              }
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+            aria-label={isTranslated ? 'Show original text' : 'Translate text'}
+          >
+            {isTranslating ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Languages className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+            )}
+          </button>
+        )}
+        
+        {/* Copy Button */}
+        <button
+          onClick={handleCopy}
+          className="p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center"
+          style={{
+            color: 'var(--muted-foreground)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--ink)'
+            e.currentTarget.style.backgroundColor = 'var(--muted)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--muted-foreground)'
+            e.currentTarget.style.backgroundColor = 'transparent'
+          }}
+          aria-label="Copy to clipboard"
+        >
+          <Copy className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+        </button>
+      </div>
 
       {/* Success Toast Popup */}
       {copied && (
