@@ -231,7 +231,7 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <main className={`max-w-xl mx-auto px-8 py-8 transition-all duration-300 ${
+      <main className={`max-w-[39.6rem] mx-auto px-8 py-8 transition-all duration-300 ${
         isEditingTranscript ? 'pb-80' : 'pb-28'
       }`}>
         {recordingError && (
@@ -274,7 +274,7 @@ function App() {
             boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.3)'
           }}
         >
-          <div className="max-w-xl mx-auto px-8 py-4">
+          <div className="max-w-[39.6rem] mx-auto px-8 py-4">
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <label 

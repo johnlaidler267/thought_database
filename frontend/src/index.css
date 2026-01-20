@@ -66,6 +66,7 @@
     background: var(--paper);
     margin: 0;
     padding: 0;
+    font-size: 17.6px; /* 10% increase from default 16px */
   }
 
   body {
@@ -115,7 +116,7 @@
     color: white;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     font-weight: 600;
-    font-size: 17px;
+    font-size: 18.7px; /* 17px * 1.1 */
     letter-spacing: -0.01em;
     padding: 16px 24px;
     border-radius: 12px;
@@ -163,7 +164,7 @@
     color: rgba(255, 255, 255, 0.9);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     font-weight: 500;
-    font-size: 15px;
+    font-size: 16.5px; /* 15px * 1.1 */
     letter-spacing: -0.01em;
     padding: 10px 18px;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -226,7 +227,7 @@
     display: inline-flex;
     align-items: center;
     padding: 6px 12px;
-    font-size: 13px;
+    font-size: 14.3px; /* 13px * 1.1 */
     font-weight: 500;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     letter-spacing: -0.01em;
@@ -253,7 +254,7 @@
     color: #ff3b30;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     font-weight: 500;
-    font-size: 15px;
+    font-size: 16.5px; /* 15px * 1.1 */
     letter-spacing: -0.01em;
     padding: 10px;
     border: 1px solid rgba(255, 59, 48, 0.2);

@@ -426,7 +426,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
       <header className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+        <div className="max-w-[46.2rem] mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Axiom</h1>
             <p className="text-sm text-muted-foreground mt-0.5 font-serif" style={{ color: 'var(--muted-foreground)' }}>Never waste a good thought</p>
@@ -473,7 +473,7 @@ export default function HomePage() {
 
       {/* Search Bar */}
       <div className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-[46.2rem] mx-auto">
           <div className="relative">
             <Search 
               className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" 
@@ -515,7 +515,7 @@ export default function HomePage() {
 
       {/* Category Tabs */}
       <div className="border-b border-stroke px-6 py-3 overflow-x-auto" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-2xl mx-auto flex items-center gap-2">
+        <div className="max-w-[46.2rem] mx-auto flex items-center gap-2">
           {categories.map((category) => (
             <button
               key={category}
@@ -646,7 +646,7 @@ export default function HomePage() {
       <main className={`flex-1 overflow-y-auto px-6 pt-6 transition-all duration-300 ${
         isEditingTranscript ? 'pb-80' : 'pb-40'
       }`}>
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-[46.2rem] mx-auto space-y-6">
           {recordingError && (
             <div 
               className="mb-6 p-4 rounded-xl border text-sm"
@@ -712,7 +712,7 @@ export default function HomePage() {
             boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)'
           }}
         >
-          <div className="max-w-2xl mx-auto px-6 py-4">
+          <div className="max-w-[46.2rem] mx-auto px-6 py-4">
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <label 
@@ -817,7 +817,7 @@ export default function HomePage() {
         }`}
         style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}
       >
-        <div className="max-w-2xl mx-auto flex justify-center pointer-events-auto">
+        <div className="max-w-[46.2rem] mx-auto flex justify-center pointer-events-auto">
           <div className="relative">
             <button
               onClick={handleRecordClick}

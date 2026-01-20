@@ -336,7 +336,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
       <header className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
+        <div className="max-w-[46.2rem] mx-auto flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
             className="text-muted-foreground hover:text-ink transition-colors"
@@ -352,7 +352,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 py-12">
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className="max-w-[46.2rem] mx-auto space-y-8">
           {/* Subscription Section */}
           <Card 
             className="border-stroke bg-card p-6 shadow-none"

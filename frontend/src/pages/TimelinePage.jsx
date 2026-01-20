@@ -239,7 +239,7 @@ export default function TimelinePage() {
     <div className="min-h-screen" style={{ background: '#2c2c2e', backgroundAttachment: 'fixed' }}>
       {/* Centered Title */}
       <div className="sticky top-0 z-40 backdrop-blur-xl bg-[#2c2c2e]/90 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-        <div className="relative max-w-xl mx-auto">
+        <div className="relative max-w-[39.6rem] mx-auto">
           <EditableTitle />
           <button
             onClick={handleSignOut}
@@ -252,7 +252,7 @@ export default function TimelinePage() {
       </div>
 
       {/* Main Content */}
-      <main className={`max-w-xl mx-auto px-8 py-8 transition-all duration-300 ${
+      <main className={`max-w-[39.6rem] mx-auto px-8 py-8 transition-all duration-300 ${
         isEditingTranscript ? 'pb-80' : 'pb-28'
       }`}>
         {recordingError && (
@@ -295,7 +295,7 @@ export default function TimelinePage() {
             boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.3)'
           }}
         >
-          <div className="max-w-xl mx-auto px-8 py-4">
+          <div className="max-w-[39.6rem] mx-auto px-8 py-4">
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <label 
