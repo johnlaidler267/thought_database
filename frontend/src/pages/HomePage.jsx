@@ -636,7 +636,7 @@ export default function HomePage() {
               }}
             >
               <Plus className="w-4 h-4" />
-              <span>Add</span>
+              <span>Add Category</span>
             </button>
           )}
         </div>
