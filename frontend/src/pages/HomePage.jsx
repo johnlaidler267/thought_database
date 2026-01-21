@@ -1042,33 +1042,21 @@ function ThoughtCard({ thought, onDelete }) {
         </div>
         <div className="flex items-center gap-2">
           {/* View Raw Toggle */}
-          {thought.raw_transcript && thought.raw_transcript !== thought.cleaned_text && (
-            <button
-              onClick={() => setShowRaw(!showRaw)}
-              className="text-xs px-3 py-1.5 rounded-md border transition-colors font-serif"
-              style={{
-                color: 'var(--muted-foreground)',
-                borderColor: 'var(--stroke)',
-                backgroundColor: showRaw ? 'var(--muted)' : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--ink)'
-                e.currentTarget.style.borderColor = 'var(--ink)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--muted-foreground)'
-                e.currentTarget.style.borderColor = 'var(--stroke)'
-              }}
-              aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
-            >
-              {showRaw ? 'View Cleaned' : 'View Raw'}
-            </button>
-          )}
+          <button
+            onClick={() => setShowRaw(!showRaw)}
+            className="text-xs font-serif text-muted-foreground hover:text-ink transition-colors tracking-wide"
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
+            aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
+          >
+            {showRaw ? 'View Cleaned' : 'View Raw'}
+          </button>
           {/* Overflow Menu Button */}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="text-muted-foreground hover:text-ink transition-colors p-1 rounded-md"
+              className="text-muted-foreground hover:text-ink transition-colors"
               style={{ color: 'var(--muted-foreground)' }}
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
