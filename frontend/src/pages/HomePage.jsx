@@ -1030,7 +1030,7 @@ function ThoughtCard({ thought, onDelete }) {
         backgroundColor: 'var(--card)'
       }}
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3 text-xs text-muted-foreground font-serif" style={{ color: 'var(--muted-foreground)' }}>
           <span className="tracking-wide">{timestamp}</span>
           {duration && (
@@ -1044,7 +1044,7 @@ function ThoughtCard({ thought, onDelete }) {
           {/* View Raw Toggle */}
           <button
             onClick={() => setShowRaw(!showRaw)}
-            className="text-xs font-serif text-muted-foreground hover:text-ink transition-colors tracking-wide"
+            className="text-xs font-serif text-muted-foreground hover:text-ink transition-colors tracking-wide flex items-center"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
             onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
@@ -1053,10 +1053,10 @@ function ThoughtCard({ thought, onDelete }) {
             {showRaw ? 'View Cleaned' : 'View Raw'}
           </button>
           {/* Overflow Menu Button */}
-          <div className="relative" ref={menuRef}>
+          <div className="relative flex items-center justify-center" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="text-muted-foreground hover:text-ink transition-colors"
+              className="text-muted-foreground hover:text-ink transition-colors flex items-center justify-center p-1"
               style={{ color: 'var(--muted-foreground)' }}
               onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
               onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
@@ -1121,7 +1121,7 @@ function ThoughtCard({ thought, onDelete }) {
       )}
 
       {/* Action Buttons - Bottom Right */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+      <div className="absolute bottom-4 right-6 flex items-center gap-2">
         {/* Translate Button */}
         {translationEnabled && (
           <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">
