@@ -58,8 +58,10 @@ export async function translateText(text, targetLang = 'en') {
     const data = await response.json()
     
     // The response structure is: [[["translated text", ...], ...], ...]
-    if (data && data[0] && data[0][0] && data[0][0][0]) {
-      return data[0].map((item) => item[0]).join('')
+    if (data && Array.isArray(data) && data[0] && Array.isArray(data[0])) {
+      if (data[0][0] && Array.isArray(data[0][0]) && data[0][0][0]) {
+        return data[0].map((item) => item[0]).join('')
+      }
     }
     
     throw new Error('Unexpected response format from translation API')
