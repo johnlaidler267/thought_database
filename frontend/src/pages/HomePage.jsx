@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
@@ -29,7 +29,16 @@ export default function HomePage() {
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
-  const { isRecording: isAudioRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
+  const { 
+    isRecording: isAudioRecording, 
+    error: recordingError, 
+    remainingTime,
+    showWarning,
+    formatRemainingTime,
+    startRecording, 
+    stopRecording,
+    setOnAutoStop
+  } = useAudioRecorder()
 
   // Redirect to welcome screen if not authenticated
   // Only redirect after auth loading is complete and user is confirmed to be null
@@ -127,11 +136,11 @@ export default function HomePage() {
     startRecording()
   }
 
-  const handleRecordStop = async () => {
+  // Shared function to process audio blob (used by both manual stop and auto-stop)
+  const processAudioBlob = useCallback(async (audioBlob, isAutoStop = false) => {
     try {
       setIsRecording(false)
       setLoading(true)
-      const audioBlob = await stopRecording()
 
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error('No audio recorded. Please try again.')
@@ -156,6 +165,11 @@ export default function HomePage() {
       setIsEditingTranscript(true)
       setLoading(false)
       
+      // Show notification if auto-stopped
+      if (isAutoStop) {
+        alert('Recording stopped at 5 minute limit. Your audio has been transcribed.')
+      }
+      
       // Focus textarea after a brief delay to ensure it's rendered
       setTimeout(() => {
         if (transcriptTextareaRef.current) {
@@ -173,7 +187,20 @@ export default function HomePage() {
       alert(errorMessage)
       setLoading(false)
     }
+  }, [setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
+
+  const handleRecordStop = async () => {
+    const audioBlob = await stopRecording()
+    await processAudioBlob(audioBlob, false)
   }
+
+  // Set up auto-stop callback
+  useEffect(() => {
+    const handleAutoStop = async (audioBlob) => {
+      await processAudioBlob(audioBlob, true)
+    }
+    setOnAutoStop(handleAutoStop)
+  }, [setOnAutoStop, processAudioBlob])
 
   const handleSubmitTranscript = async () => {
     if (!draftTranscript.trim()) {
@@ -437,11 +464,15 @@ export default function HomePage() {
               <div
                 className={`w-1.5 h-1.5 rounded-full ${isAudioRecording ? "animate-pulse" : ""}`}
                 style={{
-                  backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--muted-foreground)'
+                  backgroundColor: isAudioRecording ? (showWarning ? '#ff3b30' : 'var(--ink)') : 'var(--muted-foreground)'
                 }}
               />
-              <span className="uppercase tracking-wider" style={{ color: 'var(--ink)' }}>
-                {isAudioRecording ? "Recording" : "Ready"}
+              <span className={`uppercase tracking-wider ${showWarning ? 'font-medium' : ''}`} style={{ color: showWarning ? '#ff3b30' : 'var(--ink)' }}>
+                {isAudioRecording && remainingTime !== null
+                  ? `Recording - ${formatRemainingTime()} remaining`
+                  : isAudioRecording
+                  ? "Recording"
+                  : "Ready"}
               </span>
             </div>
             {user && (
@@ -862,7 +893,12 @@ export default function HomePage() {
                 }}
               >
                 {isAudioRecording ? (
-                  <Pause className="w-8 h-8" strokeWidth={1.5} />
+                  <>
+                    <Pause className="w-8 h-8" strokeWidth={1.5} />
+                    {showWarning && (
+                      <div className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                    )}
+                  </>
                 ) : (
                   <Mic className="w-8 h-8" strokeWidth={1.5} />
                 )}

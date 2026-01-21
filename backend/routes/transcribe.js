@@ -135,6 +135,16 @@ router.post('/', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'Audio file is empty' })
     }
 
+    // Backend validation: File size limit (50MB as safety net)
+    const MAX_FILE_SIZE_MB = 50
+    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+    if (req.file.buffer.length > MAX_FILE_SIZE_BYTES) {
+      return res.status(400).json({ 
+        error: 'Audio file too large',
+        details: `Maximum file size is ${MAX_FILE_SIZE_MB}MB. Please record shorter audio segments.`
+      })
+    }
+
     console.log(`Received audio: ${req.file.buffer.length} bytes, type: ${req.file.mimetype}`)
 
     // Get the transcriber (loads model on first use)
