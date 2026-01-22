@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import CopyButton from './CopyButton'
+import { translateText } from '../services/translation'
 
 export default function ThoughtBubble({ thought, onDelete }) {
   const [showRaw, setShowRaw] = useState(false)
+  const [isTranslated, setIsTranslated] = useState(false)
+  const [translatedText, setTranslatedText] = useState('')
+  const [isTranslating, setIsTranslating] = useState(false)
   const buttonGroupRef = useRef(null)
   const viewRawBtnRef = useRef(null)
   const copyBtnRef = useRef(null)
   const deleteBtnRef = useRef(null)
+  
+  // Get translation settings from localStorage
+  const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
+  const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
   
   // #region agent log
   useEffect(() => {
@@ -36,7 +44,37 @@ export default function ThoughtBubble({ thought, onDelete }) {
   }, [showRaw])
   // #endregion
   
-  const displayText = showRaw ? thought.raw_transcript : thought.cleaned_text
+  const originalText = showRaw ? thought.raw_transcript : thought.cleaned_text
+  const displayText = isTranslated && translatedText ? translatedText : originalText
+  
+  const handleTranslate = async () => {
+    if (!translationEnabled) {
+      return
+    }
+
+    if (isTranslated) {
+      // Toggle back to original
+      setIsTranslated(false)
+      return
+    }
+
+    // Translate to target language
+    setIsTranslating(true)
+    try {
+      const translated = await translateText(originalText, translationLanguage)
+      setTranslatedText(translated)
+      setIsTranslated(true)
+    } catch (error) {
+      console.error('Translation failed:', error)
+      alert('Failed to translate. Please try again.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+  
+  // Determine text to copy: translated if translated, otherwise original
+  const textToCopy = isTranslated && translatedText ? translatedText : (showRaw ? thought.raw_transcript : thought.cleaned_text)
+  
   const timestamp = new Date(thought.created_at).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -79,7 +117,7 @@ export default function ThoughtBubble({ thought, onDelete }) {
             {showRaw ? 'View Cleaned' : 'View Raw'}
           </button>
           <div ref={copyBtnRef}>
-            <CopyButton text={thought.cleaned_text} />
+            <CopyButton text={textToCopy} />
           </div>
           <button
             ref={deleteBtnRef}

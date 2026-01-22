@@ -984,7 +984,9 @@ function ThoughtCard({ thought, onDelete }) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(thought.cleaned_text || thought.content)
+      // Copy translated text if translated, otherwise copy original
+      const textToCopy = isTranslated && translatedText ? translatedText : (thought.cleaned_text || thought.content)
+      await navigator.clipboard.writeText(textToCopy)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
