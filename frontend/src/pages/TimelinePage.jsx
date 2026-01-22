@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RecordButton from '../components/RecordButton'
 import ThoughtTimeline from '../components/ThoughtTimeline'
@@ -17,7 +17,7 @@ export default function TimelinePage() {
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
-  const { isRecording, error: recordingError, startRecording, stopRecording } = useAudioRecorder()
+  const { isRecording, error: recordingError, startRecording, stopRecording, setOnAutoStop } = useAudioRecorder()
 
   // Load thoughts from Supabase on mount
   useEffect(() => {
@@ -93,14 +93,11 @@ export default function TimelinePage() {
     }
   }
 
-  const handleRecordStart = () => {
-    startRecording()
-  }
-
-  const handleRecordStop = async () => {
+  // Shared function to process audio blob (used by both manual stop and auto-stop)
+  const processAudioBlob = useCallback(async (audioBlob, isAutoStop = false) => {
     try {
+      setIsRecording(false)
       setLoading(true)
-      const audioBlob = await stopRecording()
 
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error('No audio recorded. Please try again.')
@@ -125,6 +122,11 @@ export default function TimelinePage() {
       setIsEditingTranscript(true)
       setLoading(false)
       
+      // Show notification if auto-stopped
+      if (isAutoStop) {
+        alert('Recording stopped at 5 minute limit. Your audio has been transcribed.')
+      }
+      
       // Focus textarea after a brief delay to ensure it's rendered
       setTimeout(() => {
         if (transcriptTextareaRef.current) {
@@ -141,7 +143,24 @@ export default function TimelinePage() {
       alert(errorMessage)
       setLoading(false)
     }
+  }, [setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
+
+  const handleRecordStart = () => {
+    startRecording()
   }
+
+  const handleRecordStop = async () => {
+    const audioBlob = await stopRecording()
+    await processAudioBlob(audioBlob, false)
+  }
+
+  // Set up auto-stop callback
+  useEffect(() => {
+    const handleAutoStop = async (audioBlob) => {
+      await processAudioBlob(audioBlob, true)
+    }
+    setOnAutoStop(handleAutoStop)
+  }, [setOnAutoStop, processAudioBlob])
 
   const handleSubmitTranscript = async () => {
     if (!draftTranscript.trim()) {
