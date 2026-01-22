@@ -4,23 +4,42 @@ export async function transcribeAudio(audioBlob) {
   const formData = new FormData()
   formData.append('audio', audioBlob, 'recording.webm')
 
+  // Timeout for transcription (5 minutes for long recordings)
+  const TRANSCRIPTION_TIMEOUT_MS = 5 * 60 * 1000
+
   try {
-    const response = await fetch(`${API_URL}/transcribe`, {
-      method: 'POST',
-      body: formData,
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT_MS)
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: Transcription failed`
-      throw new Error(errorMessage)
-    }
+    try {
+      const response = await fetch(`${API_URL}/transcribe`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      })
 
-    const data = await response.json()
-    if (!data.transcript) {
-      throw new Error('No transcript returned from server')
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || errorData.details || `HTTP ${response.status}: Transcription failed`
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+      if (!data.transcript) {
+        throw new Error('No transcript returned from server')
+      }
+      return data
+    } catch (err) {
+      clearTimeout(timeoutId)
+      
+      // Handle timeout
+      if (err.name === 'AbortError') {
+        throw new Error('Transcription timed out. Please try recording a shorter segment.')
+      }
+      throw err
     }
-    return data
   } catch (err) {
     // Re-throw if it's already an Error with a message
     if (err instanceof Error && err.message) {
@@ -35,27 +54,54 @@ export async function transcribeAudio(audioBlob) {
 }
 
 export async function cleanTranscript(rawTranscript) {
+  // Timeout for LLM cleanup (30 seconds)
+  const CLEANUP_TIMEOUT_MS = 30000
+
   try {
-    const response = await fetch(`${API_URL}/clean`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ transcript: rawTranscript }),
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), CLEANUP_TIMEOUT_MS)
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || 'Cleaning failed')
-    }
+    try {
+      const response = await fetch(`${API_URL}/clean`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcript: rawTranscript }),
+        signal: controller.signal,
+      })
 
-    const data = await response.json()
-    return data.cleaned_text
-  } catch (err) {
-    if (err.message) {
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        // On cleanup failure, return original transcript instead of throwing
+        // This ensures the user doesn't lose their data
+        console.warn('Cleanup failed, using original transcript:', errorData.error)
+        return rawTranscript
+      }
+
+      const data = await response.json()
+      return data.cleaned_text || rawTranscript
+    } catch (err) {
+      clearTimeout(timeoutId)
+      
+      // Handle timeout gracefully - return original transcript
+      if (err.name === 'AbortError') {
+        console.warn('Cleanup timed out, using original transcript')
+        return rawTranscript
+      }
       throw err
     }
-    throw new Error('Failed to connect to cleaning service.')
+  } catch (err) {
+    // On any error, return original transcript instead of failing
+    // This ensures graceful degradation
+    if (err.message) {
+      console.warn('Cleanup error, using original transcript:', err.message)
+      return rawTranscript
+    }
+    console.warn('Cleanup service unavailable, using original transcript')
+    return rawTranscript
   }
 }
 

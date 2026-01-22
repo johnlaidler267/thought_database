@@ -30,11 +30,15 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'No transcript provided' })
     }
 
+    // LLM API timeout (30 seconds)
+    const LLM_TIMEOUT_MS = 30000
+
     // if (!process.env.ANTHROPIC_API_KEY) {
     //   return res.status(500).json({ error: 'Anthropic API key not configured' })
     // }
 
-    // const message = await anthropic.messages.create({
+    // Wrap LLM API call with timeout protection
+    // const messagePromise = anthropic.messages.create({
     //   model: 'claude-3-5-sonnet-20241022',
     //   max_tokens: 1024,
     //   messages: [
@@ -45,11 +49,28 @@ router.post('/', async (req, res) => {
     //   ],
     // })
 
-    // const cleanedText = message.content[0].text.trim()
+    // const timeoutPromise = new Promise((_, reject) => {
+    //   setTimeout(() => {
+    //     reject(new Error('LLM API request timed out after 30 seconds'))
+    //   }, LLM_TIMEOUT_MS)
+    // })
 
-    // res.json({ cleaned_text: cleanedText })
+    // try {
+    //   const message = await Promise.race([messagePromise, timeoutPromise])
+    //   const cleanedText = message.content[0].text.trim()
+    //   res.json({ cleaned_text: cleanedText })
+    // } catch (error) {
+    //   // Handle timeout or API errors gracefully
+    //   if (error.message?.includes('timeout')) {
+    //     console.error('LLM API timeout:', error.message)
+    //     // Return original transcript on timeout - don't fail the request
+    //     return res.json({ cleaned_text: transcript })
+    //   }
+    //   throw error
+    // }
     
     // Mock response - simple cleaning simulation
+    // In production, this would be replaced with the LLM API call above
     const mockCleaned = transcript
       .replace(/\b(um|uh|like|you know)\b/gi, '')
       .replace(/\s+/g, ' ')
@@ -58,6 +79,13 @@ router.post('/', async (req, res) => {
     res.json({ cleaned_text: mockCleaned || transcript })
   } catch (error) {
     console.error('Cleaning error:', error)
+    
+    // On timeout or failure, return original transcript instead of failing
+    // This ensures the user doesn't lose their data even if cleanup fails
+    if (error.message?.includes('timeout')) {
+      return res.json({ cleaned_text: req.body.transcript || '' })
+    }
+    
     res.status(500).json({ error: 'Failed to clean transcript' })
   }
 })
