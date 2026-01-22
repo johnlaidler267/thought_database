@@ -11,7 +11,7 @@ import { LANGUAGES } from '../services/translation'
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // Detect environment mode based on API URL
-const getEnvironmentMode = () => {
+export const getEnvironmentMode = () => {
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
   const isLocalhost = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')
   return isLocalhost ? 'Development' : 'Production'
