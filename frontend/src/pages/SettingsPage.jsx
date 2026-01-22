@@ -10,6 +10,13 @@ import { LANGUAGES } from '../services/translation'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+// Detect environment mode based on API URL
+const getEnvironmentMode = () => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  const isLocalhost = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')
+  return isLocalhost ? 'Development' : 'Production'
+}
+
 export default function SettingsPage() {
   const { user, profile, signOut, refreshProfile, deleteAccount } = useAuth()
   const { isDark, toggleDarkMode } = useTheme()
@@ -516,6 +523,38 @@ const handleSubscribe = async (targetTier = 'pro') => {
                 }
               </Button>
             </div>
+
+            {/* Business / Team Sub-section */}
+            <div 
+              className="border-t p-6 -mx-6 -mb-6 mt-6 relative" 
+              style={{ borderColor: 'var(--stroke)' }}
+            >
+              <div 
+                className="absolute inset-0"
+                style={{ 
+                  backgroundColor: 'var(--muted)',
+                  opacity: 0.3
+                }}
+              />
+              <div className="relative flex items-center justify-between">
+                <div className="flex-1 pr-4">
+                  <p className="text-sm font-serif mb-1" style={{ color: 'var(--ink)' }}>Business / Team</p>
+                  <p className="text-xs font-serif leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+                    Want Axiom for your crew? Get bulk licensing and centralized billing.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    window.location.href = 'mailto:contact@example.com?subject=Business/Team Inquiry'
+                  }}
+                  className="border-stroke hover:bg-muted font-serif text-xs bg-transparent shrink-0"
+                >
+                  Contact Us
+                </Button>
+              </div>
+            </div>
           </Card>
 
           {/* Preferences Section */}
@@ -923,6 +962,17 @@ const handleSubscribe = async (targetTier = 'pro') => {
               </div>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Environment Mode Indicator - Only shown in development builds */}
+      {import.meta.env.DEV && (
+        <div className="max-w-[46.2rem] mx-auto mt-8 pb-8">
+          <div className="text-center">
+            <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+              Environment: <span className="font-mono" style={{ color: 'var(--ink)' }}>{getEnvironmentMode()}</span>
+            </p>
+          </div>
         </div>
       )}
     </div>

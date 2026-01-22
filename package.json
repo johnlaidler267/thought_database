@@ -10,7 +10,9 @@
     "test:frontend": "npm test --prefix frontend",
     "test:backend": "npm test --prefix backend",
     "test:e2e": "npm run test:e2e --prefix frontend",
-    "test:all": "npm run test:unit && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "mode:dev": "node scripts/switch-mode.js dev",
+    "mode:prod": "node scripts/switch-mode.js prod"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
