@@ -14,16 +14,18 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
 
 // Create Stripe Checkout Session
 router.post('/create-checkout-session', async (req, res) => {
+  // Validate input first
+  const { userId, email, tier } = req.body
+
+  if (!userId || !email) {
+    return res.status(400).json({ error: 'userId and email are required' })
+  }
+
   if (!stripe) {
     return res.status(503).json({ error: 'Stripe is not configured' })
   }
 
   try {
-    const { userId, email, tier } = req.body
-
-    if (!userId || !email) {
-      return res.status(400).json({ error: 'userId and email are required' })
-    }
 
     // Check if user already has a Stripe customer ID
     let customerId = null
@@ -107,16 +109,18 @@ router.post('/create-checkout-session', async (req, res) => {
 
 // Create Stripe Customer Portal Session
 router.post('/create-portal-session', async (req, res) => {
+  // Validate input first
+  const { customerId } = req.body
+
+  if (!customerId) {
+    return res.status(400).json({ error: 'customerId is required' })
+  }
+
   if (!stripe) {
     return res.status(503).json({ error: 'Stripe is not configured' })
   }
 
   try {
-    const { customerId } = req.body
-
-    if (!customerId) {
-      return res.status(400).json({ error: 'customerId is required' })
-    }
 
     // Create portal session
     const session = await stripe.billingPortal.sessions.create({
@@ -191,16 +195,18 @@ router.get('/subscription-status/:userId', async (req, res) => {
 
 // Verify checkout session (called after successful checkout)
 router.post('/verify-session', async (req, res) => {
+  // Validate input first
+  const { sessionId } = req.body
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'sessionId is required' })
+  }
+
   if (!stripe) {
     return res.status(503).json({ error: 'Stripe is not configured' })
   }
 
   try {
-    const { sessionId } = req.body
-
-    if (!sessionId) {
-      return res.status(400).json({ error: 'sessionId is required' })
-    }
 
     // Retrieve the checkout session
     const session = await stripe.checkout.sessions.retrieve(sessionId, {

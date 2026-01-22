@@ -4,7 +4,13 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:backend": "npm run dev --prefix backend",
-    "dev:frontend": "npm run dev --prefix frontend"
+    "dev:frontend": "npm run dev --prefix frontend",
+    "test": "concurrently \"npm test --prefix backend\" \"npm test --prefix frontend\"",
+    "test:unit": "concurrently \"npm test --prefix backend\" \"npm test --prefix frontend\"",
+    "test:frontend": "npm test --prefix frontend",
+    "test:backend": "npm test --prefix backend",
+    "test:e2e": "npm run test:e2e --prefix frontend",
+    "test:all": "npm run test:unit && npm run test:e2e"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
