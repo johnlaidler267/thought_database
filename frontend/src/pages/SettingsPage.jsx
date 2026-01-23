@@ -116,7 +116,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `axiom-export-${new Date().toISOString().split('T')[0]}.json`
+      link.download = `vellum-export-${new Date().toISOString().split('T')[0]}.json`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -540,7 +540,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                 <div className="flex-1 pr-4">
                   <p className="text-sm font-serif mb-1" style={{ color: 'var(--ink)' }}>Business / Team</p>
                   <p className="text-xs font-serif leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-                    Want Axiom for your crew? Get bulk licensing and centralized billing.
+                    Want Vellum for your crew? Get bulk licensing and centralized billing.
                   </p>
                 </div>
                 <Button

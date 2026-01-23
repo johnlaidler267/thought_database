@@ -62,12 +62,12 @@ router.post('/create-checkout-session', async (req, res) => {
     let unitAmount, productName, description
     if (tier === 'apprentice') {
       unitAmount = 500 // $5.00 in cents
-      productName = 'Axiom Apprentice'
+      productName = 'Vellum Apprentice'
       description = '300 minutes per month'
     } else {
       // Default to Pro tier
       unitAmount = 1200 // $12.00 in cents
-      productName = 'Axiom Notary Pro'
+      productName = 'Vellum Notary Pro'
       description = 'Unlimited notarizations'
     }
 

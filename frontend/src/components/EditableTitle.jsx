@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 export default function EditableTitle() {
   const [title, setTitle] = useState(() => {
     const saved = localStorage.getItem('axiomTitle')
-    return saved || 'Axiom'
+    return saved || 'Vellum'
   })
   const [isEditing, setIsEditing] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -59,7 +59,7 @@ export default function EditableTitle() {
     if (e.key === 'Enter') {
       e.target.blur()
     } else if (e.key === 'Escape') {
-      setTitle(localStorage.getItem('axiomTitle') || 'Axiom')
+      setTitle(localStorage.getItem('axiomTitle') || 'Vellum')
       e.target.blur()
     }
   }

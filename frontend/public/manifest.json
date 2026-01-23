@@ -1,7 +1,7 @@
 {
-  "name": "Axiom",
-  "short_name": "Axiom",
-  "description": "Axiom - Capture and organize your thoughts",
+  "name": "Vellum",
+  "short_name": "Vellum",
+  "description": "Vellum - Capture and organize your thoughts",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f5f5",

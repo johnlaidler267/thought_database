@@ -455,7 +455,7 @@ export default function HomePage() {
       <header className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Axiom</h1>
+            <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Vellum</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 text-xs font-serif">
             <span className="text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>Status:</span>
