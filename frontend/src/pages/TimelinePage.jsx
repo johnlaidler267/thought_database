@@ -258,11 +258,11 @@ export default function TimelinePage() {
     <div className="min-h-screen" style={{ background: '#2c2c2e', backgroundAttachment: 'fixed' }}>
       {/* Centered Title */}
       <div className="sticky top-0 z-40 backdrop-blur-xl bg-[#2c2c2e]/90 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-        <div className="relative max-w-[39.6rem] mx-auto">
+        <div className="relative max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[39.6rem] mx-auto px-4 sm:px-8">
           <EditableTitle />
           <button
             onClick={handleSignOut}
-            className="absolute right-8 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 text-sm font-medium transition-colors"
+            className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 text-xs sm:text-sm font-medium transition-colors"
             aria-label="Sign out"
           >
             Sign Out
@@ -314,7 +314,7 @@ export default function TimelinePage() {
             boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.3)'
           }}
         >
-          <div className="max-w-[39.6rem] mx-auto px-8 py-4">
+          <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[39.6rem] mx-auto px-4 sm:px-8 py-4">
             <div className="flex items-start gap-3">
               <div className="flex-1">
                 <label 
@@ -413,7 +413,7 @@ export default function TimelinePage() {
 
       {/* Fixed Record Button */}
       <div 
-        className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 ${
+        className={`fixed bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 ${
           isEditingTranscript ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100'
         }`}
       >

@@ -342,8 +342,8 @@ const handleSubscribe = async (targetTier = 'pro') => {
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
-      <header className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-[46.2rem] mx-auto flex items-center gap-4">
+      <header className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
             className="text-muted-foreground hover:text-ink transition-colors"
@@ -358,8 +358,8 @@ const handleSubscribe = async (targetTier = 'pro') => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-12">
-        <div className="max-w-[46.2rem] mx-auto space-y-8">
+      <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 sm:py-12">
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto space-y-6 sm:space-y-8">
           {/* Subscription Section */}
           <Card 
             className="border-stroke bg-card p-6 shadow-none"
@@ -967,7 +967,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
 
       {/* Environment Mode Indicator - Only shown in development builds */}
       {import.meta.env.DEV && (
-        <div className="max-w-[46.2rem] mx-auto mt-8 pb-8">
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto mt-6 sm:mt-8 pb-6 sm:pb-8">
           <div className="text-center">
             <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
               Environment: <span className="font-mono" style={{ color: 'var(--ink)' }}>{getEnvironmentMode()}</span>

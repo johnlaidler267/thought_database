@@ -452,13 +452,13 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
-      <header className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-[46.2rem] mx-auto flex items-center justify-between">
+      <header className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Axiom</h1>
             <p className="text-sm text-muted-foreground mt-0.5 font-serif" style={{ color: 'var(--muted-foreground)' }}>Never waste a good thought</p>
           </div>
-          <div className="flex items-center gap-4 text-xs font-serif">
+          <div className="flex items-center gap-2 sm:gap-4 text-xs font-serif">
             <span className="text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>Status:</span>
             <div className="flex items-center gap-2">
               <div
@@ -503,8 +503,8 @@ export default function HomePage() {
       </header>
 
       {/* Search Bar */}
-      <div className="border-b border-stroke px-6 py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-[46.2rem] mx-auto">
+      <div className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto">
           <div className="relative">
             <Search 
               className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" 
@@ -674,10 +674,10 @@ export default function HomePage() {
       </div>
 
       {/* Timeline */}
-      <main className={`flex-1 overflow-y-auto px-6 pt-6 transition-all duration-300 ${
+      <main className={`flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
         isEditingTranscript ? 'pb-80' : 'pb-40'
       }`}>
-        <div className="max-w-[46.2rem] mx-auto space-y-6">
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto space-y-4 sm:space-y-6">
           {recordingError && (
             <div 
               className="mb-6 p-4 rounded-xl border text-sm"
@@ -843,12 +843,12 @@ export default function HomePage() {
 
       {/* Fixed Record Button */}
       <div 
-        className={`fixed bottom-0 left-0 right-0 pb-12 pt-8 bg-gradient-to-t from-paper via-paper to-transparent pointer-events-none transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 pb-8 sm:pb-12 pt-6 sm:pt-8 bg-gradient-to-t from-paper via-paper to-transparent pointer-events-none transition-all duration-300 ${
           isEditingTranscript ? 'opacity-0 translate-y-full' : 'opacity-100'
         }`}
         style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}
       >
-        <div className="max-w-[46.2rem] mx-auto flex justify-center pointer-events-auto">
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex justify-center pointer-events-auto">
           <div className="relative">
             <button
               onClick={handleRecordClick}
@@ -880,7 +880,7 @@ export default function HomePage() {
 
               {/* Main button */}
               <div
-                className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                   isAudioRecording 
                     ? "" 
                     : "group-hover:bg-muted/50"
@@ -894,13 +894,13 @@ export default function HomePage() {
               >
                 {isAudioRecording ? (
                   <>
-                    <Pause className="w-8 h-8" strokeWidth={1.5} />
+                    <Pause className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={1.5} />
                     {showWarning && (
                       <div className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                     )}
                   </>
                 ) : (
-                  <Mic className="w-8 h-8" strokeWidth={1.5} />
+                  <Mic className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={1.5} />
                 )}
               </div>
             </button>
@@ -1099,7 +1099,7 @@ function ThoughtCard({ thought, onDelete }) {
         </div>
       </div>
 
-      <p className="text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
+      <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
         {displayText}
       </p>
       
@@ -1123,7 +1123,7 @@ function ThoughtCard({ thought, onDelete }) {
       )}
 
       {/* Action Buttons - Bottom Right */}
-      <div className="absolute bottom-4 right-6 flex items-center gap-2">
+      <div className="absolute bottom-3 sm:bottom-4 right-4 sm:right-6 flex items-center gap-2">
         {/* Translate Button */}
         {translationEnabled && (
           <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">

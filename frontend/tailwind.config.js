@@ -26,6 +26,10 @@ export default {
       spacing: {
         '18': '4.5rem',
         '22': '5.5rem',
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
       },
       borderRadius: {
         'xl': '16px',
