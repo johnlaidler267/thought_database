@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
@@ -23,6 +24,7 @@ export default function HomePage() {
   const [hoveredCategory, setHoveredCategory] = useState(null)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
+  const [categoryToDelete, setCategoryToDelete] = useState(null)
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -389,16 +391,29 @@ export default function HomePage() {
     }
   }
 
-  // Handle deleting a category
+  // Handle deleting a category - show confirmation dialog
   const handleDeleteCategory = (category) => {
     if (category === "All") return // Prevent deleting "All" category
+    setCategoryToDelete(category)
+  }
 
-    setCategories(categories.filter((cat) => cat !== category))
+  // Confirm category deletion
+  const confirmDeleteCategory = () => {
+    if (!categoryToDelete) return
+
+    setCategories(categories.filter((cat) => cat !== categoryToDelete))
 
     // If the deleted category was active, switch to "All"
-    if (activeCategory === category) {
+    if (activeCategory === categoryToDelete) {
       setActiveCategory("All")
     }
+
+    setCategoryToDelete(null)
+  }
+
+  // Cancel category deletion
+  const cancelDeleteCategory = () => {
+    setCategoryToDelete(null)
   }
 
   // Filter thoughts based on search query (by tag and content) and active category
@@ -779,7 +794,7 @@ export default function HomePage() {
                   rows={4}
                 />
                 <div className="flex items-center justify-between mt-3">
-                  <p className="text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+                  <p className="hidden sm:block text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
                     Press <kbd className="px-1.5 py-0.5 rounded border" style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--muted)' }}>⌘</kbd> + <kbd className="px-1.5 py-0.5 rounded border" style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--muted)' }}>Enter</kbd> to save
                   </p>
                   <div className="flex items-center gap-2">
@@ -928,6 +943,17 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Category Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={categoryToDelete !== null}
+        onClose={cancelDeleteCategory}
+        onConfirm={confirmDeleteCategory}
+        title="Delete Category"
+        message={`Are you sure you want to delete the "${categoryToDelete}" category? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   )
 }
