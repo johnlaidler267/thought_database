@@ -6,7 +6,7 @@ This document describes the modular LLM service architecture that has been integ
 
 The application now uses real LLM APIs for:
 1. **Transcription**: Whisper Large v3 via Groq (fastest, free tier)
-2. **Text Cleaning**: Gemini 2.0 Flash Exp via Google AI Studio (large context, free tier)
+2. **Text Cleaning**: Gemini 2.0 Flash via Google AI Studio (free tier)
 3. **Tagging**: Llama 3.3 70B Versatile via Groq (blazing fast, free tier)
 
 ## Architecture
@@ -70,8 +70,8 @@ GOOGLE_AI_API_KEY=your_google_ai_api_key_here
 
 ### Text Cleaning
 - **Provider**: Google AI Studio
-- **Model**: `gemini-2.0-flash-exp` (update to `gemini-2.5-flash-lite` when available)
-- **Context Window**: 1M tokens (huge for long sessions)
+- **Model**: `gemini-2.0-flash` (free tier model)
+- **Context Window**: Up to 1,048,576 tokens (huge for long sessions)
 - **Free Tier**: 1,000 requests/day
 
 ### Tagging

@@ -545,31 +545,20 @@ export default function HomePage() {
       </div>
 
       {/* Category Tabs */}
-      <div className="border-b border-stroke px-6 py-3 overflow-x-auto" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-[46.2rem] mx-auto flex items-center gap-2">
+      <div 
+        className="border-b border-stroke py-3 overflow-x-auto category-tabs-container" 
+        style={{ 
+          borderColor: 'var(--stroke)',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
+        }}
+      >
+        <div className="px-4 sm:px-6 flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
           {categories.map((category) => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
-              onMouseEnter={() => {
-                // Clear any existing timeout
-                if (hoverTimeoutRef.current) {
-                  clearTimeout(hoverTimeoutRef.current)
-                }
-                // Set hovered category after 350ms delay
-                hoverTimeoutRef.current = setTimeout(() => {
-                  setHoveredCategory(category)
-                }, 350)
-              }}
-              onMouseLeave={() => {
-                // Clear timeout if mouse leaves before delay completes
-                if (hoverTimeoutRef.current) {
-                  clearTimeout(hoverTimeoutRef.current)
-                  hoverTimeoutRef.current = null
-                }
-                setHoveredCategory(null)
-              }}
-              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 flex-shrink-0 ${
                 activeCategory === category
                   ? "text-paper"
                   : "border text-muted-foreground hover:text-ink hover:border-ink"
@@ -578,14 +567,16 @@ export default function HomePage() {
                 backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
                 borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
                 color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
-                paddingRight: hoveredCategory === category && category !== "All" ? '0.75rem' : '1rem',
+                paddingLeft: '1rem',
+                paddingRight: category !== "All" ? '0.75rem' : '1rem',
                 minHeight: '2.5rem',
-                height: '2.5rem'
+                height: '2.5rem',
+                minWidth: 'fit-content'
               }}
             >
-              <span>{category}</span>
-              {/* Delete button shown on hover (except for "All") */}
-              {hoveredCategory === category && category !== "All" && (
+              <span className="flex-shrink-0">{category}</span>
+              {/* Delete button always visible (except for "All") */}
+              {category !== "All" && (
                 <span
                   onClick={(e) => {
                     e.stopPropagation()
@@ -604,7 +595,8 @@ export default function HomePage() {
                   style={{ 
                     color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
                     width: '1rem',
-                    height: '1rem'
+                    height: '1rem',
+                    minWidth: '1rem'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = 'var(--destructive)'
@@ -621,7 +613,7 @@ export default function HomePage() {
           ))}
 
           {isAddingCategory ? (
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <input
                 type="text"
                 value={newCategoryName}
@@ -652,10 +644,12 @@ export default function HomePage() {
           ) : (
             <button
               onClick={() => setIsAddingCategory(true)}
-              className="px-3 py-2 rounded border border-dashed transition-colors flex items-center gap-2 font-serif text-sm"
+              className="px-3 py-2 rounded border border-dashed transition-colors flex items-center gap-2 font-serif text-sm flex-shrink-0 whitespace-nowrap"
               style={{
                 borderColor: 'var(--stroke)',
-                color: 'var(--muted-foreground)'
+                color: 'var(--muted-foreground)',
+                minHeight: '2.5rem',
+                height: '2.5rem'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = 'var(--ink)'

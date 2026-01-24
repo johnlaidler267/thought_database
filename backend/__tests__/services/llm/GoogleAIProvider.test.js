@@ -36,11 +36,11 @@ describe('GoogleAIProvider', () => {
 
       global.fetch.mockResolvedValue(mockResponse)
 
-      const result = await provider.complete('Test prompt', 'gemini-2.0-flash-exp')
+      const result = await provider.complete('Test prompt', 'gemini-2.0-flash')
 
       expect(result).toBe('Generated response from Gemini')
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('gemini-2.0-flash-exp:generateContent'),
+        expect.stringContaining('gemini-2.0-flash:generateContent'),
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -70,7 +70,7 @@ describe('GoogleAIProvider', () => {
       await provider.complete('Test prompt')
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('gemini-2.0-flash-exp:generateContent'),
+        expect.stringContaining('gemini-2.0-flash:generateContent'),
         expect.anything()
       )
     })
@@ -91,7 +91,7 @@ describe('GoogleAIProvider', () => {
 
       global.fetch.mockResolvedValue(mockResponse)
 
-      await provider.complete('Test prompt', 'gemini-2.0-flash-exp', {
+      await provider.complete('Test prompt', 'gemini-2.0-flash', {
         max_tokens: 2048,
         temperature: 0.3,
         generationConfig: {
@@ -157,7 +157,7 @@ describe('GoogleAIProvider', () => {
 
       global.fetch.mockReturnValue(slowPromise)
 
-      const completePromise = timeoutProvider.complete('Test prompt', 'gemini-2.0-flash-exp')
+      const completePromise = timeoutProvider.complete('Test prompt', 'gemini-2.0-flash')
       
       // Fast-forward time to trigger timeout
       vi.advanceTimersByTime(150)

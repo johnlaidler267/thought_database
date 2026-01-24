@@ -7,17 +7,17 @@ import { BaseProvider } from '../base/BaseProvider.js'
 export class GoogleAIProvider extends BaseProvider {
   constructor(config = {}) {
     super(config)
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta'
+    this.baseUrl = 'https://generativelanguage.googleapis.com/v1'
   }
 
   /**
    * Generate text completion using Gemini models
    * @param {string} prompt - The prompt
-   * @param {string} model - Model name (e.g., 'gemini-2.0-flash-exp')
+   * @param {string} model - Model name (e.g., 'gemini-2.0-flash')
    * @param {object} options - Additional options
    * @returns {Promise<string>} - Generated text
    */
-  async complete(prompt, model = 'gemini-2.0-flash-exp', options = {}) {
+  async complete(prompt, model = 'gemini-2.0-flash', options = {}) {
     this.validateApiKey()
 
     const response = await this.withTimeout(

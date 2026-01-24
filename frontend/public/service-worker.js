@@ -18,19 +18,23 @@ self.addEventListener('install', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   
-  // Skip caching for:
-  // 1. API requests (any path starting with /api/)
-  // 2. Non-GET requests (POST, PUT, DELETE, etc.)
-  // 3. External URLs (different origin, like backend API server)
-  // 4. Requests to localhost:3001 (backend server)
+  // Skip service worker entirely for:
+  // 1. Vite dev server requests (@vite/client, @react-refresh, etc.)
+  // 2. Requests with query params (Vite adds ?t=timestamp)
+  // 3. API requests (any path starting with /api/)
+  // 4. Non-GET requests (POST, PUT, DELETE, etc.)
+  // 5. External URLs (different origin, like backend API server)
+  // 6. Requests to localhost:3001 (backend server)
   if (
+    url.pathname.includes('@vite') ||
+    url.pathname.includes('@react-refresh') ||
+    url.searchParams.has('t') || // Vite timestamp query params
     url.pathname.startsWith('/api/') ||
     event.request.method !== 'GET' ||
     url.origin !== self.location.origin ||
-    url.hostname === 'localhost' && url.port === '3001'
+    (url.hostname === 'localhost' && url.port === '3001')
   ) {
-    // For API requests, bypass cache and go directly to network
-    event.respondWith(fetch(event.request))
+    // Don't intercept these requests - let browser handle them normally
     return
   }
   
@@ -39,7 +43,19 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request)
       .then((response) => {
         // Return cached version or fetch from network
-        return response || fetch(event.request)
+        if (response) {
+          return response
+        }
+        return fetch(event.request).catch((error) => {
+          // If fetch fails, don't throw - let browser handle it
+          console.error('Service Worker fetch failed:', error)
+          // Return a basic error response or let it fail gracefully
+          return new Response('Network error', { 
+            status: 408, 
+            statusText: 'Request Timeout',
+            headers: { 'Content-Type': 'text/plain' }
+          })
+        })
       })
   )
 })

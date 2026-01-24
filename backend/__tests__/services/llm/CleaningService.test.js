@@ -57,7 +57,7 @@ describe('CleaningService', () => {
       expect(result).toBe('I was thinking maybe we should do this')
       expect(mockProvider.complete).toHaveBeenCalledWith(
         expect.stringContaining(transcript),
-        'gemini-2.0-flash-exp',
+        'gemini-2.0-flash',
         expect.objectContaining({
           max_tokens: expect.any(Number),
           temperature: 0.3

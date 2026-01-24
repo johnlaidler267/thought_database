@@ -402,3 +402,13 @@
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* Category tabs horizontal scroll */
+.category-tabs-container {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-tabs-container::-webkit-scrollbar {
+  display: none;
+}
