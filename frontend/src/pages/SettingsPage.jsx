@@ -471,7 +471,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                       value={openaiApiKey}
                       onChange={(e) => setOpenaiApiKey(e.target.value)}
                       placeholder="sk-..."
-                      className="flex-1 border rounded px-4 py-2 text-sm font-mono"
+                      className="flex-1 border rounded px-4 py-2 font-mono"
                       style={{
                         backgroundColor: 'var(--muted)',
                         borderColor: 'var(--stroke)',
@@ -635,7 +635,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                   <select
                     value={translationLanguage}
                     onChange={(e) => handleTranslationLanguageChange(e.target.value)}
-                    className="w-full border rounded px-4 py-2 text-sm font-serif focus:outline-none"
+                    className="w-full border rounded px-4 py-2 font-serif focus:outline-none"
                     style={{
                       backgroundColor: 'var(--muted)',
                       borderColor: 'var(--stroke)',
@@ -907,7 +907,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                       }
                     }}
                     disabled={deletingAccount}
-                    className="w-full px-4 py-2 border rounded text-sm font-mono focus:outline-none disabled:opacity-50"
+                    className="w-full px-4 py-2 border rounded font-mono focus:outline-none disabled:opacity-50"
                     style={{
                       backgroundColor: 'var(--muted)',
                       borderColor: deleteError ? 'var(--destructive)' : 'var(--stroke)',

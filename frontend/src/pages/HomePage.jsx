@@ -514,11 +514,12 @@ export default function HomePage() {
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-card border rounded pl-11 pr-11 py-3 text-sm font-serif placeholder:text-muted-foreground focus:outline-none focus:border-ink transition-colors"
+              className="w-full bg-card border rounded pl-11 pr-11 py-3 font-serif placeholder:text-muted-foreground focus:outline-none focus:border-ink transition-colors"
               style={{
                 backgroundColor: 'var(--card)',
                 borderColor: 'var(--stroke)',
-                color: 'var(--ink)'
+                color: 'var(--ink)',
+                fontSize: '16px'
               }}
               onFocus={(e) => {
                 e.target.style.borderColor = 'var(--ink)'
@@ -633,7 +634,7 @@ export default function HomePage() {
                   }
                 }}
                 placeholder="Category name..."
-                className="px-4 py-2 pr-10 rounded border border-stroke bg-card text-sm font-serif focus:outline-none focus:border-ink w-40"
+                className="px-4 py-2 pr-10 rounded border border-stroke bg-card font-serif focus:outline-none focus:border-ink w-40"
                 style={{
                   height: '2.5rem',
                   minHeight: '2.5rem'
