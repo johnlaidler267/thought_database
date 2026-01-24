@@ -793,10 +793,7 @@ export default function HomePage() {
                   placeholder="Edit your transcript here..."
                   rows={4}
                 />
-                <div className="flex items-center justify-between mt-3">
-                  <p className="hidden sm:block text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
-                    Press <kbd className="px-1.5 py-0.5 rounded border" style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--muted)' }}>⌘</kbd> + <kbd className="px-1.5 py-0.5 rounded border" style={{ borderColor: 'var(--stroke)', backgroundColor: 'var(--muted)' }}>Enter</kbd> to save
-                  </p>
+                <div className="flex items-center justify-end mt-3">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleCancelEdit}
