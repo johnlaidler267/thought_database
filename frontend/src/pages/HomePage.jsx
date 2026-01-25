@@ -26,12 +26,6 @@ export default function HomePage() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryToDelete, setCategoryToDelete] = useState(null)
   const hoverTimeoutRef = useRef(null)
-  const categoryTabsScrollRef = useRef(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const dragStartX = useRef(0)
-  const scrollStartX = useRef(0)
-  const dragThreshold = useRef(5) // Minimum pixels to move before considering it a drag
-  const hasDragged = useRef(false)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [draftTranscript, setDraftTranscript] = useState('')
@@ -113,6 +107,10 @@ export default function HomePage() {
         }
       } catch (err) {
         console.error('Error loading thoughts:', err)
+        // Check if it's a network/DNS error
+        if (err.message?.includes('Failed to fetch') || err.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+          console.error('⚠️ Cannot connect to Supabase. Check if your Supabase project is active and the URL is correct.')
+        }
       }
     }
 
@@ -470,47 +468,6 @@ export default function HomePage() {
     return null
   }
 
-  // Drag-to-scroll handlers for category tabs
-  const handleDragStart = (e) => {
-    if (!categoryTabsScrollRef.current) return
-    
-    setIsDragging(true)
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX
-    dragStartX.current = clientX
-    scrollStartX.current = categoryTabsScrollRef.current.scrollLeft
-    
-    // Prevent text selection while dragging
-    e.preventDefault()
-  }
-
-  const handleDragMove = (e) => {
-    if (!isDragging || !categoryTabsScrollRef.current) return
-    
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX
-    const diffX = dragStartX.current - clientX
-    
-    // Only consider it a drag if moved more than threshold
-    if (Math.abs(diffX) > dragThreshold.current) {
-      hasDragged.current = true
-      categoryTabsScrollRef.current.scrollLeft = scrollStartX.current + diffX
-      e.preventDefault()
-    }
-  }
-
-  const handleDragEnd = () => {
-    const wasDragging = hasDragged.current
-    setIsDragging(false)
-    
-    // Reset drag flag after a short delay to allow click events to be prevented
-    if (wasDragging) {
-      setTimeout(() => {
-        hasDragged.current = false
-      }, 100)
-    } else {
-      hasDragged.current = false
-    }
-  }
-
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
@@ -608,44 +565,18 @@ export default function HomePage() {
 
       {/* Category Tabs */}
       <div 
-        className="border-b border-stroke px-4 sm:px-6 py-3 category-tabs-container" 
+        className="border-b border-stroke py-3 overflow-x-auto category-tabs-container" 
         style={{ 
           borderColor: 'var(--stroke)',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}
       >
-        <div 
-          ref={categoryTabsScrollRef}
-          className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto overflow-x-auto" 
-          style={{ 
-            scrollbarWidth: 'none', 
-            msOverflowStyle: 'none',
-            cursor: isDragging ? 'grabbing' : 'grab',
-            userSelect: 'none',
-            WebkitUserSelect: 'none'
-          }}
-          onMouseDown={handleDragStart}
-          onMouseMove={handleDragMove}
-          onMouseUp={handleDragEnd}
-          onMouseLeave={handleDragEnd}
-          onTouchStart={handleDragStart}
-          onTouchMove={handleDragMove}
-          onTouchEnd={handleDragEnd}
-        >
-          <div className="flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
+        <div className="px-4 sm:px-6 flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
           {categories.map((category) => (
             <button
               key={category}
-              onClick={(e) => {
-                // Prevent click if we just finished dragging
-                if (hasDragged.current) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  return
-                }
-                setActiveCategory(category)
-              }}
+              onClick={() => setActiveCategory(category)}
               className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 flex-shrink-0 ${
                 activeCategory === category
                   ? "text-paper"
@@ -667,12 +598,6 @@ export default function HomePage() {
               {category !== "All" && (
                 <span
                   onClick={(e) => {
-                    // Prevent click if we just finished dragging
-                    if (hasDragged.current) {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      return
-                    }
                     e.stopPropagation()
                     handleDeleteCategory(category)
                   }}
@@ -728,15 +653,7 @@ export default function HomePage() {
                 autoFocus
               />
               <button
-                onClick={(e) => {
-                  // Prevent click if we just finished dragging
-                  if (hasDragged.current) {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    return
-                  }
-                  handleAddCategory()
-                }}
+                onClick={handleAddCategory}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-ink text-paper flex items-center justify-center hover:bg-muted-foreground transition-colors"
                 aria-label="Add category"
               >
@@ -745,15 +662,7 @@ export default function HomePage() {
             </div>
           ) : (
             <button
-              onClick={(e) => {
-                // Prevent click if we just finished dragging
-                if (hasDragged.current) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  return
-                }
-                setIsAddingCategory(true)
-              }}
+              onClick={() => setIsAddingCategory(true)}
               className="px-3 py-2 rounded border border-dashed transition-colors flex items-center gap-2 font-serif text-sm flex-shrink-0 whitespace-nowrap"
               style={{
                 borderColor: 'var(--stroke)',
@@ -774,7 +683,6 @@ export default function HomePage() {
               <span>Add Category</span>
             </button>
           )}
-          </div>
         </div>
       </div>
 
@@ -982,27 +890,35 @@ export default function HomePage() {
 
               {/* Main button */}
               <div
-                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                className={`w-24 h-24 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                   isAudioRecording 
                     ? "" 
                     : "group-hover:bg-muted/50"
                 }`}
                 style={{
-                  backgroundColor: isAudioRecording ? 'var(--ink)' : 'var(--paper)',
+                  backgroundColor: isAudioRecording 
+                    ? 'var(--ink)' 
+                    : 'var(--paper)',
+                  backgroundImage: isAudioRecording
+                    ? 'radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.15), transparent 60%), radial-gradient(circle at center, rgba(255, 255, 255, 0.1), transparent 70%)'
+                    : 'radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.08), transparent 60%), radial-gradient(circle at center, rgba(255, 255, 255, 0.15), transparent 70%)',
                   color: isAudioRecording ? 'var(--paper)' : 'var(--ink)',
                   borderColor: isAudioRecording ? 'transparent' : 'var(--stroke)',
-                  opacity: isEditingTranscript ? 0.5 : 1
+                  opacity: isEditingTranscript ? 0.5 : 1,
+                  boxShadow: isAudioRecording
+                    ? 'inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)'
+                    : 'inset 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08)'
                 }}
               >
                 {isAudioRecording ? (
                   <>
-                    <Pause className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={1.5} />
+                    <Pause className="w-9 h-9 sm:w-8 sm:h-8" strokeWidth={1.5} />
                     {showWarning && (
                       <div className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                     )}
                   </>
                 ) : (
-                  <Mic className="w-7 h-7 sm:w-8 sm:h-8" strokeWidth={1.5} />
+                  <Mic className="w-9 h-9 sm:w-8 sm:h-8" strokeWidth={1.5} />
                 )}
               </div>
             </button>
@@ -1010,10 +926,12 @@ export default function HomePage() {
             {/* Keyboard toggle button - positioned at bottom right of record button */}
             <button
               onClick={handleKeyboardToggle}
-              className="absolute text-muted-foreground hover:text-ink transition-colors"
+              className="absolute text-muted-foreground hover:text-ink transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
               aria-label="Switch to typing mode"
               disabled={isEditingTranscript}
               style={{
+                backgroundColor: 'var(--card)',
+                border: '1px solid var(--stroke)',
                 color: isEditingTranscript ? 'var(--muted-foreground)' : 'var(--muted-foreground)',
                 opacity: isEditingTranscript ? 0.5 : 1,
                 cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
@@ -1023,15 +941,17 @@ export default function HomePage() {
               onMouseEnter={(e) => {
                 if (!isEditingTranscript) {
                   e.currentTarget.style.color = 'var(--ink)'
+                  e.currentTarget.style.borderColor = 'var(--ink)'
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isEditingTranscript) {
                   e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
                 }
               }}
             >
-              <Keyboard className="w-5 h-5" strokeWidth={1.5} />
+              <Keyboard className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
             </button>
           </div>
         </div>

@@ -36,14 +36,23 @@ Return ONLY the cleaned text, no explanations or additional commentary.`
 
     try {
       const fullPrompt = `${this.prompt}\n\nOriginal transcript:\n${transcript}`
+      console.log('Calling Google AI Gemini API, model:', this.model)
+      console.log('API Key present?', !!this.provider.apiKey)
+      console.log('API Key length:', this.provider.apiKey?.length || 0)
+      
       const cleanedText = await this.provider.complete(fullPrompt, this.model, {
         max_tokens: Math.max(transcript.length * 2, 2048), // Ensure enough tokens for long transcripts
         temperature: 0.3, // Lower temperature for more consistent cleaning
       })
 
-      return cleanedText.trim() || transcript
+      const result = cleanedText.trim() || transcript
+      console.log('Google AI returned:', result.substring(0, 50) + (result.length > 50 ? '...' : ''))
+      console.log('Result same as original?', result === transcript)
+      
+      return result
     } catch (error) {
-      console.error('Cleaning error:', error)
+      console.error('❌ Cleaning error:', error.message || error)
+      console.error('Error details:', error)
       // Return original transcript on failure - graceful degradation
       if (error.message?.includes('timeout')) {
         console.warn('Cleaning timed out, returning original transcript')

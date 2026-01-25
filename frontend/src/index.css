@@ -409,12 +409,6 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.category-tabs-container > div {
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
-
-.category-tabs-container::-webkit-scrollbar,
-.category-tabs-container > div::-webkit-scrollbar {
+.category-tabs-container::-webkit-scrollbar {
   display: none;
 }

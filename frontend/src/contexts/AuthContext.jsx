@@ -359,11 +359,19 @@ export const AuthProvider = ({ children }) => {
       ]).catch(async (timeoutError) => {
         // If timeout, try one more time quickly
         console.warn('Profile query timed out, retrying once...', timeoutError)
-        return await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single()
+        try {
+          return await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single()
+        } catch (retryError) {
+          // Check if it's a network/DNS error
+          if (retryError.message?.includes('Failed to fetch') || retryError.message?.includes('ERR_NAME_NOT_RESOLVED')) {
+            console.error('⚠️ Cannot connect to Supabase. Check if your Supabase project is active and the URL is correct.')
+          }
+          throw retryError
+        }
       })
 
       if (error && error.code === 'PGRST116') {

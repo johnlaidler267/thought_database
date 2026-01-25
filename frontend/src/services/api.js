@@ -1,4 +1,12 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+// Construct API URL - ensure it ends with /api
+const getApiUrl = () => {
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  // Remove trailing slash if present
+  const cleanUrl = baseUrl.replace(/\/$/, '')
+  // Add /api if not already present
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`
+}
+const API_URL = getApiUrl()
 
 export async function transcribeAudio(audioBlob) {
   const formData = new FormData()

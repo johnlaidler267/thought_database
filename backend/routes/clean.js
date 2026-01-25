@@ -22,12 +22,20 @@ router.post('/', async (req, res) => {
 
     // If service is not configured, return original transcript (graceful degradation)
     if (!cleaningService.isConfigured()) {
-      console.warn('Cleaning service not configured, returning original transcript')
+      console.warn('⚠️ Cleaning service not configured - GOOGLE_AI_API_KEY missing or invalid')
+      console.warn('GOOGLE_AI_API_KEY exists?', !!process.env.GOOGLE_AI_API_KEY)
+      console.warn('GOOGLE_AI_API_KEY length:', process.env.GOOGLE_AI_API_KEY?.length || 0)
       return res.json({ cleaned_text: transcript })
     }
 
+    console.log('✅ Cleaning service configured, cleaning transcript...')
+    console.log('Original transcript:', transcript.substring(0, 50) + (transcript.length > 50 ? '...' : ''))
+    
     // Clean transcript using Gemini
     const cleanedText = await cleaningService.clean(transcript)
+    
+    console.log('Cleaned result:', cleanedText?.substring(0, 50) + (cleanedText?.length > 50 ? '...' : ''))
+    console.log('Same as original?', cleanedText === transcript)
     
     res.json({ cleaned_text: cleanedText || transcript })
   } catch (error) {
