@@ -34,15 +34,20 @@ router.post('/', upload.single('audio'), async (req, res) => {
       })
     }
 
-    console.log(`Received audio: ${req.file.buffer.length} bytes, type: ${req.file.mimetype}`)
+    console.log(`📥 Received audio: ${req.file.buffer.length} bytes, type: ${req.file.mimetype}`)
 
     // Check if service is configured
     if (!transcriptionService.isConfigured()) {
+      console.warn('⚠️ Transcription service not configured')
+      console.warn('GROQ_API_KEY exists?', !!process.env.GROQ_API_KEY)
+      console.warn('GROQ_API_KEY length:', process.env.GROQ_API_KEY?.length || 0)
       return res.status(503).json({ 
         error: 'Transcription service not configured',
         details: 'GROQ_API_KEY is required for transcription'
       })
     }
+
+    console.log('✅ Transcription service configured, starting transcription...')
 
     // Transcribe using Groq Whisper API
     const transcriptText = await transcriptionService.transcribe(

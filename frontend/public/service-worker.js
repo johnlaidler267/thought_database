@@ -2,15 +2,25 @@ const CACHE_NAME = 'vellum-v1'
 const urlsToCache = [
   '/',
   '/index.html',
-  '/src/main.jsx',
-  '/src/App.jsx',
 ]
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+      .then((cache) => {
+        // Use Promise.allSettled to handle failures gracefully
+        return Promise.allSettled(
+          urlsToCache.map(url => cache.add(url).catch(err => {
+            console.warn(`Failed to cache ${url}:`, err)
+            return null
+          }))
+        )
+      })
+      .then(() => {
+        // Force activation of new service worker
+        return self.skipWaiting()
+      })
   )
 })
 
@@ -25,6 +35,16 @@ self.addEventListener('fetch', (event) => {
   // 4. Non-GET requests (POST, PUT, DELETE, etc.)
   // 5. External URLs (different origin, like backend API server)
   // 6. Requests to localhost:3001 (backend server)
+  // 7. Manifest.json and other dev-only files
+  // 8. Development mode (localhost with port 5174 or other Vite ports)
+  const isDevMode = url.hostname === 'localhost' && (
+    url.port === '5174' || 
+    url.port === '5173' || 
+    url.port === '3000' ||
+    url.pathname.includes('/src/') ||
+    url.pathname === '/manifest.json'
+  )
+  
   if (
     url.pathname.includes('@vite') ||
     url.pathname.includes('@react-refresh') ||
@@ -32,7 +52,8 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/') ||
     event.request.method !== 'GET' ||
     url.origin !== self.location.origin ||
-    (url.hostname === 'localhost' && url.port === '3001')
+    (url.hostname === 'localhost' && url.port === '3001') ||
+    isDevMode
   ) {
     // Don't intercept these requests - let browser handle them normally
     return
@@ -41,20 +62,23 @@ self.addEventListener('fetch', (event) => {
   // For static assets, try cache first, then network
   event.respondWith(
     caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        if (response) {
-          return response
+      .then((cachedResponse) => {
+        // Return cached version if available
+        if (cachedResponse) {
+          return cachedResponse
         }
-        return fetch(event.request).catch((error) => {
-          // If fetch fails, don't throw - let browser handle it
-          console.error('Service Worker fetch failed:', error)
-          // Return a basic error response or let it fail gracefully
-          return new Response('Network error', { 
-            status: 408, 
-            statusText: 'Request Timeout',
-            headers: { 'Content-Type': 'text/plain' }
-          })
+        // Otherwise fetch from network
+        return fetch(event.request)
+      })
+      .catch((error) => {
+        // If fetch fails, try to return cached version as last resort
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse
+          }
+          // If everything fails, the request will fail naturally
+          // Don't create fake error responses
+          throw error
         })
       })
   )
@@ -71,6 +95,10 @@ self.addEventListener('activate', (event) => {
           }
         })
       )
+    })
+    .then(() => {
+      // Take control of all clients immediately
+      return self.clients.claim()
     })
   )
 })

@@ -21,9 +21,14 @@ export class TranscriptionService {
    */
   async transcribe(audioBuffer, mimeType = 'audio/webm') {
     try {
-      return await this.provider.transcribe(audioBuffer, mimeType)
+      console.log('🎤 Starting transcription, audio size:', audioBuffer.length, 'bytes, mimeType:', mimeType)
+      const result = await this.provider.transcribe(audioBuffer, mimeType)
+      console.log('✅ Transcription successful, result length:', result?.length || 0)
+      console.log('📝 Transcript preview:', result?.substring(0, 100) + (result?.length > 100 ? '...' : ''))
+      return result
     } catch (error) {
-      console.error('Transcription error:', error)
+      console.error('❌ Transcription error:', error.message || error)
+      console.error('Error details:', error)
       throw new Error(`Transcription failed: ${error.message}`)
     }
   }
@@ -33,6 +38,13 @@ export class TranscriptionService {
    * @returns {boolean}
    */
   isConfigured() {
-    return !!this.provider.apiKey
+    const hasKey = !!this.provider.apiKey
+    console.log('🔍 TranscriptionService.isConfigured() check:')
+    console.log('  - Provider API key exists?', hasKey)
+    console.log('  - Provider API key length:', this.provider.apiKey?.length || 0)
+    console.log('  - Config groqApiKey exists?', !!this.provider.apiKey)
+    console.log('  - Process.env.GROQ_API_KEY exists?', !!process.env.GROQ_API_KEY)
+    console.log('  - Process.env.GROQ_API_KEY length:', process.env.GROQ_API_KEY?.length || 0)
+    return hasKey
   }
 }
