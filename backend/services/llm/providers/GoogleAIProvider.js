@@ -21,11 +21,6 @@ export class GoogleAIProvider extends BaseProvider {
     this.validateApiKey()
 
     const url = `${this.baseUrl}/models/${model}:generateContent?key=${this.apiKey}`
-    console.log('🌐 Calling Google AI API:', url.substring(0, 80) + '...')
-    console.log('📝 Prompt length:', prompt.length)
-    console.log('🔑 API Key present?', !!this.apiKey, 'Length:', this.apiKey?.length || 0)
-    console.log('⚙️ Model:', model)
-    console.log('⚙️ Options:', { max_tokens: options.max_tokens, temperature: options.temperature })
 
     const requestBody = {
       contents: [
@@ -54,26 +49,14 @@ export class GoogleAIProvider extends BaseProvider {
       })
     )
 
-    console.log('📡 Response status:', response.status, response.statusText)
-
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-      console.error('❌ Google AI API error response:', error)
+      console.error('Google AI API error:', error.error?.message || error.error || response.statusText)
       throw new Error(`Google AI API error: ${error.error?.message || error.error || response.statusText}`)
     }
 
     const data = await response.json()
-    console.log('✅ Google AI API success, response structure:', {
-      hasCandidates: !!data.candidates,
-      candidatesLength: data.candidates?.length || 0,
-      hasContent: !!data.candidates?.[0]?.content,
-      hasParts: !!data.candidates?.[0]?.content?.parts,
-      partsLength: data.candidates?.[0]?.content?.parts?.length || 0
-    })
-    
     const result = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    console.log('📄 Extracted text length:', result.length)
-    console.log('📄 Extracted text preview:', result.substring(0, 100) + (result.length > 100 ? '...' : ''))
     
     return result
   }

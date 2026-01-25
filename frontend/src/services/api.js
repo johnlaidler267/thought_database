@@ -65,19 +65,12 @@ export async function cleanTranscript(rawTranscript) {
   // Timeout for LLM cleanup (30 seconds)
   const CLEANUP_TIMEOUT_MS = 30000
 
-  console.log('🧹 Frontend: Starting cleanTranscript')
-  console.log('🧹 Frontend: API_URL =', API_URL)
-  console.log('🧹 Frontend: Transcript to clean:', rawTranscript.substring(0, 50) + '...')
-
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), CLEANUP_TIMEOUT_MS)
 
     try {
-      const cleanUrl = `${API_URL}/clean`
-      console.log('🧹 Frontend: Calling', cleanUrl)
-      
-      const response = await fetch(cleanUrl, {
+      const response = await fetch(`${API_URL}/clean`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,54 +81,35 @@ export async function cleanTranscript(rawTranscript) {
 
       clearTimeout(timeoutId)
 
-      console.log('🧹 Frontend: Response status', response.status, response.statusText)
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.warn('🧹 Frontend: Cleanup failed, using original transcript:', errorData.error)
+        console.warn('Cleanup failed, using original transcript:', errorData.error)
         return rawTranscript
       }
 
       const data = await response.json()
-      console.log('🧹 Frontend: Response data:', data)
-      console.log('🧹 Frontend: Cleaned text:', data.cleaned_text)
-      console.log('🧹 Frontend: Same as original?', data.cleaned_text === rawTranscript)
       
-      // Log additional metadata if available
-      if (data.cleaned !== undefined) {
-        console.log('🧹 Frontend: Cleaning actually ran?', data.cleaned)
-      }
-      if (data.reason) {
-        console.warn('🧹 Frontend: Backend reason:', data.reason)
-      }
+      // Log errors if they occurred
       if (data.error) {
-        console.error('🧹 Frontend: Backend error:', data.error)
-      }
-      if (data.original_length && data.cleaned_length) {
-        console.log('🧹 Frontend: Lengths - Original:', data.original_length, 'Cleaned:', data.cleaned_length)
+        console.error('Backend cleaning error:', data.error)
       }
       
       return data.cleaned_text || rawTranscript
     } catch (err) {
       clearTimeout(timeoutId)
-      console.error('🧹 Frontend: Cleanup fetch error:', err)
       
       // Handle timeout gracefully - return original transcript
       if (err.name === 'AbortError') {
-        console.warn('🧹 Frontend: Cleanup timed out, using original transcript')
         return rawTranscript
       }
       throw err
     }
   } catch (err) {
-    console.error('🧹 Frontend: Cleanup outer catch:', err)
     // On any error, return original transcript instead of failing
     // This ensures graceful degradation
     if (err.message) {
-      console.warn('🧹 Frontend: Cleanup error, using original transcript:', err.message)
-      return rawTranscript
+      console.warn('Cleanup error, using original transcript:', err.message)
     }
-    console.warn('🧹 Frontend: Cleanup service unavailable, using original transcript')
     return rawTranscript
   }
 }

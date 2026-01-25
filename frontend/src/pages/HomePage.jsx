@@ -213,28 +213,20 @@ export default function HomePage() {
       return
     }
 
-    console.log('📝 Frontend: handleSubmitTranscript called')
-    console.log('📝 Frontend: draftTranscript:', draftTranscript.substring(0, 50) + '...')
-
     try {
       setLoading(true)
       const editedTranscript = draftTranscript.trim()
-      console.log('📝 Frontend: editedTranscript:', editedTranscript.substring(0, 50) + '...')
 
       // Clean transcript
       let cleanedText
       try {
-        console.log('📝 Frontend: About to call cleanTranscript...')
         cleanedText = await cleanTranscript(editedTranscript)
-        console.log('📝 Frontend: cleanTranscript returned:', cleanedText?.substring(0, 50) + '...')
-        console.log('📝 Frontend: cleanedText same as original?', cleanedText === editedTranscript)
         
         if (!cleanedText || cleanedText.trim().length === 0) {
-          console.warn('📝 Frontend: Cleaned text is empty, using original')
           cleanedText = editedTranscript
         }
       } catch (err) {
-        console.error('📝 Frontend: Cleaning failed, using edited transcript:', err)
+        console.error('Cleaning failed, using edited transcript:', err)
         cleanedText = editedTranscript
       }
 
