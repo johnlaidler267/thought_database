@@ -1,5 +1,6 @@
 import { BaseProvider } from '../base/BaseProvider.js'
 import FormData from 'form-data'
+import { Readable } from 'stream'
 
 /**
  * Groq API Provider
@@ -20,30 +21,50 @@ export class GroqProvider extends BaseProvider {
   async transcribe(audioBuffer, mimeType = 'audio/webm') {
     this.validateApiKey()
 
+    // Ensure audioBuffer is a proper Node.js Buffer
+    if (!Buffer.isBuffer(audioBuffer)) {
+      if (audioBuffer instanceof ArrayBuffer) {
+        audioBuffer = Buffer.from(audioBuffer)
+      } else if (audioBuffer instanceof Uint8Array) {
+        audioBuffer = Buffer.from(audioBuffer)
+      } else {
+        throw new Error('Invalid audio buffer format')
+      }
+    }
+
+    // Validate buffer is not empty
+    if (!audioBuffer || audioBuffer.length === 0) {
+      throw new Error('Audio buffer is empty')
+    }
+
     const formData = new FormData()
     
-    // Append file buffer with proper options for form-data
+    // Append file buffer directly - form-data handles Buffers correctly
     formData.append('file', audioBuffer, {
       filename: 'audio.webm',
       contentType: mimeType,
+      knownLength: audioBuffer.length,
     })
     formData.append('model', 'whisper-large-v3')
-    formData.append('language', 'en') // Optional: auto-detect if not specified
+    formData.append('language', 'en')
+
+    // Get headers with boundary - form-data.getHeaders() sets Content-Type with boundary
+    const headers = formData.getHeaders()
+    headers['Authorization'] = `Bearer ${this.apiKey}`
 
     const response = await this.withTimeout(
       fetch(`${this.baseUrl}/audio/transcriptions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          ...formData.getHeaders(), // Get proper Content-Type with boundary
-        },
+        headers,
         body: formData,
       })
     )
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-      throw new Error(`Groq API error: ${error.error?.message || error.error || response.statusText}`)
+      const errorMessage = error.error?.message || error.error || response.statusText
+      console.error('Groq transcription error:', errorMessage)
+      throw new Error(`Groq API error: ${errorMessage}`)
     }
 
     const data = await response.json()
