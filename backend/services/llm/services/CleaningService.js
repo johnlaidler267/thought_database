@@ -16,10 +16,11 @@ export class CleaningService {
 1. Removing filler words ("um", "uh", "like", "you know", etc.)
 2. Removing stutters and repetitions
 3. Fixing minor grammatical issues from speech
-4. Preserving the user's original voice and meaning
-5. Keeping the text concise but NOT rewriting it
+4. Ensuring all sentences are complete sentences with proper punctuation
+5. Preserving the user's original voice and meaning
+6. Keeping the text concise but NOT rewriting it
 
-Important: Do NOT change the core meaning or rewrite the content. Only clean up the speech artifacts.
+Important: Do NOT change the core meaning or rewrite the content. Only clean up the speech artifacts. Make sure all sentences are grammatically complete and properly punctuated.
 
 Return ONLY the cleaned text, no explanations or additional commentary.`
   }
