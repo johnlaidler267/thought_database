@@ -26,6 +26,12 @@ export default function HomePage() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryToDelete, setCategoryToDelete] = useState(null)
   const hoverTimeoutRef = useRef(null)
+  const categoryTabsScrollRef = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartX = useRef(0)
+  const scrollStartX = useRef(0)
+  const dragThreshold = useRef(5) // Minimum pixels to move before considering it a drag
+  const hasDragged = useRef(false)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [draftTranscript, setDraftTranscript] = useState('')
@@ -464,6 +470,47 @@ export default function HomePage() {
     return null
   }
 
+  // Drag-to-scroll handlers for category tabs
+  const handleDragStart = (e) => {
+    if (!categoryTabsScrollRef.current) return
+    
+    setIsDragging(true)
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    dragStartX.current = clientX
+    scrollStartX.current = categoryTabsScrollRef.current.scrollLeft
+    
+    // Prevent text selection while dragging
+    e.preventDefault()
+  }
+
+  const handleDragMove = (e) => {
+    if (!isDragging || !categoryTabsScrollRef.current) return
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const diffX = dragStartX.current - clientX
+    
+    // Only consider it a drag if moved more than threshold
+    if (Math.abs(diffX) > dragThreshold.current) {
+      hasDragged.current = true
+      categoryTabsScrollRef.current.scrollLeft = scrollStartX.current + diffX
+      e.preventDefault()
+    }
+  }
+
+  const handleDragEnd = () => {
+    const wasDragging = hasDragged.current
+    setIsDragging(false)
+    
+    // Reset drag flag after a short delay to allow click events to be prevented
+    if (wasDragging) {
+      setTimeout(() => {
+        hasDragged.current = false
+      }, 100)
+    } else {
+      hasDragged.current = false
+    }
+  }
+
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
       {/* Header */}
@@ -561,18 +608,44 @@ export default function HomePage() {
 
       {/* Category Tabs */}
       <div 
-        className="border-b border-stroke py-3 overflow-x-auto category-tabs-container" 
+        className="border-b border-stroke px-4 sm:px-6 py-3 category-tabs-container" 
         style={{ 
           borderColor: 'var(--stroke)',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}
       >
-        <div className="px-4 sm:px-6 flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
+        <div 
+          ref={categoryTabsScrollRef}
+          className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto overflow-x-auto" 
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            WebkitUserSelect: 'none'
+          }}
+          onMouseDown={handleDragStart}
+          onMouseMove={handleDragMove}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+        >
+          <div className="flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => setActiveCategory(category)}
+              onClick={(e) => {
+                // Prevent click if we just finished dragging
+                if (hasDragged.current) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  return
+                }
+                setActiveCategory(category)
+              }}
               className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 flex-shrink-0 ${
                 activeCategory === category
                   ? "text-paper"
@@ -594,6 +667,12 @@ export default function HomePage() {
               {category !== "All" && (
                 <span
                   onClick={(e) => {
+                    // Prevent click if we just finished dragging
+                    if (hasDragged.current) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      return
+                    }
                     e.stopPropagation()
                     handleDeleteCategory(category)
                   }}
@@ -649,7 +728,15 @@ export default function HomePage() {
                 autoFocus
               />
               <button
-                onClick={handleAddCategory}
+                onClick={(e) => {
+                  // Prevent click if we just finished dragging
+                  if (hasDragged.current) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    return
+                  }
+                  handleAddCategory()
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-ink text-paper flex items-center justify-center hover:bg-muted-foreground transition-colors"
                 aria-label="Add category"
               >
@@ -658,7 +745,15 @@ export default function HomePage() {
             </div>
           ) : (
             <button
-              onClick={() => setIsAddingCategory(true)}
+              onClick={(e) => {
+                // Prevent click if we just finished dragging
+                if (hasDragged.current) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  return
+                }
+                setIsAddingCategory(true)
+              }}
               className="px-3 py-2 rounded border border-dashed transition-colors flex items-center gap-2 font-serif text-sm flex-shrink-0 whitespace-nowrap"
               style={{
                 borderColor: 'var(--stroke)',
@@ -679,6 +774,7 @@ export default function HomePage() {
               <span>Add Category</span>
             </button>
           )}
+          </div>
         </div>
       </div>
 

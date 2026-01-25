@@ -2,7 +2,7 @@ import { GoogleAIProvider } from '../providers/GoogleAIProvider.js'
 
 /**
  * Cleaning Service
- * Removes filler words and cleans up transcripts using Gemini 2.0 Flash
+ * Removes filler words and cleans up transcripts using Gemini 2.5 Flash-Lite
  */
 export class CleaningService {
   constructor(config = {}) {
@@ -10,7 +10,7 @@ export class CleaningService {
       apiKey: config.googleApiKey || process.env.GOOGLE_AI_API_KEY,
       timeout: config.timeout || 30000, // 30 seconds
     })
-    this.model = config.model || 'gemini-2.0-flash' // Free tier model with 1M token context window
+    this.model = config.model || 'gemini-2.0-flash-exp' // Using available model, update when 2.5 Flash-Lite is available
     this.prompt = `You are a text cleaning assistant. Your task is to clean up spoken transcripts by:
 
 1. Removing filler words ("um", "uh", "like", "you know", etc.)
