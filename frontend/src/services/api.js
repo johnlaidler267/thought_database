@@ -108,6 +108,9 @@ export async function cleanTranscript(rawTranscript) {
       if (data.reason) {
         console.warn('🧹 Frontend: Backend reason:', data.reason)
       }
+      if (data.error) {
+        console.error('🧹 Frontend: Backend error:', data.error)
+      }
       if (data.original_length && data.cleaned_length) {
         console.log('🧹 Frontend: Lengths - Original:', data.original_length, 'Cleaned:', data.cleaned_length)
       }

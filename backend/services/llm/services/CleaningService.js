@@ -10,7 +10,7 @@ export class CleaningService {
       apiKey: config.googleApiKey || process.env.GOOGLE_AI_API_KEY,
       timeout: config.timeout || 30000, // 30 seconds
     })
-    this.model = config.model || 'gemini-2.0-flash-exp' // Using available model, update when 2.5 Flash-Lite is available
+    this.model = config.model || 'gemini-2.0-flash' // Using standard production model (gemini-2.0-flash-exp is not available)
     this.prompt = `You are a text cleaning assistant. Your task is to clean up spoken transcripts by:
 
 1. Removing filler words ("um", "uh", "like", "you know", etc.)
@@ -36,28 +36,46 @@ Return ONLY the cleaned text, no explanations or additional commentary.`
 
     try {
       const fullPrompt = `${this.prompt}\n\nOriginal transcript:\n${transcript}`
-      console.log('Calling Google AI Gemini API, model:', this.model)
-      console.log('API Key present?', !!this.provider.apiKey)
-      console.log('API Key length:', this.provider.apiKey?.length || 0)
+      console.log('🔧 CleaningService.clean() called')
+      console.log('📝 Transcript to clean:', transcript)
+      console.log('🤖 Model:', this.model)
+      console.log('🔑 API Key present?', !!this.provider.apiKey)
+      console.log('🔑 API Key length:', this.provider.apiKey?.length || 0)
+      console.log('📋 Full prompt length:', fullPrompt.length)
       
       const cleanedText = await this.provider.complete(fullPrompt, this.model, {
         max_tokens: Math.max(transcript.length * 2, 2048), // Ensure enough tokens for long transcripts
         temperature: 0.3, // Lower temperature for more consistent cleaning
       })
 
+      console.log('✅ Google AI API call completed')
+      console.log('📄 Raw response from Google AI:', cleanedText)
+      console.log('📏 Raw response length:', cleanedText?.length || 0)
+      
       const result = cleanedText.trim() || transcript
-      console.log('Google AI returned:', result.substring(0, 50) + (result.length > 50 ? '...' : ''))
-      console.log('Result same as original?', result === transcript)
+      console.log('✂️ After trim:', result)
+      console.log('📏 After trim length:', result.length)
+      console.log('🔄 Same as original?', result === transcript)
+      
+      if (result === transcript) {
+        console.warn('⚠️ WARNING: Google AI returned text identical to original!')
+        console.warn('   This might indicate:')
+        console.warn('   1. The model returned the same text')
+        console.warn('   2. The prompt needs adjustment')
+        console.warn('   3. The response parsing failed')
+      }
       
       return result
     } catch (error) {
-      console.error('❌ Cleaning error:', error.message || error)
-      console.error('Error details:', error)
+      console.error('❌ CleaningService.clean() error:', error.message || error)
+      console.error('❌ Error stack:', error.stack)
+      console.error('❌ Error name:', error.name)
       // Return original transcript on failure - graceful degradation
       if (error.message?.includes('timeout')) {
-        console.warn('Cleaning timed out, returning original transcript')
+        console.warn('⏱️ Cleaning timed out, returning original transcript')
       }
-      return transcript
+      // Re-throw so the route handler can see the error
+      throw error
     }
   }
 
