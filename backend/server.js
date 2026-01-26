@@ -22,6 +22,34 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
 // Middleware
 app.use(cors())
 
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`)
+  console.log(`  Headers:`, {
+    'content-type': req.headers['content-type'],
+    'content-length': req.headers['content-length'],
+    origin: req.headers.origin
+  })
+  next()
+})
+
+// Root endpoint - register early to ensure it's caught
+app.get('/', (req, res) => {
+  console.log('Root endpoint hit - GET /')
+  res.json({ 
+    message: 'Thought Database API',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: [
+      'GET /api/health',
+      'POST /api/transcribe',
+      'POST /api/clean',
+      'POST /api/tags',
+      'POST /api/stripe/webhook'
+    ]
+  })
+})
+
 // Stripe webhook endpoint - must be before express.json() middleware
 // This endpoint needs raw body for signature verification
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -144,10 +172,44 @@ app.use('/api/stripe', stripeRouter)
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' })
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// Catch-all for 404s - log what was requested
+app.use('*', (req, res) => {
+  console.error(`404 - Route not found: ${req.method} ${req.originalUrl}`)
+  console.error('Available routes:', [
+    'GET /',
+    'GET /api/health',
+    'POST /api/transcribe',
+    'POST /api/clean',
+    'POST /api/tags',
+    'POST /api/stripe/webhook'
+  ])
+  res.status(404).json({ 
+    error: 'Route not found',
+    method: req.method,
+    path: req.originalUrl,
+    availableRoutes: [
+      'GET /',
+      'GET /api/health',
+      'POST /api/transcribe',
+      'POST /api/clean',
+      'POST /api/tags',
+      'POST /api/stripe/webhook'
+    ]
+  })
 })
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`Available routes:`)
+  console.log(`  GET  /`)
+  console.log(`  GET  /api/health`)
+  console.log(`  POST /api/transcribe`)
+  console.log(`  POST /api/clean`)
+  console.log(`  POST /api/tags`)
+  console.log(`  POST /api/stripe/webhook`)
 })
 
