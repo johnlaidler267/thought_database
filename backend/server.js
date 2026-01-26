@@ -176,7 +176,8 @@ app.get('/api/health', (req, res) => {
 })
 
 // Catch-all for 404s - log what was requested
-app.use('*', (req, res) => {
+// Must be last, after all other routes
+app.use((req, res) => {
   console.error(`404 - Route not found: ${req.method} ${req.originalUrl}`)
   console.error('Available routes:', [
     'GET /',
