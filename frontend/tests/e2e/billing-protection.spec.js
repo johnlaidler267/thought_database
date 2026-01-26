@@ -42,12 +42,12 @@ test.describe('Billing Protection', () => {
       // The frontend timeout will trigger after 5 minutes
     })
     
-    // Track credit deductions
-    let creditDeductionCalls = 0
+    // Track token usage updates
+    let tokenUpdateCalls = 0
     await page.route('**/rest/v1/profiles*', route => {
       const request = route.request()
       if (request.method() === 'PATCH' || request.method() === 'PUT') {
-        creditDeductionCalls++
+        tokenUpdateCalls++
       }
       route.continue()
     })
@@ -66,8 +66,8 @@ test.describe('Billing Protection', () => {
       // In a real scenario, the timeout would occur, but for testing we'll check the error handling
       await page.waitForTimeout(2000)
       
-      // Verify no credit deduction occurred
-      expect(creditDeductionCalls).toBe(0)
+      // Verify no token usage update occurred
+      expect(tokenUpdateCalls).toBe(0)
     }
   })
 
@@ -132,15 +132,15 @@ test.describe('Billing Protection', () => {
       }, 100) // Quick response to simulate graceful timeout handling
     })
     
-    // Intercept any credit deduction calls
-    let creditDeductionCalls = 0
+    // Intercept any token usage update calls
+    let tokenUpdateCalls = 0
     await page.route('**/rest/v1/profiles*', route => {
       const request = route.request()
       const method = request.method()
       
-      // Check if this is an UPDATE that would increment credits_used
+      // Check if this is an UPDATE that would increment tokens_used
       if (method === 'PATCH' || method === 'PUT') {
-        creditDeductionCalls++
+        tokenUpdateCalls++
       }
       route.continue()
     })
@@ -172,9 +172,9 @@ test.describe('Billing Protection', () => {
         }
       }
       
-      // Verify no credit deduction occurred due to timeout
-      // Credits should only be deducted on successful completion
-      expect(creditDeductionCalls).toBe(0)
+      // Verify no token usage update occurred due to timeout
+      // Tokens should only be updated on successful completion
+      expect(tokenUpdateCalls).toBe(0)
     }
   })
 
@@ -214,12 +214,12 @@ test.describe('Billing Protection', () => {
       })
     })
     
-    // Track credit deductions
-    let creditDeductionCalls = 0
+    // Track token usage updates
+    let tokenUpdateCalls = 0
     await page.route('**/rest/v1/profiles*', route => {
       const request = route.request()
       if (request.method() === 'PATCH' || request.method() === 'PUT') {
-        creditDeductionCalls++
+        tokenUpdateCalls++
       }
       route.continue()
     })
@@ -248,8 +248,8 @@ test.describe('Billing Protection', () => {
         }
       }
       
-      // Verify no credit deduction on cleanup failure
-      expect(creditDeductionCalls).toBe(0)
+      // Verify no token usage update on cleanup failure
+      expect(tokenUpdateCalls).toBe(0)
     }
   })
 })

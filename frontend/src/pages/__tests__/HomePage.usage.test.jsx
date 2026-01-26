@@ -1,114 +1,160 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { estimateTokens, estimateTranscriptionTokens, estimateTotalTokens } from '../../utils/tokenEstimator'
 
 /**
- * Tests for usage tracking functionality in HomePage
- * These tests verify that minutes_used is correctly incremented for apprentice tier users
+ * Tests for token-based usage tracking functionality in HomePage
+ * These tests verify that tokens_used is correctly calculated and incremented for apprentice tier users
  */
 
-describe('HomePage - Usage Tracking Logic', () => {
-  describe('Duration calculation', () => {
-    it('should round up duration to nearest minute', () => {
-      // Test the duration calculation logic used in processAudioBlob
-      const calculateMinutes = (durationMs) => Math.ceil(durationMs / (60 * 1000))
-
-      expect(calculateMinutes(1000)).toBe(1) // 1 second = 1 minute (rounded up)
-      expect(calculateMinutes(30000)).toBe(1) // 30 seconds = 1 minute
-      expect(calculateMinutes(60000)).toBe(1) // 1 minute = 1 minute
-      expect(calculateMinutes(90000)).toBe(2) // 1.5 minutes = 2 minutes
-      expect(calculateMinutes(120000)).toBe(2) // 2 minutes = 2 minutes
-      expect(calculateMinutes(150000)).toBe(3) // 2.5 minutes = 3 minutes
-      expect(calculateMinutes(300000)).toBe(5) // 5 minutes = 5 minutes
+describe('HomePage - Token Usage Tracking', () => {
+  describe('Token estimation', () => {
+    it('should estimate tokens from text correctly', () => {
+      // Simple text: ~0.75 words per token
+      expect(estimateTokens('hello world')).toBeGreaterThan(0)
+      expect(estimateTokens('hello world')).toBeLessThanOrEqual(3) // 2 words = ~3 tokens
+      
+      // Longer text
+      const longText = 'This is a longer piece of text that should result in more tokens being estimated.'
+      const tokens = estimateTokens(longText)
+      expect(tokens).toBeGreaterThan(10)
+      expect(tokens).toBeLessThan(30)
     })
 
-    it('should handle zero duration', () => {
-      const calculateMinutes = (durationMs) => Math.ceil(durationMs / (60 * 1000))
-      expect(calculateMinutes(0)).toBe(0)
+    it('should handle empty or null text', () => {
+      expect(estimateTokens('')).toBe(0)
+      expect(estimateTokens(null)).toBe(0)
+      expect(estimateTokens(undefined)).toBe(0)
     })
 
-    it('should handle very short durations (less than 1 second)', () => {
-      const calculateMinutes = (durationMs) => Math.ceil(durationMs / (60 * 1000))
-      expect(calculateMinutes(500)).toBe(1) // 0.5 seconds = 1 minute (rounded up)
-      expect(calculateMinutes(100)).toBe(1) // 0.1 seconds = 1 minute (rounded up)
+    it('should handle single word', () => {
+      expect(estimateTokens('hello')).toBeGreaterThan(0)
+    })
+
+    it('should estimate transcription tokens (audio input is token-heavy)', () => {
+      const transcript = 'This is a test transcript'
+      const transcriptionTokens = estimateTranscriptionTokens(transcript)
+      const textTokens = estimateTokens(transcript)
+      
+      // Transcription should use more tokens than just text (audio encoding)
+      expect(transcriptionTokens).toBeGreaterThanOrEqual(textTokens)
+    })
+  })
+
+  describe('Total token calculation', () => {
+    it('should calculate total tokens for complete thought processing', () => {
+      const rawTranscript = 'This is a raw transcript with some errors'
+      const cleanedText = 'This is a cleaned transcript with some errors fixed'
+      const tags = ['test', 'example']
+
+      const totalTokens = estimateTotalTokens(rawTranscript, cleanedText, tags)
+      
+      expect(totalTokens).toBeGreaterThan(0)
+      // Should include transcription + cleaning + tagging
+      expect(totalTokens).toBeGreaterThan(estimateTokens(rawTranscript))
+    })
+
+    it('should handle empty tags array', () => {
+      const rawTranscript = 'Test transcript'
+      const cleanedText = 'Test transcript'
+      const tags = []
+
+      const totalTokens = estimateTotalTokens(rawTranscript, cleanedText, tags)
+      expect(totalTokens).toBeGreaterThan(0)
+    })
+
+    it('should calculate tokens for transcription, cleaning, and tagging', () => {
+      const rawTranscript = 'Hello world this is a test'
+      const cleanedText = 'Hello world, this is a test.'
+      const tags = ['greeting', 'test']
+
+      const totalTokens = estimateTotalTokens(rawTranscript, cleanedText, tags)
+      
+      // Should be sum of all three operations
+      const transcriptionTokens = estimateTranscriptionTokens(rawTranscript) + estimateTokens(rawTranscript)
+      const cleaningTokens = estimateTokens(rawTranscript) + estimateTokens(cleanedText)
+      const taggingTokens = estimateTokens(cleanedText) + estimateTokens(tags.join(', '))
+      const expectedTotal = transcriptionTokens + cleaningTokens + taggingTokens
+      
+      expect(totalTokens).toBe(expectedTotal)
     })
   })
 
   describe('Usage tracking conditions', () => {
     it('should track usage only for apprentice tier', () => {
-      const shouldTrackUsage = (tier, hasRecording) => {
-        return tier === 'apprentice' && hasRecording
+      const shouldTrackUsage = (tier) => {
+        return tier === 'apprentice'
       }
 
-      expect(shouldTrackUsage('apprentice', true)).toBe(true)
-      expect(shouldTrackUsage('apprentice', false)).toBe(false)
-      expect(shouldTrackUsage('trial', true)).toBe(false)
-      expect(shouldTrackUsage('trial', false)).toBe(false)
-      expect(shouldTrackUsage('pro', true)).toBe(false)
-      expect(shouldTrackUsage('sovereign', true)).toBe(false)
+      expect(shouldTrackUsage('apprentice')).toBe(true)
+      expect(shouldTrackUsage('trial')).toBe(false)
+      expect(shouldTrackUsage('pro')).toBe(false)
+      expect(shouldTrackUsage('sovereign')).toBe(false)
     })
 
-    it('should calculate minutes_used increment correctly', () => {
-      const updateMinutesUsed = (currentMinutes, recordingMinutes) => {
-        return (currentMinutes || 0) + recordingMinutes
+    it('should calculate tokens_used increment correctly', () => {
+      const updateTokensUsed = (currentTokens, newTokens) => {
+        return (currentTokens || 0) + newTokens
       }
 
-      expect(updateMinutesUsed(0, 1)).toBe(1)
-      expect(updateMinutesUsed(5, 2)).toBe(7)
-      expect(updateMinutesUsed(100, 3)).toBe(103)
-      expect(updateMinutesUsed(null, 1)).toBe(1) // Handle null
-      expect(updateMinutesUsed(undefined, 2)).toBe(2) // Handle undefined
+      expect(updateTokensUsed(0, 100)).toBe(100)
+      expect(updateTokensUsed(5000, 250)).toBe(5250)
+      expect(updateTokensUsed(100000, 1500)).toBe(101500)
+      expect(updateTokensUsed(null, 100)).toBe(100) // Handle null
+      expect(updateTokensUsed(undefined, 200)).toBe(200) // Handle undefined
     })
   })
 
   describe('Usage tracking scenarios', () => {
-    it('should track usage when recording and saving for apprentice tier', () => {
+    it('should track tokens when saving a thought for apprentice tier', () => {
       const scenario = {
         tier: 'apprentice',
-        hasRecording: true,
-        recordingDurationMs: 120000, // 2 minutes
-        currentMinutesUsed: 50,
+        rawTranscript: 'This is a test recording',
+        cleanedText: 'This is a test recording.',
+        tags: ['test'],
+        currentTokensUsed: 5000,
       }
 
-      const recordingMinutes = Math.ceil(scenario.recordingDurationMs / (60 * 1000))
-      const newMinutesUsed = scenario.currentMinutesUsed + recordingMinutes
+      const tokensUsed = estimateTotalTokens(
+        scenario.rawTranscript,
+        scenario.cleanedText,
+        scenario.tags
+      )
+      const newTokensUsed = scenario.currentTokensUsed + tokensUsed
 
-      expect(recordingMinutes).toBe(2)
-      expect(newMinutesUsed).toBe(52)
+      expect(tokensUsed).toBeGreaterThan(0)
+      expect(newTokensUsed).toBeGreaterThan(scenario.currentTokensUsed)
     })
 
-    it('should not track usage for keyboard input (no recording)', () => {
-      const scenario = {
-        tier: 'apprentice',
-        hasRecording: false,
-        recordingDurationMs: 0,
-        currentMinutesUsed: 50,
-      }
-
-      const recordingMinutes = scenario.hasRecording 
-        ? Math.ceil(scenario.recordingDurationMs / (60 * 1000))
-        : 0
-      const newMinutesUsed = scenario.currentMinutesUsed + recordingMinutes
-
-      expect(recordingMinutes).toBe(0)
-      expect(newMinutesUsed).toBe(50) // Unchanged
-    })
-
-    it('should not track usage for trial tier even with recording', () => {
+    it('should not track usage for trial tier', () => {
       const scenario = {
         tier: 'trial',
-        hasRecording: true,
-        recordingDurationMs: 120000, // 2 minutes
-        currentMinutesUsed: 0,
+        rawTranscript: 'This is a test',
+        cleanedText: 'This is a test.',
+        tags: [],
+        currentTokensUsed: 0,
       }
 
-      const shouldTrack = scenario.tier === 'apprentice' && scenario.hasRecording
-      const recordingMinutes = shouldTrack 
-        ? Math.ceil(scenario.recordingDurationMs / (60 * 1000))
+      const shouldTrack = scenario.tier === 'apprentice'
+      const tokensUsed = shouldTrack 
+        ? estimateTotalTokens(scenario.rawTranscript, scenario.cleanedText, scenario.tags)
         : 0
-      const newMinutesUsed = scenario.currentMinutesUsed + recordingMinutes
+      const newTokensUsed = scenario.currentTokensUsed + tokensUsed
 
       expect(shouldTrack).toBe(false)
-      expect(recordingMinutes).toBe(0)
-      expect(newMinutesUsed).toBe(0) // Unchanged
+      expect(tokensUsed).toBe(0)
+      expect(newTokensUsed).toBe(0) // Unchanged
+    })
+
+    it('should track tokens for both recorded and typed thoughts', () => {
+      // Both recording and typing use the same API calls (cleaning, tagging)
+      const rawText = 'This is a thought'
+      const cleanedText = 'This is a thought.'
+      const tags = ['thought']
+
+      const tokensUsed = estimateTotalTokens(rawText, cleanedText, tags)
+      
+      // Should track tokens regardless of input method (recording vs typing)
+      expect(tokensUsed).toBeGreaterThan(0)
     })
   })
 })

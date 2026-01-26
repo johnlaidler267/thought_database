@@ -98,8 +98,7 @@ export default function SettingsPage() {
           avatar_url: profile.avatar_url,
           tier: profile.tier,
           notary_credits: profile.notary_credits,
-          credits_used: profile.credits_used,
-          minutes_used: profile.minutes_used,
+          tokens_used: profile.tokens_used,
           created_at: profile.created_at,
           updated_at: profile.updated_at,
         } : null,
@@ -390,27 +389,6 @@ const handleSubscribe = async (targetTier = 'pro') => {
               
               {/* Usage Display */}
               <div className="space-y-3">
-                {tier === 'trial' && (
-                  <>
-                    <div className="flex justify-between text-sm font-serif">
-                      <span style={{ color: 'var(--muted-foreground)' }}>Credits used</span>
-                      <span style={{ color: 'var(--ink)' }}>
-                        {profile?.credits_used || 0} / 20
-                      </span>
-                    </div>
-                    {/* Usage Bar */}
-                    <div className="w-full h-1 rounded-full" style={{ backgroundColor: 'var(--muted)' }}>
-                      <div 
-                        className="h-full rounded-full transition-all"
-                        style={{ 
-                          width: `${getUsagePercentage(profile?.credits_used || 0, 20)}%`,
-                          backgroundColor: 'var(--ink)'
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
-                
                 {tier === 'sovereign' && (
                   <div className="flex justify-between text-sm font-serif">
                     <span style={{ color: 'var(--muted-foreground)' }}>API Key</span>
@@ -423,9 +401,9 @@ const handleSubscribe = async (targetTier = 'pro') => {
                 {tier === 'apprentice' && (
                   <>
                     <div className="flex justify-between text-sm font-serif">
-                      <span style={{ color: 'var(--muted-foreground)' }}>Minutes used this month</span>
+                      <span style={{ color: 'var(--muted-foreground)' }}>Tokens used this month</span>
                       <span style={{ color: 'var(--ink)' }}>
-                        {profile?.minutes_used || 0} / 300
+                        {(profile?.tokens_used || 0).toLocaleString()} / 1,000,000
                       </span>
                     </div>
                     {/* Usage Bar */}
@@ -433,7 +411,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                       <div 
                         className="h-full rounded-full transition-all"
                         style={{ 
-                          width: `${getUsagePercentage(profile?.minutes_used || 0, 300)}%`,
+                          width: `${getUsagePercentage(profile?.tokens_used || 0, 1000000)}%`,
                           backgroundColor: 'var(--ink)'
                         }}
                       />
@@ -790,7 +768,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                     </span>
                   </div>
                   <p className="text-sm font-serif" style={{ color: 'var(--muted-foreground)' }}>
-                    300 minutes per month
+                    1,000,000 tokens per month
                   </p>
                 </div>
               </Card>

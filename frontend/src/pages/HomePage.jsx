@@ -9,6 +9,7 @@ import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { translateText } from '../services/translation'
+import { estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
@@ -32,7 +33,8 @@ export default function HomePage() {
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
   const recordingStartTimeRef = useRef(null)
-  const currentRecordingDurationRef = useRef(0) // Store duration in minutes
+  const currentRecordingDurationRef = useRef(0) // Store duration in minutes (deprecated, keeping for now)
+  const isFromRecordingRef = useRef(false) // Track if thought came from audio recording
   const { 
     isRecording: isAudioRecording, 
     error: recordingError, 
@@ -142,6 +144,7 @@ export default function HomePage() {
   const handleRecordStart = () => {
     setIsRecording(true)
     recordingStartTimeRef.current = Date.now()
+    isFromRecordingRef.current = true // Mark that this will be from recording
     startRecording()
   }
 
@@ -179,6 +182,7 @@ export default function HomePage() {
       // Show transcript in editable textbox
       setDraftTranscript(transcript)
       setIsEditingTranscript(true)
+      isFromRecordingRef.current = true // Mark that this came from recording
       setLoading(false)
       
       // Show notification if auto-stopped
@@ -316,33 +320,41 @@ export default function HomePage() {
           console.log('Thought saved successfully:', data)
           setThoughts(prev => [data, ...prev])
           
-          // Update usage for apprentice tier (track minutes_used)
+          // Update usage for apprentice tier (track tokens_used)
+          // Track tokens for ALL thoughts (both recorded and typed) since they both use cleaning/tagging APIs
           if (profile?.tier === 'apprentice' && supabase && user) {
-            const recordingMinutes = currentRecordingDurationRef.current
-            
-            if (recordingMinutes > 0) {
-              try {
-                // Increment minutes_used (round up to nearest minute)
+            try {
+              // Estimate tokens used for this thought
+              // For typed thoughts: only cleaning + tagging (no transcription)
+              // For recorded thoughts: transcription + cleaning + tagging
+              const tokensUsed = isFromRecordingRef.current
+                ? estimateTotalTokens(editedTranscript, cleanedText, tags) // Includes transcription
+                : estimateTypedThoughtTokens(editedTranscript, cleanedText, tags) // No transcription
+              
+              if (tokensUsed > 0) {
+                // Increment tokens_used
                 const { error: updateError } = await supabase
                   .from('profiles')
                   .update({ 
-                    minutes_used: (profile.minutes_used || 0) + recordingMinutes 
+                    tokens_used: (profile.tokens_used || 0) + tokensUsed 
                   })
                   .eq('id', user.id)
                 
                 if (updateError) {
                   console.warn('Failed to update usage:', updateError)
                 } else {
-                  // Reset duration after successful update
-                  currentRecordingDurationRef.current = 0
                   // Refresh profile to show updated usage
                   refreshProfile().catch(err => console.warn('Failed to refresh profile:', err))
                 }
-              } catch (updateErr) {
-                console.warn('Error updating usage:', updateErr)
               }
+            } catch (updateErr) {
+              console.warn('Error updating usage:', updateErr)
             }
           }
+          
+          // Reset recording flags
+          currentRecordingDurationRef.current = 0
+          isFromRecordingRef.current = false
         } catch (err) {
           console.error('Failed to save to Supabase:', err)
           console.error('Error details:', {
@@ -371,8 +383,9 @@ export default function HomePage() {
       // Clear draft and close editor
       setDraftTranscript('')
       setIsEditingTranscript(false)
-      // Reset recording duration
+      // Reset recording flags
       currentRecordingDurationRef.current = 0
+      isFromRecordingRef.current = false
     } catch (err) {
       console.error('Error saving thought:', err)
       const errorMessage = err.message || 'Failed to save thought. Please try again.'
@@ -403,6 +416,7 @@ export default function HomePage() {
     // Open transcript editor for typing
     setDraftTranscript('')
     setIsEditingTranscript(true)
+    isFromRecordingRef.current = false // Mark as typed, not recorded
     // Focus the textarea after a brief delay to ensure it's rendered
     setTimeout(() => {
       if (transcriptTextareaRef.current) {
