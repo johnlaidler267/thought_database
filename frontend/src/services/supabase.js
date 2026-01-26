@@ -5,6 +5,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials not found. Using mock mode.')
+  console.warn('Environment check:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlValue: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'missing',
+    keyValue: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'missing',
+    allEnvKeys: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+  })
 }
 
 export const supabase = supabaseUrl && supabaseAnonKey
