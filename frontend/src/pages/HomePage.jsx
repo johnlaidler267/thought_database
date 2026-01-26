@@ -566,14 +566,15 @@ export default function HomePage() {
 
       {/* Category Tabs */}
       <div 
-        className="border-b border-stroke py-3 overflow-x-auto category-tabs-container" 
+        className="border-b border-stroke px-4 sm:px-6 py-3 overflow-x-auto category-tabs-container" 
         style={{ 
           borderColor: 'var(--stroke)',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none'
         }}
       >
-        <div className="px-4 sm:px-6 flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
           {categories.map((category) => (
             <button
               key={category}
@@ -684,6 +685,7 @@ export default function HomePage() {
               <span>Add Category</span>
             </button>
           )}
+          </div>
         </div>
       </div>
 
