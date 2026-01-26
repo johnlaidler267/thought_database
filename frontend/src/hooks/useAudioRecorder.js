@@ -42,14 +42,13 @@ export function useAudioRecorder() {
         'audio/ogg;codecs=opus',
       ]
       
-      // Check which mimeType is supported
-      for (const type of supportedTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type
-          console.log(`[RECORDING] Using mimeType: ${mimeType}`)
-          break
-        }
-      }
+          // Check which mimeType is supported
+          for (const type of supportedTypes) {
+            if (MediaRecorder.isTypeSupported(type)) {
+              mimeType = type
+              break
+            }
+          }
       
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: mimeType,
@@ -59,11 +58,6 @@ export function useAudioRecorder() {
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
-          // Include all chunks - even small ones may be important for WebM structure
-          // Log larger chunks as audio data, smaller ones as metadata
-          if (event.data.size > 100) {
-            console.log(`[RECORDING] Audio chunk: ${event.data.size} bytes`)
-          }
           audioChunksRef.current.push(event.data)
         } else {
           console.warn(`[RECORDING] Received empty or null chunk`)
@@ -82,8 +76,6 @@ export function useAudioRecorder() {
       mediaRecorder._dataInterval = dataInterval
 
       mediaRecorder.onstop = async () => {
-        console.log(`[RECORDING] MediaRecorder stopped, state: ${mediaRecorder.state}`)
-        
         // Clear the data interval
         if (mediaRecorder._dataInterval) {
           clearInterval(mediaRecorder._dataInterval)
@@ -104,7 +96,6 @@ export function useAudioRecorder() {
       mediaRecorderRef.current = mediaRecorder
       // Start with timeslice to ensure regular chunk emission
       mediaRecorder.start(1000) // Emit chunks every 1 second
-      console.log(`[RECORDING] Started recording, mimeType: ${mediaRecorder.mimeType}, state: ${mediaRecorder.state}`)
       setIsRecording(true)
       startTimeRef.current = Date.now()
 
@@ -181,8 +172,6 @@ export function useAudioRecorder() {
       mediaRecorderRef.current.requestData()
       
       mediaRecorderRef.current.onstop = async () => {
-        console.log(`[RECORDING] onstop handler called, state: ${mediaRecorderRef.current?.state}`)
-        
         // Clear the data interval if it exists
         if (mediaRecorderRef.current._dataInterval) {
           clearInterval(mediaRecorderRef.current._dataInterval)
@@ -198,13 +187,9 @@ export function useAudioRecorder() {
         // MediaRecorder needs time to write the final WebM metadata
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        const totalChunks = audioChunksRef.current.length
         const totalSize = audioChunksRef.current.reduce((sum, chunk) => sum + (chunk?.size || 0), 0)
         const audioDataChunks = audioChunksRef.current.filter(chunk => chunk.size > 100)
         const audioDataSize = audioDataChunks.reduce((sum, chunk) => sum + chunk.size, 0)
-        
-        console.log(`[RECORDING] Stopped. Total chunks: ${totalChunks}, Total size: ${totalSize} bytes`)
-        console.log(`[RECORDING] Audio data chunks: ${audioDataChunks.length}, Audio data size: ${audioDataSize} bytes`)
         
         if (totalSize === 0) {
           console.error('[RECORDING] No audio data captured!')
@@ -219,7 +204,6 @@ export function useAudioRecorder() {
         const audioBlob = new Blob(audioChunksRef.current, {
           type: mediaRecorderRef.current?.mimeType || 'audio/webm;codecs=opus',
         })
-        console.log(`[RECORDING] Created blob: ${audioBlob.size} bytes, type: ${audioBlob.type}`)
         
         setIsRecording(false)
         setRemainingTime(null)
