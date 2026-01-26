@@ -11,7 +11,7 @@ import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { translateText } from '../services/translation'
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, refreshProfile, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [thoughts, setThoughts] = useState([])
@@ -31,6 +31,8 @@ export default function HomePage() {
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
+  const recordingStartTimeRef = useRef(null)
+  const currentRecordingDurationRef = useRef(0) // Store duration in minutes
   const { 
     isRecording: isAudioRecording, 
     error: recordingError, 
@@ -139,6 +141,7 @@ export default function HomePage() {
 
   const handleRecordStart = () => {
     setIsRecording(true)
+    recordingStartTimeRef.current = Date.now()
     startRecording()
   }
 
@@ -150,6 +153,13 @@ export default function HomePage() {
 
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error('No audio recorded. Please try again.')
+      }
+
+      // Calculate recording duration in minutes (rounded up)
+      if (recordingStartTimeRef.current) {
+        const durationMs = Date.now() - recordingStartTimeRef.current
+        currentRecordingDurationRef.current = Math.ceil(durationMs / (60 * 1000)) // Round up to nearest minute
+        recordingStartTimeRef.current = null
       }
 
       // Transcribe
@@ -305,6 +315,34 @@ export default function HomePage() {
           
           console.log('Thought saved successfully:', data)
           setThoughts(prev => [data, ...prev])
+          
+          // Update usage for apprentice tier (track minutes_used)
+          if (profile?.tier === 'apprentice' && supabase && user) {
+            const recordingMinutes = currentRecordingDurationRef.current
+            
+            if (recordingMinutes > 0) {
+              try {
+                // Increment minutes_used (round up to nearest minute)
+                const { error: updateError } = await supabase
+                  .from('profiles')
+                  .update({ 
+                    minutes_used: (profile.minutes_used || 0) + recordingMinutes 
+                  })
+                  .eq('id', user.id)
+                
+                if (updateError) {
+                  console.warn('Failed to update usage:', updateError)
+                } else {
+                  // Reset duration after successful update
+                  currentRecordingDurationRef.current = 0
+                  // Refresh profile to show updated usage
+                  refreshProfile().catch(err => console.warn('Failed to refresh profile:', err))
+                }
+              } catch (updateErr) {
+                console.warn('Error updating usage:', updateErr)
+              }
+            }
+          }
         } catch (err) {
           console.error('Failed to save to Supabase:', err)
           console.error('Error details:', {
@@ -333,6 +371,8 @@ export default function HomePage() {
       // Clear draft and close editor
       setDraftTranscript('')
       setIsEditingTranscript(false)
+      // Reset recording duration
+      currentRecordingDurationRef.current = 0
     } catch (err) {
       console.error('Error saving thought:', err)
       const errorMessage = err.message || 'Failed to save thought. Please try again.'
