@@ -1,6 +1,5 @@
 import { BaseProvider } from '../base/BaseProvider.js'
 import FormData from 'form-data'
-import { Readable } from 'stream'
 
 /**
  * Groq API Provider
