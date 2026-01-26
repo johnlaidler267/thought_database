@@ -1,5 +1,5 @@
 import { BaseProvider } from '../base/BaseProvider.js'
-import FormData from 'form-data'
+import { FormData, File } from 'formdata-node'
 
 /**
  * Groq API Provider
@@ -36,20 +36,22 @@ export class GroqProvider extends BaseProvider {
       throw new Error('Audio buffer is empty')
     }
 
+    // Use formdata-node which is spec-compliant and works with fetch
     const formData = new FormData()
     
-    // Append file buffer directly - form-data handles Buffers correctly
-    formData.append('file', audioBuffer, {
-      filename: 'audio.webm',
-      contentType: mimeType,
-      knownLength: audioBuffer.length,
+    // Create a File from the buffer (formdata-node supports this)
+    const audioFile = new File([audioBuffer], 'audio.webm', {
+      type: mimeType,
     })
+    
+    formData.append('file', audioFile)
     formData.append('model', 'whisper-large-v3')
     formData.append('language', 'en')
 
-    // Get headers with boundary - form-data.getHeaders() sets Content-Type with boundary
-    const headers = formData.getHeaders()
-    headers['Authorization'] = `Bearer ${this.apiKey}`
+    // Don't manually set Content-Type - let fetch set it with boundary
+    const headers = {
+      'Authorization': `Bearer ${this.apiKey}`,
+    }
 
     const response = await this.withTimeout(
       fetch(`${this.baseUrl}/audio/transcriptions`, {
