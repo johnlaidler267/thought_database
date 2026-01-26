@@ -9,16 +9,31 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        // Use Promise.allSettled to handle failures gracefully
+        // Try to cache resources, but don't fail if they're not available
+        // This is especially important on first load or if assets aren't ready yet
         return Promise.allSettled(
-          urlsToCache.map(url => cache.add(url).catch(err => {
-            console.warn(`Failed to cache ${url}:`, err)
-            return null
-          }))
+          urlsToCache.map(url => {
+            return fetch(url)
+              .then(response => {
+                if (response.ok) {
+                  return cache.put(url, response)
+                }
+                // If response is not ok, don't cache it
+                return Promise.resolve()
+              })
+              .catch(err => {
+                // Silently fail - we'll cache on first successful fetch instead
+                return Promise.resolve()
+              })
+          })
         )
       })
       .then(() => {
         // Force activation of new service worker
+        return self.skipWaiting()
+      })
+      .catch(() => {
+        // Even if caching fails, activate the service worker
         return self.skipWaiting()
       })
   )
@@ -68,16 +83,31 @@ self.addEventListener('fetch', (event) => {
   // Only intercept HTML pages for offline support
   if (event.request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      caches.match(event.request)
-        .then((cachedResponse) => {
-          // Return cached version if available
-          if (cachedResponse) {
-            return cachedResponse
+      fetch(event.request)
+        .then((response) => {
+          // If fetch succeeds, cache it for offline use
+          if (response.ok) {
+            const responseClone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone)
+            })
           }
-          // Otherwise fetch from network
-          return fetch(event.request).catch((error) => {
-            // If fetch fails and we have a cached index.html, return that
-            return caches.match('/index.html')
+          return response
+        })
+        .catch((error) => {
+          // If fetch fails, try to return cached version
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse
+            }
+            // If no cache, try index.html as fallback
+            return caches.match('/index.html').then((indexHtml) => {
+              if (indexHtml) {
+                return indexHtml
+              }
+              // If everything fails, throw the original error
+              throw error
+            })
           })
         })
     )
