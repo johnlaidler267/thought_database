@@ -32,8 +32,6 @@ export default function HomePage() {
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
-  const recordingStartTimeRef = useRef(null)
-  const currentRecordingDurationRef = useRef(0) // Store duration in minutes (deprecated, keeping for now)
   const isFromRecordingRef = useRef(false) // Track if thought came from audio recording
   const { 
     isRecording: isAudioRecording, 
@@ -143,7 +141,6 @@ export default function HomePage() {
 
   const handleRecordStart = () => {
     setIsRecording(true)
-    recordingStartTimeRef.current = Date.now()
     isFromRecordingRef.current = true // Mark that this will be from recording
     startRecording()
   }
@@ -156,13 +153,6 @@ export default function HomePage() {
 
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error('No audio recorded. Please try again.')
-      }
-
-      // Calculate recording duration in minutes (rounded up)
-      if (recordingStartTimeRef.current) {
-        const durationMs = Date.now() - recordingStartTimeRef.current
-        currentRecordingDurationRef.current = Math.ceil(durationMs / (60 * 1000)) // Round up to nearest minute
-        recordingStartTimeRef.current = null
       }
 
       // Transcribe
@@ -352,8 +342,7 @@ export default function HomePage() {
             }
           }
           
-          // Reset recording flags
-          currentRecordingDurationRef.current = 0
+          // Reset recording flag
           isFromRecordingRef.current = false
         } catch (err) {
           console.error('Failed to save to Supabase:', err)
@@ -383,8 +372,7 @@ export default function HomePage() {
       // Clear draft and close editor
       setDraftTranscript('')
       setIsEditingTranscript(false)
-      // Reset recording flags
-      currentRecordingDurationRef.current = 0
+      // Reset recording flag
       isFromRecordingRef.current = false
     } catch (err) {
       console.error('Error saving thought:', err)
