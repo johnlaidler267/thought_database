@@ -10,6 +10,7 @@ import SettingsPage from './pages/SettingsPage'
 import './index.css'
 
 // Register service worker for PWA
+// Note: Service worker errors won't break the app - it will just work without offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
@@ -19,7 +20,9 @@ if ('serviceWorker' in navigator) {
         registration.update()
       })
       .catch((error) => {
-        console.log('Service Worker registration failed:', error)
+        // Silently fail - app works without service worker
+        // This is especially important on mobile where service workers can be more restrictive
+        console.warn('Service Worker registration failed (app will still work):', error)
       })
   })
 }

@@ -1,6 +1,16 @@
 // Construct API URL - ensure it ends with /api
 const getApiUrl = () => {
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+  
+  // On mobile/production, if no API URL is set, we can't fallback to localhost
+  // This will cause a clear error instead of silently failing
+  if (!import.meta.env.VITE_API_URL && typeof window !== 'undefined') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    if (!isLocalhost) {
+      console.error('VITE_API_URL is not set. API calls will fail on mobile/production.')
+    }
+  }
+  
   // Remove trailing slash if present
   const cleanUrl = baseUrl.replace(/\/$/, '')
   // Add /api if not already present
@@ -53,9 +63,16 @@ export async function transcribeAudio(audioBlob) {
     if (err instanceof Error && err.message) {
       throw err
     }
-    // Handle network errors
+    // Handle network errors with mobile-friendly messages
     if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      throw new Error('Failed to connect to backend. Please ensure the server is running on ' + API_URL)
+      const isLocalhost = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      
+      if (isLocalhost) {
+        throw new Error('Failed to connect to backend. Please ensure the server is running on ' + API_URL)
+      } else {
+        throw new Error('Failed to connect to server. Please check your internet connection and try again.')
+      }
     }
     throw new Error('Failed to transcribe audio: ' + (err.message || 'Unknown error'))
   }
