@@ -8,6 +8,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../services/supabase'
 import { LANGUAGES } from '../services/translation'
+import { FREE_TIER_TOKEN_LIMIT } from '../constants'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -417,6 +418,27 @@ const handleSubscribe = async (targetTier = 'pro') => {
                       {profile?.openai_api_key ? `sk-...${profile.openai_api_key.slice(-4)}` : 'Not set'}
                     </span>
                   </div>
+                )}
+                
+                {tier === 'trial' && (
+                  <>
+                    <div className="flex justify-between text-sm font-serif">
+                      <span style={{ color: 'var(--muted-foreground)' }}>Tokens used this month</span>
+                      <span style={{ color: 'var(--ink)' }}>
+                        {(profile?.tokens_used || 0).toLocaleString()} / {FREE_TIER_TOKEN_LIMIT.toLocaleString()}
+                      </span>
+                    </div>
+                    {/* Usage Bar */}
+                    <div className="w-full h-1 rounded-full" style={{ backgroundColor: 'var(--muted)' }}>
+                      <div 
+                        className="h-full rounded-full transition-all"
+                        style={{ 
+                          width: `${getUsagePercentage(profile?.tokens_used || 0, FREE_TIER_TOKEN_LIMIT)}%`,
+                          backgroundColor: 'var(--ink)'
+                        }}
+                      />
+                    </div>
+                  </>
                 )}
                 
                 {tier === 'apprentice' && (

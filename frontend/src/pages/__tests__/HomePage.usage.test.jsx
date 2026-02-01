@@ -3,9 +3,8 @@ import { estimateTokens, estimateTranscriptionTokens, estimateTotalTokens } from
 
 /**
  * Tests for token-based usage tracking functionality in HomePage
- * These tests verify that tokens_used is correctly calculated and incremented for apprentice tier users
+ * These tests verify that tokens_used is correctly calculated and incremented for apprentice and trial tier users
  */
-
 describe('HomePage - Token Usage Tracking', () => {
   describe('Token estimation', () => {
     it('should estimate tokens from text correctly', () => {
@@ -80,13 +79,13 @@ describe('HomePage - Token Usage Tracking', () => {
   })
 
   describe('Usage tracking conditions', () => {
-    it('should track usage only for apprentice tier', () => {
+    it('should track usage for apprentice and trial tiers', () => {
       const shouldTrackUsage = (tier) => {
-        return tier === 'apprentice'
+        return tier === 'apprentice' || tier === 'trial'
       }
 
       expect(shouldTrackUsage('apprentice')).toBe(true)
-      expect(shouldTrackUsage('trial')).toBe(false)
+      expect(shouldTrackUsage('trial')).toBe(true)
       expect(shouldTrackUsage('pro')).toBe(false)
       expect(shouldTrackUsage('sovereign')).toBe(false)
     })
@@ -125,7 +124,7 @@ describe('HomePage - Token Usage Tracking', () => {
       expect(newTokensUsed).toBeGreaterThan(scenario.currentTokensUsed)
     })
 
-    it('should not track usage for trial tier', () => {
+    it('should track usage for trial tier', () => {
       const scenario = {
         tier: 'trial',
         rawTranscript: 'This is a test',
@@ -134,15 +133,15 @@ describe('HomePage - Token Usage Tracking', () => {
         currentTokensUsed: 0,
       }
 
-      const shouldTrack = scenario.tier === 'apprentice'
-      const tokensUsed = shouldTrack 
+      const shouldTrack = scenario.tier === 'apprentice' || scenario.tier === 'trial'
+      const tokensUsed = shouldTrack
         ? estimateTotalTokens(scenario.rawTranscript, scenario.cleanedText, scenario.tags)
         : 0
       const newTokensUsed = scenario.currentTokensUsed + tokensUsed
 
-      expect(shouldTrack).toBe(false)
-      expect(tokensUsed).toBe(0)
-      expect(newTokensUsed).toBe(0) // Unchanged
+      expect(shouldTrack).toBe(true)
+      expect(tokensUsed).toBeGreaterThan(0)
+      expect(newTokensUsed).toBeGreaterThan(scenario.currentTokensUsed)
     })
 
     it('should track tokens for both recorded and typed thoughts', () => {

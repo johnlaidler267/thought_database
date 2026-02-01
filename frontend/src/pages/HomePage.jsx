@@ -10,6 +10,7 @@ import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { translateText } from '../services/translation'
 import { estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
+import { FREE_TIER_TOKEN_LIMIT } from '../constants'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
@@ -121,6 +122,11 @@ export default function HomePage() {
   }, [user])
 
   const handleRecordStart = () => {
+    // Free tier: block starting a recording if already at token limit
+    if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+      alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+      return
+    }
     setIsRecording(true)
     isFromRecordingRef.current = true // Mark that this will be from recording
     startRecording()
@@ -196,6 +202,15 @@ export default function HomePage() {
   const handleSubmitTranscript = async () => {
     if (!draftTranscript.trim()) {
       return
+    }
+
+    // Enforce free tier token cap before using clean/tag APIs
+    if (profile?.tier === 'trial') {
+      const used = profile?.tokens_used || 0
+      if (used >= FREE_TIER_TOKEN_LIMIT) {
+        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        return
+      }
     }
 
     try {
@@ -291,9 +306,9 @@ export default function HomePage() {
           console.log('Thought saved successfully:', data)
           setThoughts(prev => [data, ...prev])
           
-          // Update usage for apprentice tier (track tokens_used)
+          // Update usage for apprentice and trial tiers (track tokens_used)
           // Track tokens for ALL thoughts (both recorded and typed) since they both use cleaning/tagging APIs
-          if (profile?.tier === 'apprentice' && supabase && user) {
+          if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
             try {
               // Estimate tokens used for this thought
               // For typed thoughts: only cleaning + tagging (no transcription)
@@ -382,6 +397,11 @@ export default function HomePage() {
   }
 
   const handleKeyboardToggle = () => {
+    // Free tier: block opening editor if at token limit
+    if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+      alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+      return
+    }
     // Open transcript editor for typing
     setDraftTranscript('')
     setIsEditingTranscript(true)
