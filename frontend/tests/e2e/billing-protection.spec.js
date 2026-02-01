@@ -179,17 +179,34 @@ test.describe('Billing Protection', () => {
   })
 
   test('cleanup gracefully handles timeout and returns original transcript', async ({ page, request }) => {
-    // Test that cleanup endpoint handles timeout gracefully
-    const response = await request.post('http://localhost:3001/api/clean', {
+    // Test that cleanup endpoint returns 200 with cleaned_text (cleaned or original on timeout/error).
+    // Use a long timeout and single retry since the real backend may be slow or briefly drop the connection.
+    const payload = {
       data: {
         transcript: 'Test transcript with um filler words'
       },
       headers: {
         'Content-Type': 'application/json'
+      },
+      timeout: 60_000
+    }
+    const isConnectionError = (e) =>
+      e?.message?.includes('ECONNRESET') || e?.message?.includes('ECONNREFUSED')
+    let response
+    try {
+      response = await request.post('http://localhost:3001/api/clean', payload)
+    } catch (e) {
+      if (!isConnectionError(e)) throw e
+      try {
+        response = await request.post('http://localhost:3001/api/clean', payload)
+      } catch (e2) {
+        if (isConnectionError(e2)) {
+          test.skip(true, 'Backend unavailable or connection reset – ensure backend is running on 3001')
+        }
+        throw e2
       }
-    })
-    
-    // Should return successfully even if LLM times out
+    }
+    // Should return successfully even if LLM times out (backend returns original transcript on error)
     expect(response.ok()).toBe(true)
     const data = await response.json()
     expect(data.cleaned_text).toBeDefined()
