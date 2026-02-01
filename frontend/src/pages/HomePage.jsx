@@ -539,11 +539,7 @@ export default function HomePage() {
                 }}
               />
               <span className={`uppercase tracking-wider ${showWarning ? 'font-medium' : ''}`} style={{ color: showWarning ? '#ff3b30' : 'var(--ink)' }}>
-                {isAudioRecording && remainingTime !== null
-                  ? `Recording - ${formatRemainingTime()} remaining`
-                  : isAudioRecording
-                  ? "Recording"
-                  : "Ready"}
+                {isAudioRecording ? "Recording" : "Ready"}
               </span>
             </div>
             {user && (
@@ -913,7 +909,21 @@ export default function HomePage() {
         }`}
         style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}
       >
-        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex justify-center pointer-events-auto">
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex flex-col items-center justify-center gap-2 pointer-events-auto">
+          {isAudioRecording && remainingTime !== null && (
+            <span
+              className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-serif tabular-nums shadow-sm"
+              style={{
+                color: 'var(--ink)',
+                backgroundColor: 'var(--card)',
+                border: '1px solid var(--stroke)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
+              }}
+              aria-live="polite"
+            >
+              {formatRemainingTime()} left
+            </span>
+          )}
           <div className="relative">
             <button
               onClick={handleRecordClick}
