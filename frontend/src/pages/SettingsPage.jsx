@@ -310,7 +310,12 @@ const handleSubscribe = async (targetTier = 'pro') => {
       }
     } catch (error) {
       console.error('Error creating portal session:', error)
-      alert('Failed to open billing portal. Please try again.')
+      const isNetworkError = error?.message === 'Failed to fetch' || error?.name === 'TypeError'
+      const isProduction = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+      const message = isNetworkError && isProduction
+        ? 'Cannot reach the billing server. Ensure VITE_API_URL is set to your backend URL in production.'
+        : 'Failed to open billing portal. Please try again.'
+      alert(message)
     }
   }
   

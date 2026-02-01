@@ -19,8 +19,13 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null
 
-// Middleware
-app.use(cors())
+// CORS: if FRONTEND_URL or CORS_ORIGIN is set (e.g. on Render), allow that origin + localhost; else allow all
+const frontendUrl = process.env.FRONTEND_URL || process.env.CORS_ORIGIN
+app.use(cors({
+  origin: frontendUrl
+    ? [frontendUrl, 'http://localhost:5175', 'http://localhost:5173']
+    : true,
+}))
 
 // Request logging middleware for debugging
 app.use((req, res, next) => {
