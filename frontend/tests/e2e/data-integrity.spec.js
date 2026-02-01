@@ -9,7 +9,7 @@ test.describe('Data Loss Prevention', () => {
     await page.goto('/')
     
     // Wait for page to load (assuming user is logged in)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Start recording
     const recordButton = page.locator('[aria-label="Start recording"]')
@@ -37,7 +37,7 @@ test.describe('Data Loss Prevention', () => {
 
   test('transcript persists through page refresh', async ({ page, context }) => {
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Simulate having a draft transcript
     await page.evaluate(() => {
@@ -46,7 +46,7 @@ test.describe('Data Loss Prevention', () => {
     
     // Refresh page
     await page.reload()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Verify transcript is still accessible (if app supports draft recovery)
     // This test may need adjustment based on actual implementation
@@ -54,7 +54,7 @@ test.describe('Data Loss Prevention', () => {
 
   test('no data loss when recording hits 5-minute limit', async ({ page }) => {
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Mock time to simulate 5-minute recording
     await page.addInitScript(() => {
@@ -82,7 +82,7 @@ test.describe('Data Loss Prevention', () => {
 
   test('auto-stop at 5-minute limit triggers transcription same as manual stop', async ({ page }) => {
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Track transcription API calls
     let transcriptionCalls = []
@@ -140,7 +140,7 @@ test.describe('Data Loss Prevention', () => {
 
   test('auto-stop callback processes audio and starts transcription', async ({ page }) => {
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Mock successful transcription
     await page.route('**/api/transcribe', route => {
@@ -184,7 +184,7 @@ test.describe('Data Loss Prevention', () => {
 
   test('transcript survives browser navigation', async ({ page }) => {
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
     
     // Simulate having a draft in editor
     const textarea = page.locator('textarea').first()
