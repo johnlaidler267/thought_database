@@ -26,6 +26,7 @@ export default function HomePage() {
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryToDelete, setCategoryToDelete] = useState(null)
+  const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -118,26 +119,6 @@ export default function HomePage() {
 
     loadThoughts()
   }, [user])
-
-  const handleDeleteThought = async (thoughtId) => {
-    if (window.confirm('Are you sure you want to delete this thought?')) {
-      if (supabase && user) {
-        try {
-          const { error } = await supabase
-            .from('thoughts')
-            .delete()
-            .eq('id', thoughtId)
-            .eq('user_id', user.id)
-
-          if (error) throw error
-        } catch (err) {
-          console.error('Failed to delete from Supabase:', err)
-        }
-      }
-
-      setThoughts(prev => prev.filter(thought => thought.id !== thoughtId))
-    }
-  }
 
   const handleRecordStart = () => {
     setIsRecording(true)
@@ -461,6 +442,35 @@ export default function HomePage() {
   // Cancel category deletion
   const cancelDeleteCategory = () => {
     setCategoryToDelete(null)
+  }
+
+  const handleDeleteThought = (thoughtId) => {
+    setThoughtToDelete(thoughtId)
+  }
+
+  const confirmDeleteThought = async () => {
+    if (!thoughtToDelete) return
+
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .delete()
+          .eq('id', thoughtToDelete)
+          .eq('user_id', user.id)
+
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to delete from Supabase:', err)
+      }
+    }
+
+    setThoughts(prev => prev.filter(thought => thought.id !== thoughtToDelete))
+    setThoughtToDelete(null)
+  }
+
+  const cancelDeleteThought = () => {
+    setThoughtToDelete(null)
   }
 
   // Filter thoughts based on search query (by tag and content) and active category
@@ -1009,6 +1019,17 @@ export default function HomePage() {
         onConfirm={confirmDeleteCategory}
         title="Delete Category"
         message={`Are you sure you want to delete the "${categoryToDelete}" category? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Thought Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={thoughtToDelete !== null}
+        onClose={cancelDeleteThought}
+        onConfirm={confirmDeleteThought}
+        title="Delete Thought"
+        message="Are you sure you want to delete this thought? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
       />

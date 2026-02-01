@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import RecordButton from '../components/RecordButton'
 import ThoughtTimeline from '../components/ThoughtTimeline'
 import EditableTitle from '../components/EditableTitle'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../services/supabase'
@@ -13,6 +14,7 @@ export default function TimelinePage() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
+  const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const [loading, setLoading] = useState(false)
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
@@ -72,25 +74,33 @@ export default function TimelinePage() {
     loadThoughts()
   }, [user])
 
-  const handleDeleteThought = async (thoughtId) => {
-    if (window.confirm('Are you sure you want to delete this thought?')) {
-      if (supabase && user) {
-        try {
-          const { error } = await supabase
-            .from('thoughts')
-            .delete()
-            .eq('id', thoughtId)
-            .eq('user_id', user.id)
+  const handleDeleteThought = (thoughtId) => {
+    setThoughtToDelete(thoughtId)
+  }
 
-          if (error) throw error
-        } catch (err) {
-          console.error('Failed to delete from Supabase:', err)
-        }
+  const confirmDeleteThought = async () => {
+    if (!thoughtToDelete) return
+
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .delete()
+          .eq('id', thoughtToDelete)
+          .eq('user_id', user.id)
+
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to delete from Supabase:', err)
       }
-
-      // Delete from local state (works in both dev and prod mode)
-      setThoughts(prev => prev.filter(thought => thought.id !== thoughtId))
     }
+
+    setThoughts(prev => prev.filter(thought => thought.id !== thoughtToDelete))
+    setThoughtToDelete(null)
+  }
+
+  const cancelDeleteThought = () => {
+    setThoughtToDelete(null)
   }
 
   // Shared function to process audio blob (used by both manual stop and auto-stop)
@@ -423,6 +433,17 @@ export default function TimelinePage() {
           isRecording={isRecording}
         />
       </div>
+
+      {/* Thought Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={thoughtToDelete !== null}
+        onClose={cancelDeleteThought}
+        onConfirm={confirmDeleteThought}
+        title="Delete Thought"
+        message="Are you sure you want to delete this thought? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   )
 }
