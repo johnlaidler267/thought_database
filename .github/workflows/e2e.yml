@@ -8,6 +8,13 @@ on:
 jobs:
   e2e-critical:
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BASE_URL: https://thought-database-frontend.vercel.app
+      # Optional: add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in GitHub repo Secrets
+      # (Settings → Secrets and variables → Actions → New repository secret)
+      # so "direct API access to another user's thought" tests run instead of skipping:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     defaults:
       run:
         working-directory: ./thought_database/frontend
@@ -33,8 +40,6 @@ jobs:
       
       - name: Run E2E tests
         run: npx playwright test --project=${{ matrix.browser }}
-        env:
-          PLAYWRIGHT_BASE_URL: https://thought-database-frontend.vercel.app/
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
