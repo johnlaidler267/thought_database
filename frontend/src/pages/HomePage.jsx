@@ -1057,7 +1057,6 @@ function ThoughtCard({ thought, onDelete }) {
     ? new Date(thought.created_at).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
       })

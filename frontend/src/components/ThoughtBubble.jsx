@@ -78,7 +78,6 @@ export default function ThoughtBubble({ thought, onDelete }) {
   const timestamp = new Date(thought.created_at).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
   })
