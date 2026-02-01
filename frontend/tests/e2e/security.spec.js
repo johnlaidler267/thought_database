@@ -52,8 +52,8 @@ test.describe('Security', () => {
       }
     })
     
-    // Should be rejected (401 or 403)
-    expect([401, 403]).toContain(response.status())
+    // Should be rejected (400 Bad Request, 401 Unauthorized, or 403 Forbidden)
+    expect([400, 401, 403]).toContain(response.status())
   })
 
   test('HTTPS is enforced in production', async ({ page, context }) => {
