@@ -32,6 +32,16 @@ export function useAudioRecorder() {
       setError(null)
       setShowWarning(false)
       setRemainingTime(MAX_RECORDING_DURATION)
+      
+      // Check if getUserMedia is available (required for mobile)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const errorMsg = typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost'
+          ? 'Audio recording requires HTTPS. Please use a secure connection.'
+          : 'Audio recording is not supported in this browser. Please use a modern browser like Chrome, Safari, or Firefox.'
+        setError(errorMsg)
+        throw new Error(errorMsg)
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       
       // Try to use a supported mimeType, fallback to default
@@ -146,7 +156,22 @@ export function useAudioRecorder() {
         }
       }, MAX_RECORDING_DURATION)
     } catch (err) {
-      setError('Failed to access microphone. Please check permissions.')
+      // Provide mobile-friendly error messages
+      let errorMessage = 'Failed to access microphone.'
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings and try again.'
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.'
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = 'Microphone is already in use by another app. Please close other apps using the microphone and try again.'
+      } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+        errorMessage = 'Microphone settings not supported. Please try a different browser.'
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      setError(errorMessage)
       console.error('Recording error:', err)
     }
   }, [])
