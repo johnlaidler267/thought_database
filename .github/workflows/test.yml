@@ -111,6 +111,9 @@ jobs:
         run: npm run test:e2e
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:5175
+          # Optional: add as repo secrets to run "direct API access" security tests
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

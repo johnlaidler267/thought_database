@@ -57,17 +57,18 @@ test.describe('Security', () => {
   })
 
   test('HTTPS is enforced in production', async ({ page, context }) => {
-    // Skip in development/localhost
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5175'
+    // Use the same base URL Playwright is using (from config) by navigating first
+    await page.goto('/', { waitUntil: 'load' })
+    const baseURL = new URL(page.url()).origin
     if (baseURL.includes('localhost') || baseURL.includes('127.0.0.1')) {
-      test.skip()
+      test.skip(true, 'Skipped when testing against localhost (HTTPS test only runs for production URL)')
     }
 
     // Try to access via HTTP
     const httpURL = baseURL.replace('https://', 'http://')
     
     // Navigate to HTTP version
-    const response = await page.goto(httpURL, { waitUntil: 'networkidle' })
+    const response = await page.goto(httpURL, { waitUntil: 'load' })
     
     // Should redirect to HTTPS or block HTTP
     const finalURL = page.url()
@@ -164,13 +165,13 @@ test.describe('Security', () => {
     }
   })
 
-  test('direct API access to another users thought by ID is blocked', async ({ request }) => {
+  test('direct API access to another users thought by ID is blocked', async ({ request, page }) => {
     // Test that trying to access a specific thought by ID from another user fails
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5175'
+    // Need Supabase URL (set in CI via repo secrets VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)
     const supabaseURL = process.env.VITE_SUPABASE_URL || ''
     
     if (!supabaseURL) {
-      test.skip()
+      test.skip(true, 'Skipped when VITE_SUPABASE_URL is not set (add repo secrets in GitHub to run)')
     }
     
     // Try to access a thought with a specific ID (simulating URL manipulation)
