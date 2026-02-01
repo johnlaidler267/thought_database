@@ -142,6 +142,13 @@ export default function HomePage() {
         throw new Error('No audio recorded. Please try again.')
       }
 
+      // Free tier: block before calling Whisper so we don't consume transcription
+      if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+        setLoading(false)
+        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        return
+      }
+
       // Transcribe
       let transcript
       try {
@@ -184,7 +191,7 @@ export default function HomePage() {
       alert(errorMessage)
       setLoading(false)
     }
-  }, [setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
+  }, [profile?.tier, profile?.tokens_used, setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
 
   const handleRecordStop = async () => {
     const audioBlob = await stopRecording()

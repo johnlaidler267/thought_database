@@ -8,7 +8,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../services/supabase'
 import { LANGUAGES } from '../services/translation'
-import { FREE_TIER_TOKEN_LIMIT } from '../constants'
+import { FREE_TIER_TOKEN_LIMIT, APPRENTICE_TIER_TOKEN_LIMIT } from '../constants'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -446,7 +446,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                     <div className="flex justify-between text-sm font-serif">
                       <span style={{ color: 'var(--muted-foreground)' }}>Tokens used this month</span>
                       <span style={{ color: 'var(--ink)' }}>
-                        {(profile?.tokens_used || 0).toLocaleString()} / 1,000,000
+                        {(profile?.tokens_used || 0).toLocaleString()} / {APPRENTICE_TIER_TOKEN_LIMIT.toLocaleString()}
                       </span>
                     </div>
                     {/* Usage Bar */}
@@ -454,7 +454,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                       <div 
                         className="h-full rounded-full transition-all"
                         style={{ 
-                          width: `${getUsagePercentage(profile?.tokens_used || 0, 1000000)}%`,
+                          width: `${getUsagePercentage(profile?.tokens_used || 0, APPRENTICE_TIER_TOKEN_LIMIT)}%`,
                           backgroundColor: 'var(--ink)'
                         }}
                       />
@@ -811,7 +811,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
                     </span>
                   </div>
                   <p className="text-sm font-serif" style={{ color: 'var(--muted-foreground)' }}>
-                    1,000,000 tokens per month
+                    {APPRENTICE_TIER_TOKEN_LIMIT.toLocaleString()} tokens per month
                   </p>
                 </div>
               </Card>
