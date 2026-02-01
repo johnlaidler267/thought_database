@@ -1,9 +1,15 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { defineConfig, devices } from '@playwright/test'
+import dotenv from 'dotenv'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.join(__dirname, '..')
+
+// Load frontend .env so local `npm run test:e2e` sees VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+// (GitHub secrets are only available in CI, not when you run tests locally)
+dotenv.config({ path: path.join(__dirname, '.env') })
+dotenv.config({ path: path.join(__dirname, '.env.local') })
 
 export default defineConfig({
   testDir: './tests/e2e',
