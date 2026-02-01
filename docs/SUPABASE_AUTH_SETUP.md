@@ -47,7 +47,7 @@ In **Authentication** > **URL Configuration**:
 
 ## 6. Run Database Schema
 
-Run the SQL from `SUPABASE_PROFILES_SCHEMA.sql` in your Supabase SQL editor to:
+Run the SQL from `../supabase/SUPABASE_COMPLETE_SETUP.sql` in your Supabase SQL editor (or use the migrations in `../supabase/README.md`) to:
 - Create the profiles table
 - Set up Row Level Security policies
 - Create the auto-profile creation trigger

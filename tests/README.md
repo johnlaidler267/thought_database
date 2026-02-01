@@ -72,5 +72,5 @@ npm run test:coverage # Coverage report
 ## More Information
 
 For detailed testing documentation, see:
-- [TESTING_QUICK_START.md](../TESTING_QUICK_START.md) - Quick reference
-- [TESTING.md](../TESTING.md) - Comprehensive guide
+- [TESTING_QUICK_START.md](../docs/TESTING_QUICK_START.md) - Quick reference
+- [TESTING.md](../docs/TESTING.md) - Comprehensive guide

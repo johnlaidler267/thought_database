@@ -27,12 +27,12 @@ Frontend will run on `http://localhost:5173`
 ## 3. Supabase Setup
 
 1. Go to [supabase.com](https://supabase.com) and create a project
-2. Run the SQL from `SUPABASE_SCHEMA.sql` in the SQL editor
+2. Run the SQL from `supabase/SUPABASE_COMPLETE_SETUP.sql` in the SQL editor
 3. Copy your project URL and anon key to `frontend/.env`
 
 ## 4. Generate Icons (Optional)
 
-See `ICON_GENERATION.md` for instructions on creating PWA icons.
+See [ICON_GENERATION.md](ICON_GENERATION.md) for instructions on creating PWA icons.
 
 ## 5. Test the App
 

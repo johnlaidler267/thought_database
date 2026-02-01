@@ -21,7 +21,7 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 - **Frontend**: Vite + React 19 + Tailwind CSS, React Router
 - **Backend**: Node.js + Express
 - **Storage**: Supabase (PostgreSQL, Auth, optional Stripe-linked profiles)
-- **APIs**: Groq (Whisper transcription + Llama tagging), Google AI Studio (Gemini text cleaning). See `LLM_INTEGRATION.md` for details.
+- **APIs**: Groq (Whisper transcription + Llama tagging), Google AI Studio (Gemini text cleaning). See `docs/LLM_INTEGRATION.md` for details.
 
 ## Setup
 
@@ -76,7 +76,7 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
    GROQ_API_KEY=your_groq_api_key
    GOOGLE_AI_API_KEY=your_google_ai_api_key
    ```
-   For Stripe (optional): see `STRIPE_INTEGRATION_GUIDE.md` for `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and Supabase service role config.
+   For Stripe (optional): see `docs/STRIPE_INTEGRATION_GUIDE.md` for `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and Supabase service role config.
 
 4. Start the server:
    ```bash
@@ -89,12 +89,12 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 1. Create a new Supabase project at [supabase.com](https://supabase.com).
 
 2. Run the SQL in your Supabase SQL editor (in order):
-   - Use `SUPABASE_COMPLETE_SETUP.sql` for a single-file setup, **or**
-   - Run `SUPABASE_SCHEMA.sql` (thoughts table), then `SUPABASE_PROFILES_SCHEMA.sql` (profiles and auth).
+   - Use **`supabase/SUPABASE_COMPLETE_SETUP.sql`** for a single-file setup (recommended), **or**
+   - See **`supabase/README.md`** for separate schema/migration files.
 
 3. Configure authentication:
    - Go to **Authentication** > **Providers** and enable Apple, Google, and Email (Magic Links) as needed.
-   - See `SUPABASE_AUTH_SETUP.md` and `GOOGLE_OAUTH_SETUP.md` for provider details.
+   - See `docs/SUPABASE_AUTH_SETUP.md` and `docs/GOOGLE_OAUTH_SETUP.md` for provider details.
 
 4. Copy your project URL and anon key into `frontend/.env` as `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 
@@ -133,13 +133,18 @@ thought_database/
 │   ├── routes/          # transcribe, clean, tags, stripe
 │   ├── services/llm/     # Transcription, Cleaning, Tagging (Groq + Google AI)
 │   └── server.js
-├── SUPABASE_*.sql       # Supabase schema and setup
-├── LLM_INTEGRATION.md   # LLM providers and env vars
-├── STRIPE_INTEGRATION_GUIDE.md
-├── SUPABASE_AUTH_SETUP.md
-├── QUICK_START.md
-├── TESTING.md
-└── MOBILE_TROUBLESHOOTING.md
+├── docs/                # Setup and integration guides
+│   ├── QUICK_START.md
+│   ├── LLM_INTEGRATION.md
+│   ├── SUPABASE_AUTH_SETUP.md
+│   ├── STRIPE_INTEGRATION_GUIDE.md
+│   ├── TESTING.md
+│   └── ...
+├── supabase/            # Database schema and migrations
+│   ├── SUPABASE_COMPLETE_SETUP.sql   # Single-file setup (use this for new installs)
+│   ├── README.md
+│   ├── migrations/      # Optional incremental migrations
+│   └── archive/        # Legacy schema files (reference only)
 ```
 
 ## Usage
@@ -159,17 +164,18 @@ thought_database/
 - **Non-Addictive**: No notifications, no social features
 - **Functional**: Focus on capturing and organizing thoughts
 
-## More Documentation
+## More documentation
 
 | Topic | File |
 |-------|------|
-| Short setup steps | `QUICK_START.md` |
-| LLM providers (Groq, Google AI), keys, models | `LLM_INTEGRATION.md` |
-| Supabase auth (Apple, Google, Email) | `SUPABASE_AUTH_SETUP.md`, `GOOGLE_OAUTH_SETUP.md` |
-| Stripe subscription setup | `STRIPE_INTEGRATION_GUIDE.md` |
-| Unit & E2E testing | `TESTING.md`, `TESTING_QUICK_START.md` |
-| Mobile issues (HTTPS, mic, service worker) | `MOBILE_TROUBLESHOOTING.md` |
-| PWA icons | `ICON_GENERATION.md` |
+| Short setup steps | [`docs/QUICK_START.md`](docs/QUICK_START.md) |
+| LLM providers (Groq, Google AI), keys, models | [`docs/LLM_INTEGRATION.md`](docs/LLM_INTEGRATION.md) |
+| Supabase auth (Apple, Google, Email) | [`docs/SUPABASE_AUTH_SETUP.md`](docs/SUPABASE_AUTH_SETUP.md), [`docs/GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md) |
+| Stripe subscription setup | [`docs/STRIPE_INTEGRATION_GUIDE.md`](docs/STRIPE_INTEGRATION_GUIDE.md) |
+| Unit & E2E testing | [`docs/TESTING.md`](docs/TESTING.md), [`docs/TESTING_QUICK_START.md`](docs/TESTING_QUICK_START.md) |
+| Mobile issues (HTTPS, mic, service worker) | [`docs/MOBILE_TROUBLESHOOTING.md`](docs/MOBILE_TROUBLESHOOTING.md) |
+| PWA icons | [`docs/ICON_GENERATION.md`](docs/ICON_GENERATION.md) |
+| Database schema and migrations | [`supabase/README.md`](supabase/README.md) |
 
 ## License
 

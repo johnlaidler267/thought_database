@@ -57,7 +57,7 @@ FRONTEND_URL=http://localhost:5173
 
 ### 3. Database Schema
 
-Ensure your Supabase database has the updated schema. Run the SQL from `SUPABASE_PROFILES_SCHEMA_UPDATE.sql` in your Supabase SQL editor if you haven't already:
+Ensure your Supabase database has the updated schema. For new installs, run `../supabase/SUPABASE_COMPLETE_SETUP.sql`. If you already have an existing database, see [supabase/README.md](../supabase/README.md) for migration options.
 
 ```sql
 ALTER TABLE profiles 

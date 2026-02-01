@@ -126,7 +126,7 @@ describe('MyRoute', () => {
 
 ## Next Steps
 
-1. Read [TESTING.md](./TESTING.md) for comprehensive guide
+1. Read [TESTING.md](TESTING.md) for comprehensive guide
 2. Review existing tests for patterns
 3. Add tests for new features as you build them
 4. Run tests before committing code

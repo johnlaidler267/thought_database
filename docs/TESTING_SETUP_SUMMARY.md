@@ -33,8 +33,8 @@
 - ✅ Coverage reporting setup
 
 ### 6. **Documentation**
-- ✅ Comprehensive testing guide (TESTING.md)
-- ✅ Quick start guide (TESTING_QUICK_START.md)
+- ✅ Comprehensive testing guide ([TESTING.md](TESTING.md))
+- ✅ Quick start guide ([TESTING_QUICK_START.md](TESTING_QUICK_START.md))
 
 ## 📋 Test Coverage
 
@@ -154,7 +154,7 @@ Tests are currently running but some may need fixes:
 
 ## 🐛 Troubleshooting
 
-See [TESTING.md](./TESTING.md) for detailed troubleshooting guide.
+See [TESTING.md](TESTING.md) for detailed troubleshooting guide.
 
 ---
 
