@@ -20,7 +20,20 @@ const transcriptionService = new TranscriptionService({
   timeout: 300000, // 5 minutes
 })
 
-router.post('/', upload.single('audio'), async (req, res) => {
+router.post('/', (req, res, next) => {
+  upload.single('audio')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          error: 'Audio file too large',
+          details: 'Maximum file size is 50MB. Please record shorter audio segments.'
+        })
+      }
+      return next(err)
+    }
+    next()
+  })
+}, async (req, res) => {
   try {
     if (!req.file) {
       console.error('[TRANSCRIBE] No file in request')
