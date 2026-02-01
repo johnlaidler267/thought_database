@@ -303,6 +303,12 @@ const handleSubscribe = async (targetTier = 'pro') => {
       if (!response.ok) {
         const err = new Error('Failed to create portal session')
         err.status = response.status
+        let serverMessage = null
+        try {
+          const body = await response.json()
+          serverMessage = body?.error || null
+        } catch (_) { /* ignore */ }
+        if (serverMessage) err.serverMessage = serverMessage
         throw err
       }
 
@@ -315,7 +321,9 @@ const handleSubscribe = async (targetTier = 'pro') => {
     } catch (error) {
       console.error('Error creating portal session:', error)
       let message = 'Failed to open billing portal. Please try again.'
-      if (error?.status === 503) {
+      if (error?.serverMessage) {
+        message = error.serverMessage
+      } else if (error?.status === 503) {
         message = 'The billing server is temporarily unavailable. If your backend is on a free tier (e.g. Render), it may be waking from sleep—wait 30–60 seconds and try again.'
       } else if (error?.message === 'Failed to fetch' || error?.name === 'TypeError') {
         const isProduction = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
