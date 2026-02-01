@@ -15,6 +15,7 @@ export default function TimelinePage() {
   const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
+  const [showSignOutModal, setShowSignOutModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
@@ -271,7 +272,7 @@ export default function TimelinePage() {
         <div className="relative max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[39.6rem] mx-auto px-4 sm:px-8">
           <EditableTitle />
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowSignOutModal(true)}
             className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 text-xs sm:text-sm font-medium transition-colors"
             aria-label="Sign out"
           >
@@ -442,6 +443,20 @@ export default function TimelinePage() {
         title="Delete Thought"
         message="Are you sure you want to delete this thought? This action cannot be undone."
         confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Sign Out Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showSignOutModal}
+        onClose={() => setShowSignOutModal(false)}
+        onConfirm={() => {
+          setShowSignOutModal(false)
+          handleSignOut()
+        }}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmText="Sign Out"
         cancelText="Cancel"
       />
     </div>

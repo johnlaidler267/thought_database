@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../services/supabase'
 import { LANGUAGES } from '../services/translation'
 
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showLogOutModal, setShowLogOutModal] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleteError, setDeleteError] = useState(null)
   const [exportingData, setExportingData] = useState(false)
@@ -299,7 +301,9 @@ const handleSubscribe = async (targetTier = 'pro') => {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create portal session')
+        const err = new Error('Failed to create portal session')
+        err.status = response.status
+        throw err
       }
 
       const data = await response.json()
@@ -310,11 +314,15 @@ const handleSubscribe = async (targetTier = 'pro') => {
       }
     } catch (error) {
       console.error('Error creating portal session:', error)
-      const isNetworkError = error?.message === 'Failed to fetch' || error?.name === 'TypeError'
-      const isProduction = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
-      const message = isNetworkError && isProduction
-        ? 'Cannot reach the billing server. Ensure VITE_API_URL is set to your backend URL in production.'
-        : 'Failed to open billing portal. Please try again.'
+      let message = 'Failed to open billing portal. Please try again.'
+      if (error?.status === 503) {
+        message = 'The billing server is temporarily unavailable. If your backend is on a free tier (e.g. Render), it may be waking from sleep—wait 30–60 seconds and try again.'
+      } else if (error?.message === 'Failed to fetch' || error?.name === 'TypeError') {
+        const isProduction = typeof window !== 'undefined' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+        message = isProduction
+          ? 'Cannot reach the billing server. Ensure VITE_API_URL is set to your backend URL in production.'
+          : message
+      }
       alert(message)
     }
   }
@@ -675,7 +683,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
             <div className="space-y-3">
               <Button
                 variant="outline"
-                onClick={handleLogOut}
+                onClick={() => setShowLogOutModal(true)}
                 className="w-full border-stroke hover:bg-muted font-serif text-sm bg-transparent"
               >
                 Log Out
@@ -816,6 +824,20 @@ const handleSubscribe = async (targetTier = 'pro') => {
           </Card>
         </div>
       )}
+
+      {/* Log Out Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={showLogOutModal}
+        onClose={() => setShowLogOutModal(false)}
+        onConfirm={() => {
+          setShowLogOutModal(false)
+          handleLogOut()
+        }}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        confirmText="Log Out"
+        cancelText="Cancel"
+      />
 
       {/* Delete Account Confirmation Modal */}
       {showDeleteModal && (
