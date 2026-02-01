@@ -69,12 +69,13 @@ describe('GroqProvider', () => {
 
     it('should handle timeout', async () => {
       vi.useFakeTimers()
+      const mockAudioBuffer = Buffer.from('fake audio data')
       const timeoutProvider = new GroqProvider({
         apiKey: 'test-key',
         timeout: 100 // Very short timeout
       })
-      
-      const mockAudioBuffer = Buffer.from('fake audio data')
+      // Skip real ffmpeg conversion so we exercise fetch/timeout only
+      vi.spyOn(timeoutProvider, 'convertWebMToWAV').mockResolvedValue(mockAudioBuffer)
       const slowPromise = new Promise(resolve => {
         setTimeout(() => resolve({
           ok: true,
