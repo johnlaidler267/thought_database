@@ -49,8 +49,8 @@ Return ONLY the cleaned text, no explanations or additional commentary.`
       if (error.message?.includes('timeout')) {
         console.warn('Cleaning timed out')
       }
-      // Re-throw so the route handler can see the error
-      throw error
+      // Return original transcript on timeout or any error (graceful degradation)
+      return transcript
     }
   }
 
