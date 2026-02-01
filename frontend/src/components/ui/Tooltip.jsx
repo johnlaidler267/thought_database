@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 
+const MOBILE_BREAKPOINT = 640 // sm; no tooltips below this width
+
 export default function Tooltip({ children, text, position = 'top' }) {
   const [isVisible, setIsVisible] = useState(false)
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 })
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT)
   const triggerRef = useRef(null)
   const tooltipRef = useRef(null)
   const timeoutRef = useRef(null)
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`)
+    const handler = () => setIsMobile(!mq.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   useEffect(() => {
     if (isVisible && triggerRef.current && tooltipRef.current) {
@@ -45,6 +55,7 @@ export default function Tooltip({ children, text, position = 'top' }) {
   }, [isVisible, position])
 
   const handleMouseEnter = () => {
+    if (isMobile) return
     timeoutRef.current = setTimeout(() => {
       setIsVisible(true)
     }, 300) // Small delay before showing tooltip

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CopyButton from '../CopyButton'
 
@@ -42,7 +42,7 @@ describe('CopyButton', () => {
 
   it('resets to copy state after 2 seconds', async () => {
     vi.useFakeTimers()
-    const user = userEvent.setup()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     
     render(<CopyButton text="Test" />)
     
@@ -65,20 +65,16 @@ describe('CopyButton', () => {
   })
 
   it('handles clipboard errors gracefully', async () => {
-    const user = userEvent.setup()
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    
     navigator.clipboard.writeText = vi.fn().mockRejectedValue(new Error('Clipboard error'))
-    
+
     render(<CopyButton text="Test" />)
-    
-    const button = screen.getByLabelText('Copy to clipboard')
-    await user.click(button)
-    
+    fireEvent.click(screen.getByLabelText('Copy to clipboard'))
+
     await waitFor(() => {
       expect(consoleError).toHaveBeenCalled()
     })
-    
+
     consoleError.mockRestore()
   })
 })
