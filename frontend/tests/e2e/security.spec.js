@@ -58,7 +58,7 @@ test.describe('Security', () => {
 
   test('HTTPS is enforced in production', async ({ page, context }) => {
     // Skip in development/localhost
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5175'
     if (baseURL.includes('localhost') || baseURL.includes('127.0.0.1')) {
       test.skip()
     }
@@ -114,7 +114,7 @@ test.describe('Security', () => {
     
     // Try to directly access thoughts API with a different user's ID
     // Simulate URL manipulation by trying to fetch thoughts with a fake user_id
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5175'
     const supabaseURL = process.env.VITE_SUPABASE_URL || ''
     
     if (supabaseURL) {
@@ -166,7 +166,7 @@ test.describe('Security', () => {
 
   test('direct API access to another users thought by ID is blocked', async ({ request }) => {
     // Test that trying to access a specific thought by ID from another user fails
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5175'
     const supabaseURL = process.env.VITE_SUPABASE_URL || ''
     
     if (!supabaseURL) {

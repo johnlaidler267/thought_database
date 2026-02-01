@@ -92,8 +92,8 @@ router.post('/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'subscription',
-      success_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173'}/settings?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173'}/settings`,
+      success_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5175'}/settings?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5175'}/settings`,
       metadata: {
         userId: userId,
         tier: tier || 'pro',
@@ -125,7 +125,7 @@ router.post('/create-portal-session', async (req, res) => {
     // Create portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173'}/settings`,
+      return_url: `${req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5175'}/settings`,
     })
 
     res.json({ url: session.url })

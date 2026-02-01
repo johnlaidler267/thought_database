@@ -47,8 +47,8 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # Webhook signing secret from Stripe Dashboard
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # NOT the anon key - needs service role for backend operations
 
-# Frontend URL (optional, defaults to localhost:5173)
-FRONTEND_URL=http://localhost:5173
+# Frontend URL (optional, defaults to localhost:5175)
+FRONTEND_URL=http://localhost:5175
 ```
 
 **Important:** 

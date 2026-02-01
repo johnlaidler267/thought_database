@@ -78,13 +78,13 @@ This guide walks you through setting up "Continue with Google" login for your ap
 
 2. **Set Site URL**
    - **Site URL**: Your production URL (e.g., `https://yourdomain.com`)
-   - For local development, you can use: `http://localhost:5173`
+   - For local development, you can use: `http://localhost:5175`
 
 3. **Add Redirect URLs**
    - In the **Redirect URLs** section, click **Add URL**
    - Add your local development URL:
      ```
-     http://localhost:5173/
+     http://localhost:5175/
      ```
    - Add your production URL (when ready):
      ```
@@ -112,7 +112,7 @@ You can find these in Supabase Dashboard > **Project Settings** > **API**.
    ```
 
 2. **Test the login**
-   - Navigate to `http://localhost:5173`
+   - Navigate to `http://localhost:5175`
    - Click "Continue with Google"
    - You should be redirected to Google's sign-in page
    - After signing in, you should be redirected back to the homepage (`/`)

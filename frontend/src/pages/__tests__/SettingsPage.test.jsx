@@ -46,7 +46,7 @@ describe('SettingsPage - Environment Mode Detection', () => {
     })
 
     it('should handle localhost with different ports', () => {
-      expect(getEnvironmentMode('http://localhost:5173')).toBe('Development')
+      expect(getEnvironmentMode('http://localhost:5175')).toBe('Development')
       expect(getEnvironmentMode('http://localhost:8080')).toBe('Development')
     })
 

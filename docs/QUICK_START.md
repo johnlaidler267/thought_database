@@ -22,7 +22,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Frontend will run on `http://localhost:5173`
+Frontend will run on `http://localhost:5175`
 
 ## 3. Supabase Setup
 

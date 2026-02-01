@@ -56,7 +56,7 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
    ```bash
    npm run dev
    ```
-   Frontend runs at `http://localhost:5173` by default.
+   Frontend runs at `http://localhost:5175` by default.
 
 ### Backend Setup
 
@@ -150,7 +150,7 @@ thought_database/
 ## Usage
 
 1. Start both frontend and backend (e.g. `npm run dev` from root).
-2. Open the app (e.g. `http://localhost:5173`).
+2. Open the app (e.g. `http://localhost:5175`).
 3. Sign in via **Welcome** (Apple, Google, or Magic Link).
 4. On the home page: use **Record** to capture a thought, then **Stop** to transcribe, clean, and tag.
 5. Edit the draft if needed, then save; the thought appears in your list with tags and optional category.

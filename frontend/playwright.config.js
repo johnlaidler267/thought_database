@@ -1,4 +1,9 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { defineConfig, devices } from '@playwright/test'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.join(__dirname, '..')
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -12,7 +17,7 @@ export default defineConfig({
     ...(process.env.CI ? [['github']] : [])
   ],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5175',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -32,8 +37,9 @@ export default defineConfig({
     },
   ],
   webServer: {
+    cwd: repoRoot,
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:5175',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

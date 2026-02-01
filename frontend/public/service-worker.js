@@ -52,10 +52,11 @@ self.addEventListener('fetch', (event) => {
   // 6. Requests to localhost:3001 (backend server)
   // 7. Hashed asset files (Vite/Vercel generates these with hashes - let browser cache handle them)
   // 8. Manifest.json and other dev-only files
-  // 9. Development mode (localhost with port 5174 or other Vite ports)
+  // 9. Development mode (localhost with port 5173, 5174, 5175, or other Vite ports)
   const isDevMode = url.hostname === 'localhost' && (
     url.port === '5174' || 
-    url.port === '5173' || 
+    url.port === '5173' ||
+    url.port === '5175' || 
     url.port === '3000' ||
     url.pathname.includes('/src/')
   )
