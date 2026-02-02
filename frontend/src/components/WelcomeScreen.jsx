@@ -75,8 +75,9 @@ export default function WelcomeScreen() {
     <div className="min-h-screen flex items-center justify-center px-8" style={{ background: 'var(--paper)' }}>
       <div className="max-w-md w-full text-center">
         {/* Title */}
-        <h1 className="text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
-            Vellum
+        <h1 className="flex items-center justify-center gap-4 text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
+          <img src="/logo.png" alt="" className="h-14 w-14 object-contain" aria-hidden />
+          Vellum
         </h1>
         <p className="text-xl font-serif mb-12" style={{ color: 'var(--muted-foreground)' }}>
           Never waste a good thought
