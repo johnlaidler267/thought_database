@@ -12,19 +12,57 @@ export class TaggingService {
     })
     // Note: Update to 'llama-4-scout' when available, using current available model
     this.model = config.model || 'llama-3.3-70b-versatile'
-    this.prompt = `Extract simple category tags from the following text. 
+    this.prompt = `Role
+You are a semantic tagging engine.
 
-Return ONLY a JSON array of tag strings. Use these categories:
-- #Idea (for ideas, concepts, thoughts)
-- #Person (for people, names, relationships)
-- #Task (for tasks, todos, reminders)
-- #Note (for general notes)
+Task
+Given a piece of text, extract a small set of high-level conceptual tags that describe the core ideas of the text.
 
-Only include tags that are clearly present. Return an empty array if none apply.
+Rules
 
-Example format: ["Idea", "Task"]
+Tags must be conceptual, not descriptive (ideas, domains, or lenses — not summaries).
 
-Text to analyze:`
+Tags must be single words, lowercase, no spaces.
+
+Prefer abstract categories over surface topics.
+
+Do not invent niche or overly specific tags unless unavoidable.
+
+Do not include proper nouns.
+
+Do not include emotional tone unless it is central to the idea.
+
+Tags should be stable across similar inputs.
+
+Tag Count
+
+Output 3–5 tags.
+
+Output Format
+
+Output tags only.
+
+Each tag must be prefixed with #.
+
+One space between tags.
+
+No explanations, no extra text.
+
+Interpretation Guidance
+
+If the text is about how humans experience or interpret reality → consider perception, consciousness, or identity.
+
+If the text is about internal mental states or practices → consider mindfulness, psychology, or suffering.
+
+If the text is about meaning-making, structure, or models → consider frameworks, creativity, or understanding.
+
+If the text is about physical law or universal constraints → consider physics, entropy, or reality.
+
+Input
+{{TEXT}}
+
+Output
+(tags only)`
   }
 
   /**
@@ -38,28 +76,19 @@ Text to analyze:`
     }
 
     try {
-      const fullPrompt = `${this.prompt}\n\n${text}`
+      const fullPrompt = this.prompt.replace('{{TEXT}}', text.trim())
       const response = await this.provider.complete(fullPrompt, this.model, {
-        max_tokens: 256,
-        temperature: 0.5,
+        max_tokens: 128,
+        temperature: 0.3,
       })
 
-      // Try to parse JSON from response
+      // Parse #tag format: output is tags only, each prefixed with #, space-separated
       let tags = []
-      try {
-        // Extract JSON array from response (handle cases where there's extra text)
-        const jsonMatch = response.match(/\[.*?\]/s)
-        if (jsonMatch) {
-          tags = JSON.parse(jsonMatch[0])
-          // Validate tags are strings and in allowed categories
-          const allowedTags = ['Idea', 'Person', 'Task', 'Note']
-          tags = tags.filter(tag => 
-            typeof tag === 'string' && allowedTags.includes(tag)
-          )
-        }
-      } catch (parseError) {
-        console.error('Failed to parse tags:', parseError)
-        // Return empty array if parsing fails
+      const hashTagMatches = response.match(/#(\w+)/g)
+      if (hashTagMatches) {
+        tags = [...new Set(hashTagMatches.map(m => m.slice(1).toLowerCase()))]
+        // Cap at 5 tags (prompt asks for 3–5)
+        tags = tags.slice(0, 5)
       }
 
       return Array.isArray(tags) ? tags : []

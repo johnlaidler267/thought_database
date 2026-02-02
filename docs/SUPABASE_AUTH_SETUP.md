@@ -34,8 +34,28 @@ In your Supabase dashboard:
 ## 4. Configure Email Magic Links
 
 1. Go to **Authentication** > **Email Templates**
-2. Customize the magic link email template if desired
-3. Magic links are enabled by default
+2. Magic links are enabled by default
+
+### Customizing the magic link email
+
+1. In the Supabase dashboard, go to **Authentication** → **Email Templates**
+2. Select **Magic Link** (used for both sign-up and sign-in when using email)
+3. Edit the template. You can change:
+   - **Subject** – e.g. `Sign in to [Your App Name]`
+   - **Body (HTML)** – Supabase provides variables you can use:
+     - `{{ .ConfirmationURL }}` – the link the user must click to sign in
+     - `{{ .Email }}` – the user’s email
+     - `{{ .Token }}` – the raw token (usually you use `ConfirmationURL` instead)
+     - `{{ .TokenHash }}` – hashed token
+     - `{{ .SiteURL }}` – value from **URL Configuration** → Site URL
+   - **Body (plain text)** – optional; used if the client doesn’t support HTML
+
+4. Example subject: `Sign in to Vellum`
+5. Example body snippet:  
+   `Click to sign in: {{ .ConfirmationURL }}`  
+   Or use HTML for styling; the link must be `{{ .ConfirmationURL }}` so the user is taken to your app and logged in.
+
+6. Click **Save** to apply. New magic link emails will use your template.
 
 ## 5. Set Redirect URLs
 
