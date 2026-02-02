@@ -1161,7 +1161,7 @@ function ThoughtCard({ thought, onDelete }) {
 
   return (
     <Card
-      className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 p-6 shadow-none relative"
+      className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 pb-14 shadow-none relative"
       style={{
         borderColor: 'var(--stroke)',
         backgroundColor: 'var(--card)'
