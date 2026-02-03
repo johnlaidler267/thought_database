@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function WelcomeScreen() {
   const { user, loading: authLoading, signInWithApple, signInWithGoogle, signInWithEmail } = useAuth()
+  const { isDark } = useTheme()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [emailSent, setEmailSent] = useState(false)
@@ -77,8 +79,7 @@ export default function WelcomeScreen() {
         {/* Title + subtitle: centered as one block */}
         <div className="flex flex-col items-center text-center mb-12">
           <h1 className="flex items-center justify-center gap-2 w-full text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
-            <img src="/logo.png" alt="" className="h-14 w-14 object-contain shrink-0 dark:hidden" aria-hidden />
-            <img src="/logo-dark.png" alt="" className="h-14 w-14 object-contain shrink-0 hidden dark:block" aria-hidden />
+            <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-14 w-14 object-contain shrink-0" aria-hidden />
             <span>Vellum</span>
           </h1>
           <p className="text-xl font-serif text-center" style={{ color: 'var(--muted-foreground)' }}>

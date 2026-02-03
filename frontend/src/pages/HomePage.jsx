@@ -5,6 +5,7 @@ import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
@@ -15,6 +16,7 @@ import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRe
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
+  const { isDark } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
   const [thoughts, setThoughts] = useState([])
@@ -592,8 +594,7 @@ export default function HomePage() {
       <header className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="" className="h-6 w-6 object-contain dark:hidden" aria-hidden />
-            <img src="/logo-dark.png" alt="" className="h-6 w-6 object-contain hidden dark:block" aria-hidden />
+            <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-6 w-6 object-contain" aria-hidden />
             <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Vellum</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 text-xs font-serif">

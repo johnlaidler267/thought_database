@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTheme } from '../contexts/ThemeContext'
 
 export default function EditableTitle() {
+  const { isDark } = useTheme()
   const [title, setTitle] = useState(() => {
     const saved = localStorage.getItem('axiomTitle')
     return saved || 'Vellum'
@@ -97,8 +99,7 @@ export default function EditableTitle() {
             />
           ) : (
             <>
-              <img src="/logo.png" alt="" className="h-7 w-7 shrink-0 object-contain dark:hidden" aria-hidden />
-              <img src="/logo-dark.png" alt="" className="h-7 w-7 shrink-0 object-contain hidden dark:block" aria-hidden />
+              <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-7 w-7 shrink-0 object-contain" aria-hidden />
               <h1 className="text-2xl font-semibold tracking-tight text-white">
                 {title}
               </h1>
