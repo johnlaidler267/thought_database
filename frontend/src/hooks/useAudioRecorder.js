@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { savePendingRecording, clearPendingRecording, setRecoveryFlag } from '../utils/recordingRecovery'
 
 const MAX_RECORDING_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
+const PERSIST_INTERVAL_MS = 2000 // Save recording to IDB every 2s for refresh recovery
 const WARNING_THRESHOLD = 4 * 60 * 1000 // 4 minutes - show warning
 const AUDIO_LEVEL_BARS = 5
 
@@ -19,6 +21,17 @@ export function useAudioRecorder() {
   const audioContextRef = useRef(null)
   const animationFrameRef = useRef(null)
   const cleanupAudioLevelsRef = useRef(null)
+  const persistIntervalRef = useRef(null)
+  const isRecordingRef = useRef(false)
+
+  // On refresh while recording: set flag so new page can recover from IDB
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      if (isRecordingRef.current) setRecoveryFlag()
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -28,6 +41,9 @@ export function useAudioRecorder() {
       }
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current)
+      }
+      if (persistIntervalRef.current) {
+        clearInterval(persistIntervalRef.current)
       }
     }
   }, [])
@@ -90,6 +106,12 @@ export function useAudioRecorder() {
       mediaRecorder._dataInterval = dataInterval
 
       mediaRecorder.onstop = async () => {
+        isRecordingRef.current = false
+        if (persistIntervalRef.current) {
+          clearInterval(persistIntervalRef.current)
+          persistIntervalRef.current = null
+        }
+        clearPendingRecording().catch(() => {})
         // Clear the data interval
         if (mediaRecorder._dataInterval) {
           clearInterval(mediaRecorder._dataInterval)
@@ -111,7 +133,17 @@ export function useAudioRecorder() {
       // Start with timeslice to ensure regular chunk emission
       mediaRecorder.start(1000) // Emit chunks every 1 second
       setIsRecording(true)
+      isRecordingRef.current = true
       startTimeRef.current = Date.now()
+
+      // Persist recording to IndexedDB every 2s so refresh during recording can recover
+      persistIntervalRef.current = setInterval(() => {
+        if (mediaRecorderRef.current?.state !== 'recording' || audioChunksRef.current.length === 0) return
+        const blob = new Blob([...audioChunksRef.current], {
+          type: mediaRecorderRef.current.mimeType || 'audio/webm;codecs=opus',
+        })
+        savePendingRecording(blob, mediaRecorderRef.current.mimeType)
+      }, PERSIST_INTERVAL_MS)
 
       // Live audio levels for waveform display (AnalyserNode from same stream)
       try {
@@ -247,6 +279,12 @@ export function useAudioRecorder() {
       cleanupAudioLevelsRef.current?.()
 
       mediaRecorderRef.current.onstop = async () => {
+        isRecordingRef.current = false
+        if (persistIntervalRef.current) {
+          clearInterval(persistIntervalRef.current)
+          persistIntervalRef.current = null
+        }
+        clearPendingRecording().catch(() => {})
         // Clear the data interval if it exists
         if (mediaRecorderRef.current._dataInterval) {
           clearInterval(mediaRecorderRef.current._dataInterval)

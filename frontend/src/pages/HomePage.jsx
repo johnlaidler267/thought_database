@@ -11,6 +11,7 @@ import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { translateText } from '../services/translation'
 import { estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
+import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
@@ -206,6 +207,28 @@ export default function HomePage() {
     }
     setOnAutoStop(handleAutoStop)
   }, [setOnAutoStop, processAudioBlob])
+
+  // Recover recording after refresh: transcribe pending blob and open editor
+  useEffect(() => {
+    if (!user || !hasRecoveryFlag()) return
+    let cancelled = false
+    getPendingRecording()
+      .then(async (pending) => {
+        if (cancelled || !pending?.blob || pending.blob.size < 1000) {
+          clearRecoveryFlag()
+          await clearPendingRecording()
+          return
+        }
+        clearRecoveryFlag()
+        await clearPendingRecording()
+        await processAudioBlob(pending.blob, false)
+      })
+      .catch(() => {
+        clearRecoveryFlag()
+        clearPendingRecording()
+      })
+    return () => { cancelled = true }
+  }, [user, processAudioBlob])
 
   const handleSubmitTranscript = async () => {
     if (!draftTranscript.trim()) {
