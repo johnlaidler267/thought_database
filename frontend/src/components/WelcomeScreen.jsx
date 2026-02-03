@@ -73,42 +73,46 @@ export default function WelcomeScreen() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-8" style={{ background: 'var(--paper)' }}>
-      <div className="max-w-md w-full text-center">
-        {/* Title */}
-        <h1 className="flex items-center justify-center gap-4 text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
-          <img src="/logo.png" alt="" className="h-14 w-14 object-contain" aria-hidden />
-          Vellum
-        </h1>
-        <p className="text-xl font-serif mb-12" style={{ color: 'var(--muted-foreground)' }}>
-          Never waste a good thought
-        </p>
+      <div className="max-w-md w-full">
+        {/* Title + subtitle: centered as one block */}
+        <div className="flex flex-col items-center text-center mb-12">
+          <h1 className="flex items-center justify-center gap-2 w-full text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
+            <img src="/logo.png" alt="" className="h-14 w-14 object-contain shrink-0" aria-hidden />
+            <span>Vellum</span>
+          </h1>
+          <p className="text-xl font-serif text-center" style={{ color: 'var(--muted-foreground)' }}>
+            Never waste a good thought
+          </p>
+        </div>
 
         {/* Sign In Options */}
         <div className="space-y-4 mb-8">
-          {/* Apple Sign In */}
-          <button
-            onClick={handleAppleSignIn}
-            disabled={loading}
-            className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-3xl border font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: 'var(--card)',
-              borderColor: 'var(--stroke)',
-              color: 'var(--ink)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--muted)'
-              e.currentTarget.style.borderColor = 'var(--ink)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--card)'
-              e.currentTarget.style.borderColor = 'var(--stroke)'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-            </svg>
-            Continue with Apple
-          </button>
+          {/* Apple Sign In - hidden in production (enable when Apple provider is configured for prod) */}
+          {!import.meta.env.PROD && (
+            <button
+              onClick={handleAppleSignIn}
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center gap-3 px-6 py-4 rounded-3xl border font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--stroke)',
+                color: 'var(--ink)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+                e.currentTarget.style.borderColor = 'var(--ink)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--card)'
+                e.currentTarget.style.borderColor = 'var(--stroke)'
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              </svg>
+              Continue with Apple
+            </button>
+          )}
 
           {/* Google Sign In */}
           <button
