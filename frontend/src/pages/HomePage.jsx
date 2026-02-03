@@ -21,10 +21,7 @@ export default function HomePage() {
   const location = useLocation()
   const [thoughts, setThoughts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('axiomCategories')
-    return saved ? JSON.parse(saved) : ['All']
-  })
+  const [categories, setCategories] = useState(['All'])
   const [activeCategory, setActiveCategory] = useState('All')
   const [hoveredCategory, setHoveredCategory] = useState(null)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
@@ -461,10 +458,26 @@ export default function HomePage() {
     }, 100)
   }
 
-  // Save categories to localStorage when they change
+  // Load categories for the current user (per-user to avoid leaking across accounts)
   useEffect(() => {
-    localStorage.setItem('axiomCategories', JSON.stringify(categories))
-  }, [categories])
+    if (!user?.id) {
+      setCategories(['All'])
+      setActiveCategory('All')
+      return
+    }
+    const key = `axiomCategories_${user.id}`
+    const saved = localStorage.getItem(key)
+    const list = saved ? JSON.parse(saved) : ['All']
+    setCategories(Array.isArray(list) ? list : ['All'])
+    setActiveCategory('All')
+  }, [user?.id])
+
+  // Save categories to localStorage when they change (per-user key only)
+  useEffect(() => {
+    if (!user?.id || !categories.length) return
+    const key = `axiomCategories_${user.id}`
+    localStorage.setItem(key, JSON.stringify(categories))
+  }, [user?.id, categories])
 
   // Cleanup hover timeout on unmount
   useEffect(() => {
