@@ -67,10 +67,9 @@ export function useAudioRecorder() {
       audioChunksRef.current = []
 
       mediaRecorder.ondataavailable = (event) => {
+        // Some browsers emit empty dataavailable events (e.g. on requestData() with no new data); skip them.
         if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data)
-        } else {
-          console.warn(`[RECORDING] Received empty or null chunk`)
         }
       }
       
