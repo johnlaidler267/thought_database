@@ -412,6 +412,7 @@ export default function HomePage() {
       // Clear draft and close editor
       setDraftTranscript('')
       setIsEditingTranscript(false)
+      try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
       // Reset recording flag
       isFromRecordingRef.current = false
     } catch (err) {
@@ -426,6 +427,7 @@ export default function HomePage() {
   const handleCancelEdit = () => {
     setDraftTranscript('')
     setIsEditingTranscript(false)
+    try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
   }
 
   const handleRecordClick = () => {
@@ -478,6 +480,34 @@ export default function HomePage() {
     const key = `axiomCategories_${user.id}`
     localStorage.setItem(key, JSON.stringify(categories))
   }, [user?.id, categories])
+
+  // Restore draft transcript when returning from another page (e.g. Settings)
+  useEffect(() => {
+    if (!user) return
+    try {
+      const saved = sessionStorage.getItem('vellum_draft_pending')
+      if (!saved) return
+      const { transcript } = JSON.parse(saved)
+      if (typeof transcript === 'string' && transcript.trim() !== '') {
+        setDraftTranscript(transcript)
+        setIsEditingTranscript(true)
+      }
+      sessionStorage.removeItem('vellum_draft_pending')
+    } catch {
+      sessionStorage.removeItem('vellum_draft_pending')
+    }
+  }, [user?.id])
+
+  // Persist draft transcript on navigate away so it can be restored when coming back
+  useEffect(() => {
+    return () => {
+      if (draftTranscript.trim()) {
+        try {
+          sessionStorage.setItem('vellum_draft_pending', JSON.stringify({ transcript: draftTranscript }))
+        } catch {}
+      }
+    }
+  }, [draftTranscript])
 
   // Cleanup hover timeout on unmount
   useEffect(() => {
