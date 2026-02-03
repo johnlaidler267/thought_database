@@ -711,6 +711,11 @@ const handleSubscribe = async (targetTier = 'pro') => {
           >
             <h2 className="text-sm font-serif tracking-wide mb-4 uppercase" style={{ color: 'var(--ink)' }}>Account</h2>
             <div className="space-y-3">
+              {user?.email && (
+                <p className="text-sm font-serif pb-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Logged in as {user.email}
+                </p>
+              )}
               <Button
                 variant="outline"
                 onClick={() => setShowLogOutModal(true)}
