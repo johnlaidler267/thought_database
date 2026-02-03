@@ -823,7 +823,7 @@ export default function HomePage() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--ink)' }}></div>
-                <span>Processing your thought...</span>
+                <span>Processing your thought<span aria-hidden="true" className="inline"><span className="bounce-dot">.</span><span className="bounce-dot">.</span><span className="bounce-dot">.</span></span></span>
               </div>
             </div>
           )}
