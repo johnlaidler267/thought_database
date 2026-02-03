@@ -164,29 +164,27 @@ export default function HomePage() {
         throw new Error(`Transcription failed: ${errorMessage}. Please ensure your backend is running.`)
       }
 
-      // Charge for Whisper/transcription as soon as we have the transcript (even if user cancels without saving)
-      if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
-        const transcriptionTokens = estimateTranscriptionTokens(transcript) + estimateTokens(transcript)
-        if (transcriptionTokens > 0) {
-          try {
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({ tokens_used: (profile.tokens_used || 0) + transcriptionTokens })
-              .eq('id', user.id)
-            if (!updateError) {
-              refreshProfile().catch((e) => console.warn('Failed to refresh profile:', e))
-            }
-          } catch (e) {
-            console.warn('Error charging transcription usage:', e)
-          }
-        }
-      }
-
-      // Show transcript in editable textbox
+      // Show transcript immediately so the user isn't left waiting (especially important for new users where profile update can be slow)
       setDraftTranscript(transcript)
       setIsEditingTranscript(true)
       isFromRecordingRef.current = true // Mark that this came from recording
       setLoading(false)
+
+      // Charge for Whisper in the background so we don't block the UI (profile update can be slow for new accounts)
+      if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
+        const transcriptionTokens = estimateTranscriptionTokens(transcript) + estimateTokens(transcript)
+        if (transcriptionTokens > 0) {
+          const newTokensUsed = (profile.tokens_used || 0) + transcriptionTokens
+          supabase
+            .from('profiles')
+            .update({ tokens_used: newTokensUsed })
+            .eq('id', user.id)
+            .then(({ error: updateError }) => {
+              if (!updateError) refreshProfile().catch((e) => console.warn('Failed to refresh profile:', e))
+            })
+            .catch((e) => console.warn('Error charging transcription usage:', e))
+        }
+      }
       
       // Show notification if auto-stopped
       if (isAutoStop) {
