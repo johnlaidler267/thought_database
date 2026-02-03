@@ -9,7 +9,7 @@ import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { translateText } from '../services/translation'
-import { estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
+import { estimateTranscriptionTokens, estimateTokens, estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
 
@@ -165,6 +165,24 @@ export default function HomePage() {
         throw new Error(`Transcription failed: ${errorMessage}. Please ensure your backend is running.`)
       }
 
+      // Charge for Whisper/transcription as soon as we have the transcript (even if user cancels without saving)
+      if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
+        const transcriptionTokens = estimateTranscriptionTokens(transcript) + estimateTokens(transcript)
+        if (transcriptionTokens > 0) {
+          try {
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ tokens_used: (profile.tokens_used || 0) + transcriptionTokens })
+              .eq('id', user.id)
+            if (!updateError) {
+              refreshProfile().catch((e) => console.warn('Failed to refresh profile:', e))
+            }
+          } catch (e) {
+            console.warn('Error charging transcription usage:', e)
+          }
+        }
+      }
+
       // Show transcript in editable textbox
       setDraftTranscript(transcript)
       setIsEditingTranscript(true)
@@ -193,7 +211,7 @@ export default function HomePage() {
       alert(errorMessage)
       setLoading(false)
     }
-  }, [profile?.tier, profile?.tokens_used, setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
+  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
 
   const handleRecordStop = async () => {
     const audioBlob = await stopRecording()
@@ -338,15 +356,11 @@ export default function HomePage() {
           setThoughts(prev => [data, ...prev])
           
           // Update usage for apprentice and trial tiers (track tokens_used)
-          // Track tokens for ALL thoughts (both recorded and typed) since they both use cleaning/tagging APIs
+          // Transcription was already charged when the transcript was received; here we only charge cleaning + tagging
           if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
             try {
-              // Estimate tokens used for this thought
-              // For typed thoughts: only cleaning + tagging (no transcription)
-              // For recorded thoughts: transcription + cleaning + tagging
-              const tokensUsed = isFromRecordingRef.current
-                ? estimateTotalTokens(editedTranscript, cleanedText, tags) // Includes transcription
-                : estimateTypedThoughtTokens(editedTranscript, cleanedText, tags) // No transcription
+              // For both recorded and typed thoughts: only cleaning + tagging (transcription charged on receipt of transcript)
+              const tokensUsed = estimateTypedThoughtTokens(editedTranscript, cleanedText, tags)
               
               if (tokensUsed > 0) {
                 // Increment tokens_used
