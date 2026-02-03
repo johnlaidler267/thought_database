@@ -2,18 +2,23 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 
 const MAX_RECORDING_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
 const WARNING_THRESHOLD = 4 * 60 * 1000 // 4 minutes - show warning
+const AUDIO_LEVEL_BARS = 5
 
 export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false)
   const [error, setError] = useState(null)
   const [remainingTime, setRemainingTime] = useState(null)
   const [showWarning, setShowWarning] = useState(false)
+  const [audioLevels, setAudioLevels] = useState([]) // 0–1 per bar, for waveform display
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const timeoutRef = useRef(null)
   const countdownIntervalRef = useRef(null)
   const startTimeRef = useRef(null)
   const onAutoStopRef = useRef(null)
+  const audioContextRef = useRef(null)
+  const animationFrameRef = useRef(null)
+  const cleanupAudioLevelsRef = useRef(null)
 
   // Cleanup on unmount
   useEffect(() => {
@@ -108,6 +113,50 @@ export function useAudioRecorder() {
       setIsRecording(true)
       startTimeRef.current = Date.now()
 
+      // Live audio levels for waveform display (AnalyserNode from same stream)
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)()
+        const source = audioContext.createMediaStreamSource(stream)
+        const analyser = audioContext.createAnalyser()
+        analyser.fftSize = 64
+        analyser.smoothingTimeConstant = 0.6
+        source.connect(analyser)
+        audioContextRef.current = audioContext
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount)
+
+        const loop = () => {
+          if (!audioContextRef.current || audioContextRef.current.state === 'closed') return
+          analyser.getByteFrequencyData(dataArray)
+          // One overall level from all bins (speech spreads across frequencies) so all bars move together
+          let sum = 0
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i]
+          const avg = sum / dataArray.length
+          const level = Math.min(1, avg / 70)
+          // Slight per-bar variation so it feels like a waveform (center bar tallest, edges slightly lower)
+          const levels = [0.85, 0.95, 1, 0.95, 0.85].map((f) => Math.min(1, level * f))
+          setAudioLevels(levels)
+          animationFrameRef.current = requestAnimationFrame(loop)
+        }
+        animationFrameRef.current = requestAnimationFrame(loop)
+
+        cleanupAudioLevelsRef.current = () => {
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current)
+            animationFrameRef.current = null
+          }
+          setAudioLevels([])
+          if (audioContextRef.current) {
+            audioContextRef.current.close().catch(() => {})
+            audioContextRef.current = null
+          }
+          cleanupAudioLevelsRef.current = null
+        }
+      } catch (_) {
+        setAudioLevels([])
+        cleanupAudioLevelsRef.current = null
+      }
+
       // Start countdown timer
       countdownIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - startTimeRef.current
@@ -131,6 +180,7 @@ export function useAudioRecorder() {
       // Auto-stop after max duration
       timeoutRef.current = setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          cleanupAudioLevelsRef.current?.()
           mediaRecorderRef.current.stop()
           setIsRecording(false)
           setRemainingTime(0)
@@ -194,7 +244,8 @@ export function useAudioRecorder() {
 
       // Request final data before stopping to ensure all audio is captured
       mediaRecorderRef.current.requestData()
-      
+      cleanupAudioLevelsRef.current?.()
+
       mediaRecorderRef.current.onstop = async () => {
         // Clear the data interval if it exists
         if (mediaRecorderRef.current._dataInterval) {
@@ -258,6 +309,7 @@ export function useAudioRecorder() {
     error,
     remainingTime,
     showWarning,
+    audioLevels,
     formatRemainingTime,
     startRecording,
     stopRecording,

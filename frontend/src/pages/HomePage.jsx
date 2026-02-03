@@ -40,6 +40,7 @@ export default function HomePage() {
     error: recordingError, 
     remainingTime,
     showWarning,
+    audioLevels,
     formatRemainingTime,
     startRecording, 
     stopRecording,
@@ -983,7 +984,7 @@ export default function HomePage() {
 
               {/* Main button */}
               <div
-                className={`w-24 h-24 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                className={`relative w-24 h-24 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                   isAudioRecording 
                     ? "" 
                     : "group-hover:bg-muted/50"
@@ -1005,7 +1006,29 @@ export default function HomePage() {
               >
                 {isAudioRecording ? (
                   <>
-                    <Pause className="w-9 h-9 sm:w-8 sm:h-8" strokeWidth={1.5} />
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      {/* Small waveform above pause icon */}
+                      {audioLevels.length > 0 && (
+                        <div
+                          className="flex items-end justify-center gap-0.5"
+                          style={{ height: '14px', width: '2.5rem' }}
+                          aria-hidden
+                        >
+                          {audioLevels.map((level, i) => (
+                            <div
+                              key={i}
+                              className="w-0.5 rounded-full transition-all duration-75 ease-out flex-shrink-0"
+                              style={{
+                                height: `${Math.max(3, Math.round(level * 12))}px`,
+                                backgroundColor: 'var(--paper)',
+                                opacity: 0.85 + level * 0.15
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <Pause className="w-9 h-9 sm:w-8 sm:h-8" strokeWidth={1.5} />
+                    </div>
                     {showWarning && (
                       <div className="absolute -top-2 -right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
                     )}
