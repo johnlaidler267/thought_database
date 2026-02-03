@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { ArrowLeft } from 'lucide-react'
@@ -750,6 +750,13 @@ const handleSubscribe = async (targetTier = 'pro') => {
               </p>
             </div>
           </Card>
+
+          {/* Legal */}
+          <div className="pt-4 pb-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+            <Link to="/terms" className="underline hover:no-underline" style={{ color: 'var(--muted-foreground)' }}>Terms of Service</Link>
+            <span aria-hidden>·</span>
+            <Link to="/privacy" className="underline hover:no-underline" style={{ color: 'var(--muted-foreground)' }}>Privacy Policy</Link>
+          </div>
         </div>
       </main>
 

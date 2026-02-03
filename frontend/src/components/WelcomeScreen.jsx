@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -220,8 +220,14 @@ export default function WelcomeScreen() {
           </div>
         )}
 
+        {/* Legal links */}
+        <p className="mt-12 text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+          <Link to="/terms" className="underline" style={{ color: 'var(--muted-foreground)' }}>Terms of Service</Link>
+          {' · '}
+          <Link to="/privacy" className="underline" style={{ color: 'var(--muted-foreground)' }}>Privacy Policy</Link>
+        </p>
         {/* Privacy Note */}
-        <p className="mt-12 text-sm font-serif leading-relaxed max-w-sm mx-auto" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="mt-4 text-sm font-serif leading-relaxed max-w-sm mx-auto" style={{ color: 'var(--muted-foreground)' }}>
           Your thoughts are private. We use industry-standard secure sign-on to ensure only you can access your account.
         </p>
       </div>

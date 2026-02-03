@@ -7,6 +7,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import WelcomeScreen from './components/WelcomeScreen'
 import HomePage from './pages/HomePage'
 import SettingsPage from './pages/SettingsPage'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
 import './index.css'
 
 // Register service worker for PWA
@@ -43,6 +45,8 @@ createRoot(document.getElementById('root')).render(
                 </ProtectedRoute>
               }
             />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
