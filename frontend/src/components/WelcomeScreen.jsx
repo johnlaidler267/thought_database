@@ -81,7 +81,7 @@ export default function WelcomeScreen() {
             <span>Vellum</span>
           </h1>
           <p className="text-xl font-serif text-center" style={{ color: 'var(--muted-foreground)' }}>
-            Never waste a good thought
+            Hold that thought.
           </p>
         </div>
 
