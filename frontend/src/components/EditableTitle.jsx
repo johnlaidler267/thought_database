@@ -97,7 +97,8 @@ export default function EditableTitle() {
             />
           ) : (
             <>
-              <img src="/logo.png" alt="" className="h-7 w-7 shrink-0 object-contain" aria-hidden />
+              <img src="/logo.png" alt="" className="h-7 w-7 shrink-0 object-contain dark:hidden" aria-hidden />
+              <img src="/logo-dark.png" alt="" className="h-7 w-7 shrink-0 object-contain hidden dark:block" aria-hidden />
               <h1 className="text-2xl font-semibold tracking-tight text-white">
                 {title}
               </h1>
