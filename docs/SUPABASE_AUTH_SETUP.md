@@ -57,6 +57,22 @@ In your Supabase dashboard:
 
 6. Click **Save** to apply. New magic link emails will use your template.
 
+### Email rate limits (allow “try again” / correct typo)
+
+Supabase limits how often magic-link emails can be sent (e.g. a 60-second cooldown per user and/or per email). If someone requests a link twice in a row (e.g. wrong email first time), they may hit a rate-limit error. The app shows a friendly message when that happens.
+
+**To allow at least two magic-link requests in a row (e.g. correct a typo):**
+
+1. In the **Supabase Dashboard**, open your project.
+2. Go to **Authentication** → **Rate Limits**.
+3. Find the **Email** / **OTP** (magic link) limits. You may see:
+   - A cooldown (e.g. 60 seconds) before another link can be sent.
+   - A cap like “X emails per hour”.
+4. **Increase the limit or lower the cooldown** so that two requests within a short time are allowed (e.g. allow 2–3 per minute or reduce the cooldown to ~10–30 seconds). Save changes.
+
+If your project uses **Supabase’s default email (no custom SMTP)**, some limits may be fixed; using **Custom SMTP** (Authentication → Email) can allow higher or configurable limits.  
+Details: [Supabase Auth Rate Limits](https://supabase.com/docs/guides/auth/rate-limits).
+
 ## 5. Set Redirect URLs
 
 In **Authentication** > **URL Configuration**:

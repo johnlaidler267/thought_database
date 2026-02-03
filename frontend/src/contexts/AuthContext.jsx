@@ -484,17 +484,27 @@ export const AuthProvider = ({ children }) => {
     if (!supabase) return { error: 'Supabase not configured' }
     
     // signInWithOtp automatically handles both sign up and sign in
-    // If the user doesn't exist, it will create an account
-    // If they do exist, it will sign them in
     const { data, error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        // This makes it work for both sign up and sign in
         shouldCreateUser: true,
       },
     })
     
+    // Normalize Supabase email rate-limit error to a friendlier message
+    if (error) {
+      const msg = (error.message || '').toLowerCase()
+      if (msg.includes('rate') || msg.includes('limit') || msg.includes('every') || msg.includes('60') || msg.includes('hour')) {
+        return {
+          data,
+          error: {
+            ...error,
+            message: 'Too many sign-in emails. Please wait a minute and try again, or check your inbox for the link we already sent.',
+          },
+        }
+      }
+    }
     return { data, error }
   }
 
