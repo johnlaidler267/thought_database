@@ -221,7 +221,7 @@ export default function WelcomeScreen() {
         )}
 
         {/* Legal links */}
-        <p className="mt-12 text-xs font-serif" style={{ color: 'var(--muted-foreground)' }}>
+        <p className="mt-12 text-xs font-serif text-center" style={{ color: 'var(--muted-foreground)' }}>
           <Link to="/terms" className="underline" style={{ color: 'var(--muted-foreground)' }}>Terms of Service</Link>
           {' · '}
           <Link to="/privacy" className="underline" style={{ color: 'var(--muted-foreground)' }}>Privacy Policy</Link>
