@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { estimateTokens, estimateTranscriptionTokens, estimateTotalTokens } from '../../utils/tokenEstimator'
+import { estimateTokens, estimateTranscriptionTokens, estimateTotalTokens, estimateTypedThoughtTokens } from '../../utils/tokenEstimator'
 
 /**
  * Tests for token-based usage tracking functionality in HomePage
@@ -154,6 +154,48 @@ describe('HomePage - Token Usage Tracking', () => {
       
       // Should track tokens regardless of input method (recording vs typing)
       expect(tokensUsed).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Charge transcription on receipt; only cleaning+tagging on save', () => {
+    it('charges Whisper/transcription when transcript is received (even if user cancels without saving)', () => {
+      // Same formula used in HomePage processAudioBlob when we get the transcript
+      const transcript = 'This is what Whisper returned from the recording.'
+      const transcriptionCharge = estimateTranscriptionTokens(transcript) + estimateTokens(transcript)
+
+      expect(transcriptionCharge).toBeGreaterThan(0)
+      // Charge must match the transcription portion of estimateTotalTokens (input + output tokens)
+      const transcriptionPartOfTotal = estimateTranscriptionTokens(transcript) + estimateTokens(transcript)
+      expect(transcriptionCharge).toBe(transcriptionPartOfTotal)
+    })
+
+    it('on save, only cleaning + tagging are charged (transcription was already charged on receipt)', () => {
+      const rawTranscript = 'Um so I was thinking like we should do this'
+      const cleanedText = 'I was thinking we should do this.'
+      const tags = ['idea']
+
+      // On save we use estimateTypedThoughtTokens for both recorded and typed (transcription already charged)
+      const saveCharge = estimateTypedThoughtTokens(rawTranscript, cleanedText, tags)
+      const transcriptionPart = estimateTranscriptionTokens(rawTranscript) + estimateTokens(rawTranscript)
+      const totalIfWeChargedEverythingOnSave = estimateTotalTokens(rawTranscript, cleanedText, tags)
+
+      expect(saveCharge).toBeGreaterThan(0)
+      expect(saveCharge).toBe(totalIfWeChargedEverythingOnSave - transcriptionPart)
+      expect(saveCharge).toBeLessThan(totalIfWeChargedEverythingOnSave)
+    })
+
+    it('cancel without saving: only transcription is charged; save adds cleaning+tagging', () => {
+      const transcript = 'Recorded thought content here.'
+      const cleanedText = 'Recorded thought content here.'
+      const tags = ['recorded']
+
+      const chargeOnTranscriptReceipt = estimateTranscriptionTokens(transcript) + estimateTokens(transcript)
+      const chargeOnSave = estimateTypedThoughtTokens(transcript, cleanedText, tags)
+      const totalIfSaved = chargeOnTranscriptReceipt + chargeOnSave
+
+      expect(chargeOnTranscriptReceipt).toBeGreaterThan(0)
+      expect(chargeOnSave).toBeGreaterThan(0)
+      expect(totalIfSaved).toBe(estimateTotalTokens(transcript, cleanedText, tags))
     })
   })
 })
