@@ -23,6 +23,7 @@ export function useAudioRecorder() {
   const cleanupAudioLevelsRef = useRef(null)
   const persistIntervalRef = useRef(null)
   const isRecordingRef = useRef(false)
+  const hasWarmedUpRecorderRef = useRef(false)
 
   // On refresh while recording: set flag so new page can recover from IDB
   useEffect(() => {
@@ -62,7 +63,43 @@ export function useAudioRecorder() {
         setError(errorMsg)
         throw new Error(errorMsg)
       }
-      
+
+      // One-time warm-up so the first stop→blob isn't slow on mobile (Safari/Chrome first-time MediaRecorder finalization)
+      if (!hasWarmedUpRecorderRef.current) {
+        hasWarmedUpRecorderRef.current = true
+        try {
+          const warmStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          const warmTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
+          let warmMime = 'audio/webm;codecs=opus'
+          for (const t of warmTypes) {
+            if (MediaRecorder.isTypeSupported(t)) {
+              warmMime = t
+              break
+            }
+          }
+          const warmRecorder = new MediaRecorder(warmStream, { mimeType: warmMime })
+          const warmChunks = []
+          warmRecorder.ondataavailable = (e) => { if (e.data?.size > 0) warmChunks.push(e.data) }
+          await new Promise((resolve, reject) => {
+            warmRecorder.onstop = async () => {
+              await new Promise((r) => setTimeout(r, 400))
+              warmStream.getTracks().forEach((t) => t.stop())
+              resolve()
+            }
+            warmRecorder.onerror = () => {
+              warmStream.getTracks().forEach((t) => t.stop())
+              resolve()
+            }
+            warmRecorder.start(100)
+            setTimeout(() => {
+              if (warmRecorder.state === 'recording') warmRecorder.stop()
+            }, 150)
+          })
+        } catch (_) {
+          hasWarmedUpRecorderRef.current = false
+        }
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       
       // Try to use a supported mimeType, fallback to default

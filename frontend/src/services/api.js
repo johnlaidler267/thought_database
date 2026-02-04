@@ -18,6 +18,15 @@ const getApiUrl = () => {
 }
 const API_URL = getApiUrl()
 
+/**
+ * Warm the connection to the backend (and wake serverless/cold starts).
+ * Call when the user lands on Home so the first transcribe request isn't slowed by connection setup or cold start.
+ * Especially helps on mobile where the first request can be much slower.
+ */
+export function warmApiConnection() {
+  fetch(`${API_URL}/health`, { method: 'GET', keepalive: true }).catch(() => {})
+}
+
 export async function transcribeAudio(audioBlob) {
   const formData = new FormData()
   formData.append('audio', audioBlob, 'recording.webm')

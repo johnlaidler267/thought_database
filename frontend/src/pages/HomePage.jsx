@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
-import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
+import { transcribeAudio, cleanTranscript, extractTags, warmApiConnection } from '../services/api'
 import { translateText } from '../services/translation'
 import { estimateTranscriptionTokens, estimateTokens, estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
@@ -61,6 +61,11 @@ export default function HomePage() {
       navigate('/welcome', { replace: true })
     }
   }, [user, authLoading, navigate, location.pathname])
+
+  // Warm backend connection on mount so first transcription isn't slowed (helps mobile / cold start)
+  useEffect(() => {
+    if (user) warmApiConnection()
+  }, [user?.id])
 
   // Load thoughts from Supabase on mount
   useEffect(() => {
