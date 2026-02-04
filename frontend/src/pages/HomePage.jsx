@@ -133,6 +133,8 @@ export default function HomePage() {
       alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
       return
     }
+    // Warm backend now so transcribe request hits a warm server (avoids 20s+ first-request delay on mobile)
+    warmApiConnection()
     setIsRecording(true)
     isFromRecordingRef.current = true // Mark that this will be from recording
     startRecording()
