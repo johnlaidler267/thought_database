@@ -84,6 +84,14 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
     }
   }, [isEditingCard])
 
+  // Auto-grow edit textarea to fit content (no fixed height / internal scroll)
+  useEffect(() => {
+    const el = editTextareaRef.current
+    if (!el || !isEditingCard) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.max(200, el.scrollHeight)}px`
+  }, [isEditingCard, editedRawText])
+
   const handleSubmitFollowUp = () => {
     const text = followUpText.trim()
     if (!text || !onAddFollowUp) return
@@ -296,10 +304,11 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             value={editedRawText}
             onChange={(e) => setEditedRawText(e.target.value)}
             disabled={isSavingEdit}
-            className="w-full text-sm sm:text-base leading-relaxed font-serif text-pretty mb-4 resize-y min-h-[120px] py-2 px-0 border-0 rounded bg-transparent focus:outline-none focus:ring-0"
+            className="block w-full min-w-0 text-sm sm:text-base leading-relaxed font-serif text-pretty mb-2 resize-none overflow-hidden py-1 border-0 rounded bg-transparent focus:outline-none focus:ring-0"
             style={{
               color: 'var(--ink)',
-              backgroundColor: 'transparent'
+              backgroundColor: 'transparent',
+              minHeight: 200
             }}
             placeholder="Raw transcript..."
             aria-label="Edit raw transcript"
