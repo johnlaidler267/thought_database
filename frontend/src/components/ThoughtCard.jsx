@@ -6,6 +6,17 @@ import { FaReply } from 'react-icons/fa'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
 
+// Exact category names for display (backend stores single-word tokens: IDEA, TASK, etc.)
+const THOUGHT_TYPE_DISPLAY_NAMES = {
+  IDEA: 'Ideas',
+  OBSERVATION: 'Observations',
+  TASK: 'Tasks & Intentions',
+  QUESTION: 'Questions',
+  REFERENCE: 'References',
+  REFLECTION: 'Feelings & Reflections',
+  PLAN: 'Plans',
+}
+
 function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -90,7 +101,10 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
       ? (thought.mentions ? [thought.mentions] : [])
       : []
   // Support both snake_case (Supabase) and camelCase; treat empty string as no type
-  const thoughtTypeLabel = (thought.thought_type || thought.thoughtType || '').trim() || null
+  const thoughtTypeRaw = (thought.thought_type || thought.thoughtType || '').trim() || null
+  const thoughtTypeLabel = thoughtTypeRaw
+    ? (THOUGHT_TYPE_DISPLAY_NAMES[thoughtTypeRaw.toUpperCase()] ?? thoughtTypeRaw.charAt(0).toUpperCase() + thoughtTypeRaw.slice(1).toLowerCase())
+    : null
 
   const renderBodyWithUnderlines = (text) => {
     if (!text || mentionList.length === 0) return text

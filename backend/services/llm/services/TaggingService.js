@@ -59,7 +59,7 @@ TAGS: #tag1 #tag2 #tag3
 NAMES: Name1, Name2
 TYPE: IDEA
 
-One space between tags. Comma-separated names. TYPE must be exactly one word: IDEA, TASK, INSIGHT, OBSERVATION, EMOTION, or QUESTION. No other text.
+One space between tags. Comma-separated names. TYPE must be exactly one word: IDEA, OBSERVATION, TASK, QUESTION, REFERENCE, REFLECTION, or PLAN. No other text.
 
 Interpretation Guidance (tags)
 
@@ -78,7 +78,7 @@ Output`
   }
 
   /** Valid thought types returned by the model */
-  static THOUGHT_TYPES = ['IDEA', 'TASK', 'INSIGHT', 'OBSERVATION', 'EMOTION', 'QUESTION']
+  static THOUGHT_TYPES = ['IDEA', 'OBSERVATION', 'TASK', 'QUESTION', 'REFERENCE', 'REFLECTION', 'PLAN']
 
   /**
    * Extract tags, mentions, and thought type from text
@@ -116,7 +116,7 @@ Output`
         }
       }
 
-      // Parse TYPE: IDEA | TASK | INSIGHT | OBSERVATION | EMOTION | QUESTION
+      // Parse TYPE: IDEA | OBSERVATION | TASK | QUESTION | REFERENCE | REFLECTION | PLAN
       let thought_type = null
       const typeMatch = response.match(/TYPE:\s*(\w+)/i)
       if (typeMatch && typeMatch[1]) {

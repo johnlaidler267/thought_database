@@ -80,13 +80,13 @@ describe('TaggingService', () => {
     })
 
     it('should parse #tag format with extra text', async () => {
-      mockProvider.complete.mockResolvedValue('Here are the tags:\n#perception #mindfulness #frameworks\nNAMES:\nTYPE: INSIGHT')
+      mockProvider.complete.mockResolvedValue('Here are the tags:\n#perception #mindfulness #frameworks\nNAMES:\nTYPE: REFLECTION')
 
       const result = await service.extractTags('Some text')
 
       expect(result.tags).toEqual(['perception', 'mindfulness', 'frameworks'])
       expect(result.mentions).toEqual([])
-      expect(result.thought_type).toBe('INSIGHT')
+      expect(result.thought_type).toBe('REFLECTION')
     })
 
     it('should normalize tags to lowercase and dedupe', async () => {
