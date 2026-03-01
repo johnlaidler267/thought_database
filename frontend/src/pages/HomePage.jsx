@@ -736,6 +736,84 @@ export default function HomePage() {
     setFollowUpToDelete(null)
   }, [])
 
+  const handleReprocessThought = useCallback(async (thoughtId, newRawTranscript) => {
+    if (!newRawTranscript?.trim() || !user) return
+
+    if (profile?.tier === 'trial') {
+      const used = profile?.tokens_used || 0
+      if (used >= FREE_TIER_TOKEN_LIMIT) {
+        throw new Error(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more.`)
+      }
+    }
+
+    const editedTranscript = newRawTranscript.trim()
+    let cleanedText
+    try {
+      cleanedText = await cleanTranscript(editedTranscript)
+      if (!cleanedText || cleanedText.trim().length === 0) cleanedText = editedTranscript
+    } catch (err) {
+      console.error('Cleaning failed:', err)
+      cleanedText = editedTranscript
+    }
+
+    let tags = []
+    let mentions = []
+    let thought_type = null
+    try {
+      const result = await extractTags(cleanedText)
+      tags = Array.isArray(result?.tags) ? result.tags : []
+      mentions = Array.isArray(result?.mentions) ? result.mentions : []
+      thought_type = result?.thought_type ?? null
+    } catch (err) {
+      console.warn('Tag extraction failed:', err)
+    }
+
+    setThoughts((prev) =>
+      prev.map((t) =>
+        t.id === thoughtId
+          ? {
+              ...t,
+              raw_transcript: editedTranscript,
+              cleaned_text: cleanedText,
+              tags,
+              mentions,
+              thought_type,
+            }
+          : t
+      )
+    )
+
+    if (supabase && user) {
+      const { error } = await supabase
+        .from('thoughts')
+        .update({
+          raw_transcript: editedTranscript,
+          cleaned_text: cleanedText,
+          tags,
+          mentions,
+          thought_type,
+        })
+        .eq('id', thoughtId)
+        .eq('user_id', user.id)
+      if (error) throw error
+    }
+
+    if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
+      try {
+        const tokensUsed = estimateTypedThoughtTokens(editedTranscript, cleanedText, tags)
+        if (tokensUsed > 0) {
+          await supabase
+            .from('profiles')
+            .update({ tokens_used: (profile.tokens_used || 0) + tokensUsed })
+            .eq('id', user.id)
+          refreshProfile?.()
+        }
+      } catch (e) {
+        console.warn('Failed to update usage:', e)
+      }
+    }
+  }, [user, profile, refreshProfile])
+
   // Toggle tag in active chips: add if not present, remove if present (case-insensitive)
   const handleTagClick = useCallback((tag) => {
     const normalized = tag.trim()
@@ -1160,6 +1238,7 @@ export default function HomePage() {
                 activeTags={activeTags}
                 onAddFollowUp={handleAddFollowUp}
                 onDeleteFollowUp={handleDeleteFollowUp}
+                onSaveEdit={handleReprocessThought}
               />
             ))
           )}

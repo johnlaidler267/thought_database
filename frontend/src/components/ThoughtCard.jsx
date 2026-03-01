@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
@@ -21,7 +21,7 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, activeTags }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onSaveEdit, activeTags }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -32,8 +32,12 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const [followUpText, setFollowUpText] = useState('')
   const [aiQuestion, setAiQuestion] = useState(null)
   const [isLoadingReflect, setIsLoadingReflect] = useState(false)
+  const [isEditingCard, setIsEditingCard] = useState(false)
+  const [editedRawText, setEditedRawText] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
   const menuRef = useRef(null)
   const followUpInputRef = useRef(null)
+  const editTextareaRef = useRef(null)
 
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
@@ -72,6 +76,13 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
       return () => clearTimeout(t)
     }
   }, [showFollowUpInput])
+
+  useEffect(() => {
+    if (isEditingCard && editTextareaRef.current) {
+      const t = setTimeout(() => editTextareaRef.current?.focus(), 50)
+      return () => clearTimeout(t)
+    }
+  }, [isEditingCard])
 
   const handleSubmitFollowUp = () => {
     const text = followUpText.trim()
@@ -169,6 +180,16 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         backgroundColor: 'var(--card)'
       }}
     >
+      {isSavingEdit && (
+        <div
+          className="absolute inset-0 rounded-[inherit] flex items-center justify-center z-10"
+          style={{ backgroundColor: 'var(--card)', opacity: 0.92 }}
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <span className="text-sm font-serif" style={{ color: 'var(--muted-foreground)' }}>Reprocessing…</span>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3 text-xs text-muted-foreground font-serif" style={{ color: 'var(--muted-foreground)' }}>
           <span className="tracking-wide">{timestamp}</span>
@@ -180,6 +201,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           )}
         </div>
         <div className="flex items-center gap-2">
+          {!isEditingCard && (
           <Tooltip text={showRaw ? 'View cleaned version' : 'View raw transcript'} position="bottom">
             <button
               onClick={() => setShowRaw(!showRaw)}
@@ -192,6 +214,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               {showRaw ? <TbWand className="w-4 h-4" /> : <TbWandOff className="w-4 h-4" />}
             </button>
           </Tooltip>
+          )}
           <div className="relative flex items-center justify-center" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}
@@ -213,6 +236,22 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                 }}
               >
+                {onSaveEdit && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false)
+                      setEditedRawText(thought.raw_transcript || thought.content || '')
+                      setIsEditingCard(true)
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
+                    style={{ color: 'var(--ink)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--muted)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Edit
+                  </button>
+                )}
                 <button
                   onClick={handleDelete}
                   className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
@@ -250,6 +289,68 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         </div>
       )}
 
+      {isEditingCard ? (
+        <>
+          <textarea
+            ref={editTextareaRef}
+            value={editedRawText}
+            onChange={(e) => setEditedRawText(e.target.value)}
+            disabled={isSavingEdit}
+            className="w-full text-sm sm:text-base leading-relaxed font-serif text-pretty mb-4 resize-y min-h-[120px] py-2 px-0 border-0 rounded bg-transparent focus:outline-none focus:ring-0"
+            style={{
+              color: 'var(--ink)',
+              backgroundColor: 'transparent'
+            }}
+            placeholder="Raw transcript..."
+            aria-label="Edit raw transcript"
+          />
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              type="button"
+              onClick={async () => {
+                const text = editedRawText.trim()
+                if (!text || !onSaveEdit) return
+                setIsSavingEdit(true)
+                try {
+                  await onSaveEdit(thought.id, text)
+                  setIsEditingCard(false)
+                } catch (err) {
+                  console.error('Failed to save edit:', err)
+                } finally {
+                  setIsSavingEdit(false)
+                }
+              }}
+              disabled={isSavingEdit || !editedRawText.trim()}
+              className="px-3 py-1.5 text-sm font-serif rounded border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                borderColor: 'var(--stroke)',
+                backgroundColor: 'var(--muted)',
+                color: 'var(--ink)'
+              }}
+            >
+              {isSavingEdit ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (isSavingEdit) return
+                setIsEditingCard(false)
+                setEditedRawText('')
+              }}
+              disabled={isSavingEdit}
+              className="px-3 py-1.5 text-sm font-serif rounded border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                borderColor: 'var(--stroke)',
+                backgroundColor: 'transparent',
+                color: 'var(--muted-foreground)'
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
         {renderBodyWithUnderlines(displayText)}
       </p>
@@ -389,9 +490,11 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         </div>
         )
       })()}
+        </>
+      )}
 
       <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center gap-2">
-        {onAddFollowUp && (
+        {!isEditingCard && onAddFollowUp && (
           showFollowUpInput ? (
             <>
               <input
@@ -464,6 +567,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           )
         )}
 
+        {!isEditingCard && (
         <Tooltip text="AI reflection question" position="bottom">
           <button
             type="button"
@@ -490,8 +594,9 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             )}
           </button>
         </Tooltip>
+        )}
 
-        {translationEnabled && (
+        {!isEditingCard && translationEnabled && (
           <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">
             <button
               onClick={handleTranslate}
@@ -519,6 +624,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           </Tooltip>
         )}
 
+        {!isEditingCard && (
         <Tooltip text="Copy" position="bottom">
           <button
             onClick={handleCopy}
@@ -537,6 +643,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             <Copy className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
           </button>
         </Tooltip>
+        )}
       </div>
 
       {copied && (
