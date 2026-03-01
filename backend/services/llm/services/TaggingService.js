@@ -33,7 +33,7 @@ Rules for tags
 
 Tags must be conceptual, not descriptive (ideas, domains, or lenses — not summaries).
 
-Tags must be single words, lowercase, no spaces.
+Tags may be one or more words; use one # per tag (e.g. #self image #identity). Keep tags lowercase.
 
 Prefer abstract categories over surface topics.
 
@@ -55,11 +55,11 @@ Do not invent or assume names. If no people are mentioned, output nothing after 
 
 Output Format (use exactly this structure)
 
-TAGS: #tag1 #tag2 #tag3
+TAGS: #tag1 #tag2 #multi word tag
 NAMES: Name1, Name2
 TYPE: IDEA
 
-One space between tags. Comma-separated names. TYPE must be exactly one word: IDEA, OBSERVATION, TASK, QUESTION, REFERENCE, REFLECTION, or PLAN. No other text.
+Each tag starts with #; multi-word tags are fine (e.g. #self image). Comma-separated names. TYPE must be exactly one word: IDEA, OBSERVATION, TASK, QUESTION, REFERENCE, REFLECTION, or PLAN. No other text.
 
 Interpretation Guidance (tags)
 
@@ -97,12 +97,13 @@ Output`
         temperature: 0.3,
       })
 
-      // Parse TAGS: #tag1 #tag2 ...
+      // Parse TAGS: #tag1 #tag2 #multi word tag ... (each tag is from # to the next # or end of line)
       let tags = []
-      const hashTagMatches = response.match(/#(\w+)/g)
-      if (hashTagMatches) {
-        tags = [...new Set(hashTagMatches.map(m => m.slice(1).toLowerCase()))]
-        tags = tags.slice(0, 5)
+      const tagsLineMatch = response.match(/(?:^|\n)TAGS:\s*([^\n]+)/i)
+      if (tagsLineMatch && tagsLineMatch[1]) {
+        const line = tagsLineMatch[1].trim()
+        const parts = line.split(/#+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
+        tags = [...new Set(parts)].slice(0, 5)
       }
 
       // Parse NAMES: Name1, Name2 ...
