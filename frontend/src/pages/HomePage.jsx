@@ -307,12 +307,16 @@ export default function HomePage() {
         cleanedText = editedTranscript
       }
 
-      // Extract tags
+      // Extract tags and mentions (person names)
       let tags = []
+      let mentions = []
       try {
-        tags = await extractTags(cleanedText)
-        if (!Array.isArray(tags)) {
-          tags = []
+        const result = await extractTags(cleanedText)
+        if (Array.isArray(result)) {
+          tags = result
+        } else {
+          tags = Array.isArray(result?.tags) ? result.tags : []
+          mentions = Array.isArray(result?.mentions) ? result.mentions : []
         }
       } catch (err) {
         console.warn('Tag extraction failed:', err)
@@ -328,6 +332,7 @@ export default function HomePage() {
         raw_transcript: editedTranscript,
         cleaned_text: cleanedText,
         tags: tags,
+        mentions: mentions,
         category: category,
         responding_to: selectedPrompt || null,
         created_at: new Date().toISOString(),
@@ -382,6 +387,7 @@ export default function HomePage() {
             const fallback = { ...newThought }
             delete fallback.responding_to
             delete fallback.category
+            delete fallback.mentions
 
             const retryResult = await supabase
               .from('thoughts')
@@ -395,6 +401,27 @@ export default function HomePage() {
             if (data) {
               data.responding_to = newThought.responding_to
               data.category = newThought.category
+              data.mentions = newThought.mentions
+            }
+          }
+
+          // If error is due to missing mentions column, retry without it
+          if (error && error.code === 'PGRST204' && error.message?.includes('mentions')) {
+            console.warn('mentions column not found, retrying without it')
+            const fallback = { ...newThought }
+            delete fallback.mentions
+
+            const retryResult = await supabase
+              .from('thoughts')
+              .insert([fallback])
+              .select()
+              .single()
+
+            data = retryResult.data
+            error = retryResult.error
+
+            if (data) {
+              data.mentions = newThought.mentions
             }
           }
 

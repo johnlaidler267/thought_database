@@ -16,9 +16,11 @@ export class TaggingService {
 You are a semantic tagging engine.
 
 Task
-Given a piece of text, extract a small set of high-level conceptual tags that describe the core ideas of the text.
+Given a piece of text, do two things:
+1. Extract a small set of high-level conceptual tags that describe the core ideas of the text.
+2. Extract the full names of any people mentioned in the text (real people the author is referring to).
 
-Rules
+Rules for tags
 
 Tags must be conceptual, not descriptive (ideas, domains, or lenses — not summaries).
 
@@ -28,27 +30,28 @@ Prefer abstract categories over surface topics.
 
 Do not invent niche or overly specific tags unless unavoidable.
 
-Do not include proper nouns.
+Do not include proper nouns as tags.
 
 Do not include emotional tone unless it is central to the idea.
 
 Tags should be stable across similar inputs.
 
-Tag Count
-
 Output 3–5 tags.
 
-Output Format
+Rules for names
 
-Output tags only.
+List only people who are explicitly mentioned by name in the text (e.g. "Sarah", "Dr. Smith", "John and Maria").
+Use the form the text uses (first name only is fine; full name if given).
+Do not invent or assume names. If no people are mentioned, output nothing after NAMES:.
 
-Each tag must be prefixed with #.
+Output Format (use exactly this structure)
 
-One space between tags.
+TAGS: #tag1 #tag2 #tag3
+NAMES: Name1, Name2
 
-No explanations, no extra text.
+One space between tags. Comma-separated names. No other text.
 
-Interpretation Guidance
+Interpretation Guidance (tags)
 
 If the text is about how humans experience or interpret reality → consider perception, consciousness, or identity.
 
@@ -61,41 +64,52 @@ If the text is about physical law or universal constraints → consider physics,
 Input
 {{TEXT}}
 
-Output
-(tags only)`
+Output`
   }
 
   /**
-   * Extract tags from text
+   * Extract tags and mentioned person names from text
    * @param {string} text - Text to analyze
-   * @returns {Promise<string[]>} - Array of tag strings
+   * @returns {Promise<{ tags: string[], mentions: string[] }>} - Tags and list of person names
    */
   async extractTags(text) {
     if (!text || !text.trim()) {
-      return []
+      return { tags: [], mentions: [] }
     }
 
     try {
       const fullPrompt = this.prompt.replace('{{TEXT}}', text.trim())
       const response = await this.provider.complete(fullPrompt, this.model, {
-        max_tokens: 128,
+        max_tokens: 256,
         temperature: 0.3,
       })
 
-      // Parse #tag format: output is tags only, each prefixed with #, space-separated
+      // Parse TAGS: #tag1 #tag2 ...
       let tags = []
       const hashTagMatches = response.match(/#(\w+)/g)
       if (hashTagMatches) {
         tags = [...new Set(hashTagMatches.map(m => m.slice(1).toLowerCase()))]
-        // Cap at 5 tags (prompt asks for 3–5)
         tags = tags.slice(0, 5)
       }
 
-      return Array.isArray(tags) ? tags : []
+      // Parse NAMES: Name1, Name2 ...
+      let mentions = []
+      const namesMatch = response.match(/NAMES:\s*([^\n]*)/i)
+      if (namesMatch && namesMatch[1]) {
+        const raw = namesMatch[1].trim()
+        if (raw) {
+          mentions = raw.split(',').map(n => n.trim()).filter(Boolean)
+          mentions = [...new Set(mentions)]
+        }
+      }
+
+      return {
+        tags: Array.isArray(tags) ? tags : [],
+        mentions: Array.isArray(mentions) ? mentions : [],
+      }
     } catch (error) {
       console.error('Tag extraction error:', error)
-      // Return empty array on failure - graceful degradation
-      return []
+      return { tags: [], mentions: [] }
     }
   }
 

@@ -20,20 +20,21 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'No text provided' })
     }
 
-    // If service is not configured, return empty tags (graceful degradation)
+    // If service is not configured, return empty tags and mentions (graceful degradation)
     if (!taggingService.isConfigured()) {
-      console.warn('Tagging service not configured, returning empty tags')
-      return res.json({ tags: [] })
+      console.warn('Tagging service not configured, returning empty tags and mentions')
+      return res.json({ tags: [], mentions: [] })
     }
 
-    // Extract tags using Llama via Groq
-    const tags = await taggingService.extractTags(text)
-    
-    res.json({ tags: Array.isArray(tags) ? tags : [] })
+    // Extract tags and mentions (person names) using Llama via Groq
+    const result = await taggingService.extractTags(text)
+    const tags = Array.isArray(result.tags) ? result.tags : []
+    const mentions = Array.isArray(result.mentions) ? result.mentions : []
+
+    res.json({ tags, mentions })
   } catch (error) {
     console.error('Tag extraction error:', error)
-    // Graceful degradation - return empty array on error
-    res.json({ tags: [] })
+    res.json({ tags: [], mentions: [] })
   }
 })
 

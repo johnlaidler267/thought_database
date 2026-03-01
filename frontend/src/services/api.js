@@ -156,7 +156,10 @@ export async function extractTags(cleanedText) {
     }
 
     const data = await response.json()
-    return data.tags || []
+    return {
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      mentions: Array.isArray(data.mentions) ? data.mentions : [],
+    }
   } catch (err) {
     if (err.message) {
       throw err

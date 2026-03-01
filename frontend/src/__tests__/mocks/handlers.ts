@@ -29,13 +29,13 @@ export const handlers = [
     })
   }),
 
-  // Extract tags endpoint
+  // Extract tags endpoint (returns tags and mentions)
   http.post(`${API_URL}/tags`, async ({ request }) => {
     const body = await request.json() as { text: string }
-    // Mock tag extraction
     const tags = body.text.match(/#\w+/g) || []
     return HttpResponse.json({
-      tags: tags.map(tag => tag.substring(1))
+      tags: tags.map(tag => tag.substring(1)),
+      mentions: []
     })
   }),
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
@@ -200,6 +200,23 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
               </span>
             )
           ))}
+        </div>
+      )}
+
+      {thought.mentions && thought.mentions.length > 0 && (
+        <div className="flex items-start gap-2 mb-4" style={{ color: 'var(--muted-foreground)' }}>
+          <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
+          <div className="flex flex-wrap gap-2">
+            {thought.mentions.map((name) => (
+              <span
+                key={name}
+                className="text-xs font-serif text-muted-foreground"
+                style={{ color: 'var(--muted-foreground)' }}
+              >
+                {name}
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
