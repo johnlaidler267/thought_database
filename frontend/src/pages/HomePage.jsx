@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Sparkles } from 'lucide-react'
+import { FaReply } from 'react-icons/fa'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
@@ -12,7 +13,10 @@ import { transcribeAudio, cleanTranscript, extractTags, warmApiConnection } from
 import { translateText } from '../services/translation'
 import { estimateTranscriptionTokens, estimateTokens, estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
+import { AI_PROMPTS } from '../constants/thoughtStarters'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
+import { ThoughtCard } from '../components/ThoughtCard'
+import { ThoughtStartersPopover } from '../components/ThoughtStartersPopover'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
@@ -34,17 +38,10 @@ export default function HomePage() {
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const [showAiPrompts, setShowAiPrompts] = useState(false)
+  const [selectedPrompt, setSelectedPrompt] = useState(null)
   const transcriptTextareaRef = useRef(null)
+  const isFromRecordingRef = useRef(false)
 
-  const aiPrompts = [
-    "What's been on your mind that you haven't said out loud yet?",
-    "If you could solve one problem today, what would it be?",
-    "What's something you learned recently that surprised you?",
-    "Describe a conversation you wish you'd had differently.",
-    "What's a decision you've been putting off?",
-    "What would you tell your future self about this moment?",
-  ]
-  const isFromRecordingRef = useRef(false) // Track if thought came from audio recording
   const { 
     isRecording: isAudioRecording, 
     error: recordingError, 
@@ -195,6 +192,7 @@ export default function HomePage() {
 
       // Show transcript immediately so the user isn't left waiting (especially important for new users where profile update can be slow)
       setDraftTranscript(transcript)
+      setShowAiPrompts(false)
       setIsEditingTranscript(true)
       isFromRecordingRef.current = true // Mark that this came from recording
       setLoading(false)
@@ -327,6 +325,7 @@ export default function HomePage() {
         cleaned_text: cleanedText,
         tags: tags,
         category: category,
+        responding_to: selectedPrompt || null,
         created_at: new Date().toISOString(),
       }
 
@@ -369,6 +368,28 @@ export default function HomePage() {
             
             // Add category to the returned data for local state
             if (data) {
+              data.category = newThought.category
+            }
+          }
+
+          // If error is due to missing responding_to column, retry without it (and without category to avoid double-fail)
+          if (error && error.code === 'PGRST204' && error.message?.includes('responding_to')) {
+            console.warn('responding_to column not found, retrying without it')
+            const fallback = { ...newThought }
+            delete fallback.responding_to
+            delete fallback.category
+
+            const retryResult = await supabase
+              .from('thoughts')
+              .insert([fallback])
+              .select()
+              .single()
+
+            data = retryResult.data
+            error = retryResult.error
+
+            if (data) {
+              data.responding_to = newThought.responding_to
               data.category = newThought.category
             }
           }
@@ -436,8 +457,9 @@ export default function HomePage() {
         setThoughts(prev => [mockThought, ...prev])
       }
 
-      // Clear draft and close editor
+      // Clear draft, selected prompt, and close editor
       setDraftTranscript('')
+      setSelectedPrompt(null)
       setIsEditingTranscript(false)
       try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
       // Reset recording flag
@@ -453,6 +475,7 @@ export default function HomePage() {
 
   const handleCancelEdit = () => {
     setDraftTranscript('')
+    setSelectedPrompt(null)
     setIsEditingTranscript(false)
     try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
   }
@@ -477,6 +500,7 @@ export default function HomePage() {
     }
     // Open transcript editor for typing
     setDraftTranscript('')
+    setShowAiPrompts(false)
     setIsEditingTranscript(true)
     isFromRecordingRef.current = false // Mark as typed, not recorded
     // Focus the textarea after a brief delay to ensure it's rendered
@@ -517,6 +541,7 @@ export default function HomePage() {
       const { transcript } = JSON.parse(saved)
       if (typeof transcript === 'string' && transcript.trim() !== '') {
         setDraftTranscript(transcript)
+        setShowAiPrompts(false)
         setIsEditingTranscript(true)
       }
       sessionStorage.removeItem('vellum_draft_pending')
@@ -929,6 +954,7 @@ export default function HomePage() {
                 key={thought.id}
                 thought={thought}
                 onDelete={handleDeleteThought}
+                onOpenAiPrompts={() => setShowAiPrompts(true)}
               />
             ))
           )}
@@ -948,6 +974,42 @@ export default function HomePage() {
           <div className="max-w-[46.2rem] mx-auto px-6 py-4">
             <div className="flex items-start gap-3">
               <div className="flex-1">
+                {selectedPrompt && (
+                  <div
+                    className="group relative flex items-center gap-4 mb-3 pl-3 pr-14 sm:pr-10 py-2 rounded-lg border font-serif text-sm"
+                    style={{
+                      borderColor: 'var(--stroke)',
+                      backgroundColor: 'var(--muted)',
+                      color: 'var(--muted-foreground)'
+                    }}
+                  >
+                    <span className="flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
+                      <FaReply className="w-4 h-4" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <p className="italic text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>{selectedPrompt}</p>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPrompt(null)}
+                      className="absolute top-1/2 right-1 -translate-y-1/2 p-0.5 rounded hover:bg-muted/80 transition-colors"
+                      style={{ color: 'var(--muted-foreground)' }}
+                      aria-label="Clear prompt"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+                {showAiPrompts && (
+                  <div className="mb-3 w-full max-w-[min(90vw,28rem)]">
+                    <ThoughtStartersPopover
+                      prompts={AI_PROMPTS}
+                      selectedPrompt={selectedPrompt}
+                      onSelectPrompt={setSelectedPrompt}
+                      useInlineHover={false}
+                    />
+                  </div>
+                )}
                 <label 
                   className="block text-xs font-serif mb-2 tracking-wide uppercase"
                   style={{ color: 'var(--muted-foreground)' }}
@@ -1088,33 +1150,20 @@ export default function HomePage() {
             <div className="relative">
               {showAiPrompts && (
                 <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-10 w-[min(90vw,28rem)] min-w-[18rem]">
-                  <Card
-                    className="border border-stroke bg-card p-4 shadow-none overflow-y-auto"
-                    style={{ maxHeight: 'min(55vh, 32rem, calc(100vh - 10rem))' }}
-                  >
-                    <p className="text-xs font-serif text-muted-foreground uppercase tracking-wide mb-3">
-                      Thought starters
-                    </p>
-                    <div className="space-y-2">
-                      {aiPrompts.map((prompt) => (
-                        <button
-                          key={prompt}
-                          onClick={() => setShowAiPrompts(false)}
-                          className="block w-full text-left text-sm font-serif text-ink leading-relaxed py-2 px-3 rounded hover:bg-muted/50 transition-colors"
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-                  </Card>
+                  <ThoughtStartersPopover
+                    prompts={AI_PROMPTS}
+                    selectedPrompt={selectedPrompt}
+                    onSelectPrompt={setSelectedPrompt}
+                    useInlineHover
+                  />
                 </div>
               )}
               <button
                 onClick={handleRecordClick}
-              className="group relative"
-              aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
-              disabled={isEditingTranscript}
-            >
+                className="group relative"
+                aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
+                disabled={isEditingTranscript}
+              >
               {/* Outer ring */}
               <div
                 className={`absolute inset-0 rounded-full border-2 transition-all duration-300 ${
@@ -1244,266 +1293,5 @@ export default function HomePage() {
         cancelText="Cancel"
       />
     </div>
-  )
-}
-
-// Thought Card Component with View Raw functionality
-function ThoughtCard({ thought, onDelete }) {
-  const [showRaw, setShowRaw] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [isTranslated, setIsTranslated] = useState(false)
-  const [translatedText, setTranslatedText] = useState('')
-  const [isTranslating, setIsTranslating] = useState(false)
-  const menuRef = useRef(null)
-
-  // Get translation settings from localStorage
-  const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
-  const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
-
-  const originalText = showRaw ? (thought.raw_transcript || thought.content) : (thought.cleaned_text || thought.content)
-  const displayText = isTranslated && translatedText ? translatedText : originalText
-  const timestamp = thought.created_at 
-    ? new Date(thought.created_at).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : thought.timestamp || ''
-
-  const duration = thought.duration || ''
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false)
-      }
-    }
-
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-      }
-    }
-  }, [showMenu])
-
-  const handleCopy = async () => {
-    try {
-      // Copy translated text if translated, otherwise copy original
-      const textToCopy = isTranslated && translatedText ? translatedText : (thought.cleaned_text || thought.content)
-      await navigator.clipboard.writeText(textToCopy)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
-    }
-  }
-
-  const handleDelete = () => {
-    setShowMenu(false)
-    onDelete(thought.id)
-  }
-
-  const handleTranslate = async () => {
-    if (!translationEnabled) {
-      return
-    }
-
-    if (isTranslated) {
-      // Toggle back to original
-      setIsTranslated(false)
-      return
-    }
-
-    // Translate to target language
-    setIsTranslating(true)
-    try {
-      const translated = await translateText(originalText, translationLanguage)
-      setTranslatedText(translated)
-      setIsTranslated(true)
-    } catch (error) {
-      console.error('Translation failed:', error)
-      alert('Failed to translate. Please try again.')
-    } finally {
-      setIsTranslating(false)
-    }
-  }
-
-  return (
-    <Card
-      className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 pb-14 shadow-none relative"
-      style={{
-        borderColor: 'var(--stroke)',
-        backgroundColor: 'var(--card)'
-      }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground font-serif" style={{ color: 'var(--muted-foreground)' }}>
-          <span className="tracking-wide">{timestamp}</span>
-          {duration && (
-            <>
-              <span className="w-px h-3 bg-stroke" style={{ backgroundColor: 'var(--stroke)' }} />
-              <span className="tracking-wide">{duration}</span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View Raw Toggle */}
-          <button
-            onClick={() => setShowRaw(!showRaw)}
-            className="text-xs font-serif text-muted-foreground hover:text-ink transition-colors tracking-wide flex items-center"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-            aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
-          >
-            {showRaw ? 'View Cleaned' : 'View Raw'}
-          </button>
-          {/* Overflow Menu Button */}
-          <div className="relative flex items-center justify-center" ref={menuRef}>
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="text-muted-foreground hover:text-ink transition-colors flex items-center justify-center p-1"
-              style={{ color: 'var(--muted-foreground)' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-              aria-label="More options"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-            
-            {/* Dropdown Menu */}
-            {showMenu && (
-              <div
-                className="absolute right-0 top-full mt-1 min-w-[140px] rounded-md border shadow-lg z-10"
-                style={{
-                  backgroundColor: 'var(--card)',
-                  borderColor: 'var(--stroke)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <button
-                  onClick={handleDelete}
-                  className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
-                  style={{
-                    color: 'var(--ink)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--muted)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
-        {displayText}
-      </p>
-      
-      {/* Tags */}
-      {thought.tags && thought.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {thought.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 text-xs font-serif border border-stroke rounded bg-muted/50 text-muted-foreground"
-              style={{
-                borderColor: 'var(--stroke)',
-                backgroundColor: 'var(--muted)',
-                color: 'var(--muted-foreground)'
-              }}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Action Buttons - Bottom Right */}
-      <div className="absolute bottom-3 sm:bottom-4 right-4 sm:right-6 flex items-center gap-2">
-        {/* Translate Button */}
-        {translationEnabled && (
-          <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">
-            <button
-              onClick={handleTranslate}
-              disabled={isTranslating}
-              className="p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                color: isTranslated ? 'var(--ink)' : 'var(--muted-foreground)',
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.color = 'var(--ink)'
-                  e.currentTarget.style.backgroundColor = 'var(--muted)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isTranslated) {
-                  e.currentTarget.style.color = 'var(--muted-foreground)'
-                }
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-              aria-label={isTranslated ? 'Show original text' : 'Translate text'}
-            >
-              {isTranslating ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Languages className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
-              )}
-            </button>
-          </Tooltip>
-        )}
-        
-        {/* Copy Button */}
-        <Tooltip text="Copy" position="bottom">
-          <button
-            onClick={handleCopy}
-            className="p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center"
-            style={{
-              color: 'var(--muted-foreground)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--ink)'
-              e.currentTarget.style.backgroundColor = 'var(--muted)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--muted-foreground)'
-              e.currentTarget.style.backgroundColor = 'transparent'
-            }}
-            aria-label="Copy to clipboard"
-          >
-            <Copy className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
-          </button>
-        </Tooltip>
-      </div>
-
-      {/* Success Toast Popup */}
-      {copied && (
-        <div
-          className="absolute bottom-16 right-4 px-4 py-2.5 rounded-md shadow-lg z-20 flex items-center gap-2 transition-all duration-200"
-          style={{
-            backgroundColor: 'var(--card)',
-            borderColor: 'var(--stroke)',
-            border: '1px solid var(--stroke)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            animation: 'fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-        >
-          <CheckCircle className="w-4 h-4" style={{ color: 'var(--ink)' }} />
-          <span className="text-sm font-serif" style={{ color: 'var(--ink)' }}>Copied</span>
-        </div>
-      )}
-    </Card>
   )
 }
