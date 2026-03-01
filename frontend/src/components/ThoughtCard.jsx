@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
 import { MoreVertical, Copy, Trash2, CheckCircle, Languages } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { translateText } from '../services/translation'
 
-export function ThoughtCard({ thought, onDelete, onOpenAiPrompts }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -250,3 +250,5 @@ export function ThoughtCard({ thought, onDelete, onOpenAiPrompts }) {
     </Card>
   )
 }
+
+export const ThoughtCard = memo(ThoughtCardInner)

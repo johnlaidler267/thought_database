@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Sparkles } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Brain } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -41,6 +41,7 @@ export default function HomePage() {
   const [selectedPrompt, setSelectedPrompt] = useState(null)
   const transcriptTextareaRef = useRef(null)
   const isFromRecordingRef = useRef(false)
+  const draftTranscriptRef = useRef('')
 
   const { 
     isRecording: isAudioRecording, 
@@ -550,16 +551,20 @@ export default function HomePage() {
     }
   }, [user?.id])
 
-  // Persist draft transcript on navigate away so it can be restored when coming back
+  // Keep ref in sync so unmount cleanup can read latest draft without re-running effect on every keystroke
+  draftTranscriptRef.current = draftTranscript
+
+  // Persist draft transcript only on unmount (navigate away) so it can be restored when coming back
   useEffect(() => {
     return () => {
-      if (draftTranscript.trim()) {
+      const latest = draftTranscriptRef.current
+      if (latest && latest.trim()) {
         try {
-          sessionStorage.setItem('vellum_draft_pending', JSON.stringify({ transcript: draftTranscript }))
+          sessionStorage.setItem('vellum_draft_pending', JSON.stringify({ transcript: latest }))
         } catch {}
       }
     }
-  }, [draftTranscript])
+  }, [])
 
   // Cleanup hover timeout on unmount
   useEffect(() => {
@@ -606,9 +611,11 @@ export default function HomePage() {
     setCategoryToDelete(null)
   }
 
-  const handleDeleteThought = (thoughtId) => {
+  const openAiPromptsFromCard = useCallback(() => setShowAiPrompts(true), [])
+
+  const handleDeleteThought = useCallback((thoughtId) => {
     setThoughtToDelete(thoughtId)
-  }
+  }, [])
 
   const confirmDeleteThought = async () => {
     if (!thoughtToDelete) return
@@ -636,38 +643,26 @@ export default function HomePage() {
   }
 
   // Filter thoughts based on search query (by tag and content) and active category
-  const filteredThoughts = thoughts.filter((thought) => {
-    // Filter by category (if not "All")
-    if (activeCategory !== 'All') {
-      // Check if thought's category matches the active category
-      if (thought.category !== activeCategory) {
-        return false
+  const filteredThoughts = useMemo(() => {
+    return thoughts.filter((thought) => {
+      // Filter by category (if not "All")
+      if (activeCategory !== 'All') {
+        if (thought.category !== activeCategory) return false
       }
-    }
-
-    // Filter by search query (by tag and content)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      
-      // Search in tags
-      const matchesTag = thought.tags && thought.tags.some((tag) =>
-        tag.toLowerCase().includes(query)
-      )
-      
-      // Search in cleaned text
-      const matchesCleanedText = thought.cleaned_text && 
-        thought.cleaned_text.toLowerCase().includes(query)
-      
-      // Search in raw transcript
-      const matchesRawText = thought.raw_transcript && 
-        thought.raw_transcript.toLowerCase().includes(query)
-      
-      // Return true if any of these match
-      return matchesTag || matchesCleanedText || matchesRawText
-    }
-
-    return true
-  })
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        const matchesTag = thought.tags && thought.tags.some((tag) =>
+          tag.toLowerCase().includes(query)
+        )
+        const matchesCleanedText = thought.cleaned_text &&
+          thought.cleaned_text.toLowerCase().includes(query)
+        const matchesRawText = thought.raw_transcript &&
+          thought.raw_transcript.toLowerCase().includes(query)
+        return matchesTag || matchesCleanedText || matchesRawText
+      }
+      return true
+    })
+  }, [thoughts, searchQuery, activeCategory])
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -954,7 +949,7 @@ export default function HomePage() {
                 key={thought.id}
                 thought={thought}
                 onDelete={handleDeleteThought}
-                onOpenAiPrompts={() => setShowAiPrompts(true)}
+                onOpenAiPrompts={openAiPromptsFromCard}
               />
             ))
           )}
@@ -1145,7 +1140,7 @@ export default function HomePage() {
                 e.currentTarget.style.borderColor = 'var(--stroke)'
               }}
             >
-              <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
+              <Brain className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
             </button>
             <div className="relative">
               {showAiPrompts && (
