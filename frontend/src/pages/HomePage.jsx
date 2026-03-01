@@ -1122,28 +1122,30 @@ export default function HomePage() {
             </span>
           )}
           <div className="flex items-end gap-3">
-            <button
-              onClick={() => setShowAiPrompts(!showAiPrompts)}
-              className={`mb-1 transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full ${showAiPrompts ? 'text-ink' : 'text-muted-foreground hover:text-ink'}`}
-              aria-label="AI thought prompts"
-              disabled={isEditingTranscript}
-              style={{
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--stroke)',
-                opacity: isEditingTranscript ? 0.5 : 1,
-                cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                if (!isEditingTranscript) {
-                  e.currentTarget.style.borderColor = 'var(--ink)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--stroke)'
-              }}
-            >
-              <Brain className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
-            </button>
+            <Tooltip text="Thought starters" position="top">
+              <button
+                onClick={() => setShowAiPrompts(!showAiPrompts)}
+                className={`mb-1 transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full ${showAiPrompts ? 'text-ink' : 'text-muted-foreground hover:text-ink'}`}
+                aria-label="AI thought prompts"
+                disabled={isEditingTranscript}
+                style={{
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--stroke)',
+                  opacity: isEditingTranscript ? 0.5 : 1,
+                  cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isEditingTranscript) {
+                    e.currentTarget.style.borderColor = 'var(--ink)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                }}
+              >
+                <Brain className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
+              </button>
+            </Tooltip>
             <div className="relative">
               {showAiPrompts && (
                 <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-10 w-[min(90vw,28rem)] min-w-[18rem]">
@@ -1240,30 +1242,32 @@ export default function HomePage() {
               </div>
             </button>
             </div>
-            <button
-              onClick={handleKeyboardToggle}
-              className="mb-1 text-muted-foreground hover:text-ink transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
-              aria-label="Switch to typing mode"
-              disabled={isEditingTranscript}
-              style={{
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--stroke)',
-                opacity: isEditingTranscript ? 0.5 : 1,
-                cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                if (!isEditingTranscript) {
-                  e.currentTarget.style.color = 'var(--ink)'
-                  e.currentTarget.style.borderColor = 'var(--ink)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--muted-foreground)'
-                e.currentTarget.style.borderColor = 'var(--stroke)'
-              }}
-            >
-              <Keyboard className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
-            </button>
+            <Tooltip text="Type a thought" position="top">
+              <button
+                onClick={handleKeyboardToggle}
+                className="mb-1 text-muted-foreground hover:text-ink transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
+                aria-label="Switch to typing mode"
+                disabled={isEditingTranscript}
+                style={{
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--stroke)',
+                  opacity: isEditingTranscript ? 0.5 : 1,
+                  cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isEditingTranscript) {
+                    e.currentTarget.style.color = 'var(--ink)'
+                    e.currentTarget.style.borderColor = 'var(--ink)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                }}
+              >
+                <Keyboard className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>
