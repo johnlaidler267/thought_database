@@ -150,6 +150,14 @@ export default function HomePage() {
     startRecording()
   }
 
+  // Treat API silence placeholders (e.g. "Thank you") as no speech — auto-close, no editor
+  const isSilencePlaceholder = useCallback((text) => {
+    const t = (text || '').trim().toLowerCase().replace(/\.$/, '')
+    if (!t) return true
+    const placeholders = ['thank you', 'thanks for watching', 'thanks for listening', 'bye', 'goodbye']
+    return placeholders.includes(t)
+  }, [])
+
   // Shared function to process audio blob (used by both manual stop and auto-stop)
   const processAudioBlob = useCallback(async (audioBlob, isAutoStop = false) => {
     try {
@@ -157,7 +165,8 @@ export default function HomePage() {
       setLoading(true)
 
       if (!audioBlob || audioBlob.size === 0) {
-        throw new Error('No audio recorded. Please try again.')
+        setLoading(false)
+        return
       }
 
       // Free tier: block before calling Whisper so we don't consume transcription
@@ -172,13 +181,16 @@ export default function HomePage() {
       try {
         const result = await transcribeAudio(audioBlob)
         transcript = result.transcript
-        if (!transcript || transcript.trim().length === 0) {
-          throw new Error('No speech detected in recording.')
-        }
       } catch (err) {
         console.error('Transcription error:', err)
         const errorMessage = err.message || 'Failed to transcribe audio'
         throw new Error(`Transcription failed: ${errorMessage}. Please ensure your backend is running.`)
+      }
+
+      const trimmed = (transcript || '').trim()
+      if (!trimmed || isSilencePlaceholder(trimmed)) {
+        setLoading(false)
+        return
       }
 
       // Show transcript immediately so the user isn't left waiting (especially important for new users where profile update can be slow)
@@ -225,7 +237,7 @@ export default function HomePage() {
       alert(errorMessage)
       setLoading(false)
     }
-  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
+  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef, isSilencePlaceholder])
 
   const handleRecordStop = async () => {
     const audioBlob = await stopRecording()
@@ -1075,10 +1087,10 @@ export default function HomePage() {
             </button>
             <div className="relative">
               {showAiPrompts && (
-                <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 w-72 z-10">
+                <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 z-10 w-[min(90vw,28rem)] min-w-[18rem]">
                   <Card
                     className="border border-stroke bg-card p-4 shadow-none overflow-y-auto"
-                    style={{ maxHeight: 'min(320px, calc(100vh - 10rem))' }}
+                    style={{ maxHeight: 'min(55vh, 32rem, calc(100vh - 10rem))' }}
                   >
                     <p className="text-xs font-serif text-muted-foreground uppercase tracking-wide mb-3">
                       Thought starters
