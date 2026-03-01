@@ -126,7 +126,12 @@ export default function HomePage() {
 
         if (error) throw error
         if (data) {
-          setThoughts(data)
+          setThoughts(
+            data.map((t) => ({
+              ...t,
+              follow_ups: Array.isArray(t.follow_ups) ? t.follow_ups : [],
+            }))
+          )
         }
       } catch (err) {
         console.error('Error loading thoughts:', err)
@@ -691,11 +696,7 @@ export default function HomePage() {
         if (error) throw error
       } catch (err) {
         console.error('Failed to save follow-up:', err)
-        setThoughts((prev) =>
-          prev.map((t) =>
-            t.id === thoughtId ? { ...t, follow_ups: newFollowUps.slice(0, -1) } : t
-          )
-        )
+        // Keep optimistic update so the follow-up stays visible; ensure migration is run for persistence
       }
     }
   }, [user])

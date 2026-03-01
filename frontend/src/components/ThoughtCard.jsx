@@ -4,6 +4,7 @@ import Tooltip from './ui/Tooltip'
 import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
+import { MdSubdirectoryArrowRight } from 'react-icons/md'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
 
@@ -294,9 +295,23 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         </div>
       )}
 
-      {Array.isArray(thought.follow_ups) && thought.follow_ups.length > 0 && (
+      {(() => {
+        const followUpsList = thought.follow_ups ?? thought.followUps
+        const list = Array.isArray(followUpsList) ? followUpsList : []
+        if (list.length === 0) return null
+        return (
         <div className="mb-3 space-y-2">
-          {thought.follow_ups.map((fu, i) => (
+          {list.map((fu, i) => {
+            const fuText = typeof fu === 'string' ? fu : (fu?.text ?? '')
+            const fuDate = fu && typeof fu === 'object' && fu.created_at
+              ? new Date(fu.created_at).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })
+              : null
+            return (
             <div
               key={i}
               className="flex items-start gap-2 pl-3 py-1.5 rounded-lg border-l-2 font-serif text-sm"
@@ -306,12 +321,19 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                 color: 'var(--muted-foreground)'
               }}
             >
-              <FaReply className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
-              <span className="flex-1 min-w-0">{fu.text}</span>
+              <MdSubdirectoryArrowRight className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
+              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                {fuDate && (
+                  <span className="text-xs tracking-wide opacity-80" style={{ color: 'var(--muted-foreground)' }}>{fuDate}</span>
+                )}
+                <span>{fuText}</span>
+              </div>
             </div>
-          ))}
+            )
+          })}
         </div>
-      )}
+        )
+      })()}
 
       <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center gap-2">
         {onAddFollowUp && (
