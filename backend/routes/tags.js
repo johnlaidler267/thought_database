@@ -26,15 +26,16 @@ router.post('/', async (req, res) => {
       return res.json({ tags: [], mentions: [], thought_type: null })
     }
 
-    // Extract tags and mentions (person names) using Llama via Groq
+    // Extract tags, mentions, and thought_type using Llama via Groq
     const result = await taggingService.extractTags(text)
     const tags = Array.isArray(result.tags) ? result.tags : []
     const mentions = Array.isArray(result.mentions) ? result.mentions : []
+    const thought_type = result.thought_type ?? null
 
-    res.json({ tags, mentions })
+    res.json({ tags, mentions, thought_type })
   } catch (error) {
     console.error('Tag extraction error:', error)
-    res.json({ tags: [], mentions: [] })
+    res.json({ tags: [], mentions: [], thought_type: null })
   }
 })
 

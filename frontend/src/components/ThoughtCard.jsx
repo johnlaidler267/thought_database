@@ -89,6 +89,9 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
     : typeof thought.mentions === 'string'
       ? (thought.mentions ? [thought.mentions] : [])
       : []
+  // Support both snake_case (Supabase) and camelCase; treat empty string as no type
+  const thoughtTypeLabel = (thought.thought_type || thought.thoughtType || '').trim() || null
+
   const renderBodyWithUnderlines = (text) => {
     if (!text || mentionList.length === 0) return text
     const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -225,7 +228,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
         </div>
       )}
 
-      {(mentionList.length > 0 || thought.thought_type) && (
+      {(mentionList.length > 0 || thoughtTypeLabel) && (
         <div className="flex items-center gap-2 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>
           {mentionList.length > 0 && (
             <div className="flex items-center gap-1.5">
@@ -243,14 +246,14 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
               </div>
             </div>
           )}
-          {mentionList.length > 0 && thought.thought_type && (
+          {mentionList.length > 0 && thoughtTypeLabel && (
             <span className="w-px h-3 bg-stroke shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
           )}
-          {thought.thought_type && (
+          {thoughtTypeLabel && (
             <div className="flex items-center gap-1.5">
               <LayoutList className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
               <span className="text-xs font-serif text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>
-                {thought.thought_type}
+                {thoughtTypeLabel}
               </span>
             </div>
           )}
