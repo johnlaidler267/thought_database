@@ -98,7 +98,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
     return parts.map((part, i) => {
       if (i % 2 === 0) return part
       return (
-        <span key={`${i}-${part}`} className="underline" style={{ textDecoration: 'underline' }}>
+        <span key={`${i}-${part}`} className="mention-highlight" style={{ cursor: 'default' }}>
           {part}
         </span>
       )
