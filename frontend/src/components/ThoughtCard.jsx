@@ -317,7 +317,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               className="flex items-start gap-2 pl-3 py-1.5 rounded-lg border-l-2 font-serif text-sm"
               style={{
                 borderLeftColor: 'var(--stroke)',
-                backgroundColor: 'var(--muted)',
+                backgroundColor: '#f5f5f5',
                 color: 'var(--muted-foreground)'
               }}
             >
