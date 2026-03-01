@@ -226,11 +226,11 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
       )}
 
       {(mentionList.length > 0 || thought.thought_type) && (
-        <div className="flex items-start gap-4 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>
+        <div className="flex items-center gap-2 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>
           {mentionList.length > 0 && (
-            <div className="flex items-start gap-2">
-              <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
-              <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-1.5">
+              <User className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+              <div className="flex flex-wrap gap-1.5">
                 {mentionList.map((name) => (
                   <span
                     key={String(name)}
@@ -243,8 +243,11 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
               </div>
             </div>
           )}
+          {mentionList.length > 0 && thought.thought_type && (
+            <span className="w-px h-3 bg-stroke shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
+          )}
           {thought.thought_type && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <LayoutList className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
               <span className="text-xs font-serif text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>
                 {thought.thought_type}
