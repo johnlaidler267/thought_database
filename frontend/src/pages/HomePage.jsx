@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
@@ -33,7 +33,17 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
+  const [showAiPrompts, setShowAiPrompts] = useState(false)
   const transcriptTextareaRef = useRef(null)
+
+  const aiPrompts = [
+    "What's been on your mind that you haven't said out loud yet?",
+    "If you could solve one problem today, what would it be?",
+    "What's something you learned recently that surprised you?",
+    "Describe a conversation you wish you'd had differently.",
+    "What's a decision you've been putting off?",
+    "What would you tell your future self about this moment?",
+  ]
   const isFromRecordingRef = useRef(false) // Track if thought came from audio recording
   const { 
     isRecording: isAudioRecording, 
@@ -1040,9 +1050,55 @@ export default function HomePage() {
               {formatRemainingTime()} left
             </span>
           )}
-          <div className="relative">
+          <div className="flex items-end gap-3">
             <button
-              onClick={handleRecordClick}
+              onClick={() => setShowAiPrompts(!showAiPrompts)}
+              className={`mb-1 transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full ${showAiPrompts ? 'text-ink' : 'text-muted-foreground hover:text-ink'}`}
+              aria-label="AI thought prompts"
+              disabled={isEditingTranscript}
+              style={{
+                backgroundColor: 'var(--card)',
+                border: '1px solid var(--stroke)',
+                opacity: isEditingTranscript ? 0.5 : 1,
+                cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                if (!isEditingTranscript) {
+                  e.currentTarget.style.borderColor = 'var(--ink)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--stroke)'
+              }}
+            >
+              <Sparkles className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
+            </button>
+            <div className="relative">
+              {showAiPrompts && (
+                <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 w-72 z-10">
+                  <Card
+                    className="border border-stroke bg-card p-4 shadow-none overflow-y-auto"
+                    style={{ maxHeight: 'min(320px, calc(100vh - 10rem))' }}
+                  >
+                    <p className="text-xs font-serif text-muted-foreground uppercase tracking-wide mb-3">
+                      Thought starters
+                    </p>
+                    <div className="space-y-2">
+                      {aiPrompts.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => setShowAiPrompts(false)}
+                          className="block w-full text-left text-sm font-serif text-ink leading-relaxed py-2 px-3 rounded hover:bg-muted/50 transition-colors"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              )}
+              <button
+                onClick={handleRecordClick}
               className="group relative"
               aria-label={isAudioRecording ? "Stop recording" : "Start recording"}
               disabled={isEditingTranscript}
@@ -1125,21 +1181,17 @@ export default function HomePage() {
                 )}
               </div>
             </button>
-
-            {/* Keyboard toggle button - positioned at bottom right of record button */}
+            </div>
             <button
               onClick={handleKeyboardToggle}
-              className="absolute text-muted-foreground hover:text-ink transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
+              className="mb-1 text-muted-foreground hover:text-ink transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
               aria-label="Switch to typing mode"
               disabled={isEditingTranscript}
               style={{
                 backgroundColor: 'var(--card)',
                 border: '1px solid var(--stroke)',
-                color: isEditingTranscript ? 'var(--muted-foreground)' : 'var(--muted-foreground)',
                 opacity: isEditingTranscript ? 0.5 : 1,
                 cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
-                bottom: '-1.3rem',
-                right: '-2.5rem'
               }}
               onMouseEnter={(e) => {
                 if (!isEditingTranscript) {
@@ -1148,10 +1200,8 @@ export default function HomePage() {
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isEditingTranscript) {
-                  e.currentTarget.style.color = 'var(--muted-foreground)'
-                  e.currentTarget.style.borderColor = 'var(--stroke)'
-                }
+                e.currentTarget.style.color = 'var(--muted-foreground)'
+                e.currentTarget.style.borderColor = 'var(--stroke)'
               }}
             >
               <Keyboard className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
