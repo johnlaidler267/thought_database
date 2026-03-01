@@ -3,6 +3,7 @@ import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
 import { MoreVertical, Copy, Trash2, CheckCircle, Languages } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
+import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
 
 function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts }) {
@@ -101,16 +102,18 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowRaw(!showRaw)}
-            className="text-xs font-serif text-muted-foreground hover:text-ink transition-colors tracking-wide flex items-center"
-            style={{ color: 'var(--muted-foreground)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-            aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
-          >
-            {showRaw ? 'View Cleaned' : 'View Raw'}
-          </button>
+          <Tooltip text={showRaw ? 'View cleaned version' : 'View raw transcript'} position="bottom">
+            <button
+              onClick={() => setShowRaw(!showRaw)}
+              className="text-muted-foreground hover:text-ink transition-colors flex items-center justify-center p-1"
+              style={{ color: 'var(--muted-foreground)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
+              aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
+            >
+              {showRaw ? <TbWand className="w-4 h-4" /> : <TbWandOff className="w-4 h-4" />}
+            </button>
+          </Tooltip>
           <div className="relative flex items-center justify-center" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}

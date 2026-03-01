@@ -19,7 +19,7 @@ export function ThoughtStartersPopover({ prompts, selectedPrompt, onSelectPrompt
         boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
       }}
     >
-      <p className="text-xs font-serif text-muted-foreground uppercase tracking-wide mb-3">
+      <p className="text-xs font-serif font-semibold text-muted-foreground uppercase tracking-wide mb-3">
         Thought starters
       </p>
       <div className="space-y-2">

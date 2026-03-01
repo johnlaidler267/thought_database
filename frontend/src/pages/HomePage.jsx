@@ -1007,12 +1007,7 @@ export default function HomePage() {
                     />
                   </div>
                 )}
-                <label 
-                  className="block text-xs font-serif mb-2 tracking-wide uppercase"
-                  style={{ color: 'var(--muted-foreground)' }}
-                >
-                  Edit Transcript
-                </label>
+                <div className="mb-2" aria-hidden />
                 <textarea
                   ref={transcriptTextareaRef}
                   value={draftTranscript}
