@@ -14,6 +14,7 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   QUESTION: 'Questions',
   REFERENCE: 'References',
   REFLECTION: 'Feelings & Reflections',
+  EMOTION: 'Feelings & Reflections', // legacy; new type is REFLECTION
   PLAN: 'Plans',
 }
 
