@@ -36,6 +36,7 @@ export default function HomePage() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryToDelete, setCategoryToDelete] = useState(null)
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
+  const [followUpToDelete, setFollowUpToDelete] = useState(null) // { thoughtId, index }
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -702,6 +703,39 @@ export default function HomePage() {
     }
   }, [user])
 
+  const handleDeleteFollowUp = useCallback((thoughtId, index) => {
+    setFollowUpToDelete({ thoughtId, index })
+  }, [])
+
+  const confirmDeleteFollowUp = useCallback(async () => {
+    if (!followUpToDelete || !user) return
+    const { thoughtId, index } = followUpToDelete
+    let newFollowUps
+    setThoughts((prev) => {
+      const thought = prev.find((t) => t.id === thoughtId)
+      const existing = Array.isArray(thought?.follow_ups) ? thought.follow_ups : []
+      newFollowUps = existing.filter((_, i) => i !== index)
+      return prev.map((t) => (t.id === thoughtId ? { ...t, follow_ups: newFollowUps } : t))
+    })
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .update({ follow_ups: newFollowUps })
+          .eq('id', thoughtId)
+          .eq('user_id', user.id)
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to delete follow-up:', err)
+      }
+    }
+    setFollowUpToDelete(null)
+  }, [followUpToDelete, user])
+
+  const cancelDeleteFollowUp = useCallback(() => {
+    setFollowUpToDelete(null)
+  }, [])
+
   // Toggle tag in active chips: add if not present, remove if present (case-insensitive)
   const handleTagClick = useCallback((tag) => {
     const normalized = tag.trim()
@@ -1125,6 +1159,7 @@ export default function HomePage() {
                 onTagClick={handleTagClick}
                 activeTags={activeTags}
                 onAddFollowUp={handleAddFollowUp}
+                onDeleteFollowUp={handleDeleteFollowUp}
               />
             ))
           )}
@@ -1459,6 +1494,17 @@ export default function HomePage() {
         title="Delete Thought"
         message="Are you sure you want to delete this thought? This action cannot be undone."
         confirmText="Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Follow-up Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={followUpToDelete !== null}
+        onClose={cancelDeleteFollowUp}
+        onConfirm={confirmDeleteFollowUp}
+        title="Remove follow-up"
+        message="Remove this follow-up? This cannot be undone."
+        confirmText="Remove"
         cancelText="Cancel"
       />
     </div>

@@ -21,7 +21,7 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, activeTags }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, activeTags }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -351,7 +351,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             return (
             <div
               key={i}
-              className="flex items-start gap-2 pl-3 py-1.5 rounded-lg border-l-2 font-serif text-sm"
+              className="relative flex items-start gap-2 pl-3 py-1.5 pr-8 rounded-lg border-l-2 font-serif text-sm"
               style={{
                 borderLeftColor: 'var(--stroke)',
                 backgroundColor: 'var(--muted)',
@@ -364,6 +364,24 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                   <span className="text-xs tracking-wide opacity-80" style={{ color: 'var(--muted-foreground)' }}>{fuDate}</span>
                 )}
                 <span>{fuText}</span>
+              </div>
+              <div className="absolute flex flex-row items-center gap-0.5" style={{ bottom: 8, right: 10 }}>
+                {onDeleteFollowUp && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteFollowUp(thought.id, i) }}
+                    className="p-0 min-w-0 min-h-0 inline-flex items-center justify-center"
+                    style={{
+                      color: 'var(--muted-foreground)',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = '#e57373' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+                    aria-label="Remove follow-up"
+                  >
+                    <Trash2 size={14} strokeWidth={1.5} />
+                  </button>
+                )}
               </div>
             </div>
             )
