@@ -25,6 +25,7 @@ export default function HomePage() {
   const location = useLocation()
   const [thoughts, setThoughts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTags, setActiveTags] = useState([]) // tag chips in search bar; AND with text query
   const [sortOrder, setSortOrder] = useState('desc') // 'asc' | 'desc' (date only)
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const sortMenuRef = useRef(null)
@@ -701,13 +702,32 @@ export default function HomePage() {
     }
   }, [user])
 
-  // Filter thoughts based on search query (by tag and content) and active category
+  // Toggle tag in active chips: add if not present, remove if present (case-insensitive)
+  const handleTagClick = useCallback((tag) => {
+    const normalized = tag.trim()
+    if (!normalized) return
+    setActiveTags((prev) => {
+      const lower = normalized.toLowerCase()
+      const idx = prev.findIndex((t) => t.toLowerCase() === lower)
+      if (idx >= 0) return prev.filter((_, i) => i !== idx)
+      return [...prev, normalized]
+    })
+  }, [])
+
+  // Filter thoughts: must match ALL active tags (AND) and the free-text query
   const filteredThoughts = useMemo(() => {
     return thoughts.filter((thought) => {
-      // Filter by category (if not "All")
       if (activeCategory !== 'All') {
         if (thought.category !== activeCategory) return false
       }
+      // Entry must have every active tag (thought.tags contains each, case-insensitive)
+      const thoughtTagLower = (thought.tags || []).map((t) => String(t).toLowerCase())
+      for (const active of activeTags) {
+        const a = active.trim().toLowerCase()
+        if (!a) continue
+        if (!thoughtTagLower.some((t) => t === a)) return false
+      }
+      // Free-text: match tag or content
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const matchesTag = thought.tags && thought.tags.some((tag) =>
@@ -717,11 +737,11 @@ export default function HomePage() {
           thought.cleaned_text.toLowerCase().includes(query)
         const matchesRawText = thought.raw_transcript &&
           thought.raw_transcript.toLowerCase().includes(query)
-        return matchesTag || matchesCleanedText || matchesRawText
+        if (!(matchesTag || matchesCleanedText || matchesRawText)) return false
       }
       return true
     })
-  }, [thoughts, searchQuery, activeCategory])
+  }, [thoughts, searchQuery, activeCategory, activeTags])
 
   const sortedThoughts = useMemo(() => {
     const list = [...filteredThoughts]
@@ -796,45 +816,69 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Search Bar */}
+      {/* Search Bar: tag chips + free text input */}
       <div className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
-            <Search 
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" 
-              style={{ color: 'var(--muted-foreground)' }}
-            />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-card border rounded pl-11 pr-11 py-3 font-serif placeholder:text-muted-foreground focus:outline-none focus:border-ink transition-colors"
+            <div
+              className="flex flex-wrap items-center gap-2 rounded border border-stroke py-2 pl-10 pr-10 font-serif transition-colors focus-within:border-ink"
               style={{
                 backgroundColor: 'var(--card)',
-                borderColor: 'var(--stroke)',
+                minHeight: '44px'
+              }}
+            >
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                style={{ color: 'var(--muted-foreground)' }}
+              />
+            {activeTags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-0.5 rounded-sm font-serif text-xs leading-tight shrink-0 py-0.5 px-2"
+                style={{
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)'
+                }}
+              >
+                <span>{tag}</span>
+                <button
+                  type="button"
+                  onClick={() => handleTagClick(tag)}
+                  className="p-0 min-w-0 min-h-0 inline-flex items-center justify-center rounded-sm transition-colors hover:opacity-70"
+                  style={{ color: 'var(--muted-foreground)' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+                  aria-label={`Remove tag ${tag}`}
+                >
+                  <X className="w-2.5 h-2.5" strokeWidth={2} />
+                </button>
+              </span>
+            ))}
+            <input
+              type="text"
+              placeholder={activeTags.length > 0 ? 'Add more tags or type to search...' : 'Search or click a tag...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 min-w-[8rem] py-0.5 bg-transparent border-0 font-serif placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+              style={{
                 color: 'var(--ink)',
                 fontSize: '16px'
               }}
-              onFocus={(e) => {
-                e.target.style.borderColor = 'var(--ink)'
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'var(--stroke)'
-              }}
             />
-            {searchQuery && (
+            {(searchQuery || activeTags.length > 0) && (
               <button
-                onClick={() => setSearchQuery("")}
+                type="button"
+                onClick={() => { setSearchQuery(''); setActiveTags([]) }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
                 style={{ color: 'var(--muted-foreground)' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-                aria-label="Clear search"
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+                aria-label="Clear search and tags"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
+            </div>
           </div>
           <div className="relative flex-shrink-0" ref={sortMenuRef}>
             <Tooltip text="Sort" position="bottom">
@@ -1023,9 +1067,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Timeline */}
+      {/* Timeline - extra bottom padding so card tags stay above the fixed record buttons */}
       <main className={`flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
-        isEditingTranscript ? 'pb-80' : 'pb-40'
+        isEditingTranscript ? 'pb-80' : 'pb-52 sm:pb-56'
       }`}>
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto space-y-4 sm:space-y-6">
           {recordingError && (
@@ -1068,7 +1112,7 @@ export default function HomePage() {
           ) : filteredThoughts.length === 0 ? (
             <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
               <p className="font-serif">
-                {searchQuery ? `No thoughts found matching "${searchQuery}".` : 'No thoughts added'}
+                {(searchQuery || activeTags.length > 0) ? 'No thoughts found matching your filters.' : 'No thoughts added'}
               </p>
             </div>
           ) : (
@@ -1078,7 +1122,8 @@ export default function HomePage() {
                 thought={thought}
                 onDelete={handleDeleteThought}
                 onOpenAiPrompts={openAiPromptsFromCard}
-                onTagClick={setSearchQuery}
+                onTagClick={handleTagClick}
+                activeTags={activeTags}
                 onAddFollowUp={handleAddFollowUp}
               />
             ))
@@ -1222,9 +1267,9 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Fixed Record Button */}
+      {/* Fixed Record Button - z-40 so it sits above timeline content (tags/cards) */}
       <div 
-        className={`fixed bottom-0 left-0 right-0 pb-8 sm:pb-12 pt-6 sm:pt-8 bg-gradient-to-t from-paper via-paper to-transparent pointer-events-none transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 right-0 z-40 pb-8 sm:pb-12 pt-6 sm:pt-8 bg-gradient-to-t from-paper via-paper to-transparent pointer-events-none transition-all duration-300 ${
           isEditingTranscript ? 'opacity-0 translate-y-full' : 'opacity-100'
         }`}
         style={{ background: `linear-gradient(to top, var(--paper), var(--paper), transparent)` }}
