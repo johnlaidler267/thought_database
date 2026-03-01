@@ -348,86 +348,43 @@ export default function HomePage() {
           }
           
           console.log('Saving thought to Supabase with user_id:', user.id)
-          let data, error
-          
-          // Try to insert with category first
+
+          // Insert with core columns only so we never 400 when optional columns are missing
+          const corePayload = {
+            user_id: newThought.user_id,
+            raw_transcript: newThought.raw_transcript,
+            cleaned_text: newThought.cleaned_text,
+            tags: newThought.tags,
+            created_at: newThought.created_at,
+          }
+
           const result = await supabase
             .from('thoughts')
-            .insert([newThought])
+            .insert([corePayload])
             .select()
             .single()
-          
-          data = result.data
-          error = result.error
 
-          // If error is due to missing category column, retry without it
-          if (error && error.code === 'PGRST204' && error.message?.includes('category')) {
-            console.warn('Category column not found, retrying without category field')
-            const thoughtWithoutCategory = { ...newThought }
-            delete thoughtWithoutCategory.category
-            
-            const retryResult = await supabase
-              .from('thoughts')
-              .insert([thoughtWithoutCategory])
-              .select()
-              .single()
-            
-            data = retryResult.data
-            error = retryResult.error
-            
-            // Add category to the returned data for local state
-            if (data) {
-              data.category = newThought.category
-            }
-          }
-
-          // If error is due to missing responding_to column, retry without it (and without category to avoid double-fail)
-          if (error && error.code === 'PGRST204' && error.message?.includes('responding_to')) {
-            console.warn('responding_to column not found, retrying without it')
-            const fallback = { ...newThought }
-            delete fallback.responding_to
-            delete fallback.category
-            delete fallback.mentions
-
-            const retryResult = await supabase
-              .from('thoughts')
-              .insert([fallback])
-              .select()
-              .single()
-
-            data = retryResult.data
-            error = retryResult.error
-
-            if (data) {
-              data.responding_to = newThought.responding_to
-              data.category = newThought.category
-              data.mentions = newThought.mentions
-            }
-          }
-
-          // If error is due to missing mentions column, retry without it
-          if (error && error.code === 'PGRST204' && error.message?.includes('mentions')) {
-            console.warn('mentions column not found, retrying without it')
-            const fallback = { ...newThought }
-            delete fallback.mentions
-
-            const retryResult = await supabase
-              .from('thoughts')
-              .insert([fallback])
-              .select()
-              .single()
-
-            data = retryResult.data
-            error = retryResult.error
-
-            if (data) {
-              data.mentions = newThought.mentions
-            }
-          }
+          let data = result.data
+          const error = result.error
 
           if (error) {
             console.error('Supabase insert error:', error)
             throw error
+          }
+
+          // Attach optional fields for local state (and for UI when columns don't exist yet)
+          data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions }
+
+          // If optional columns exist in the DB, persist them (PATCH); ignore errors so old schemas still work
+          const optional = {}
+          if (newThought.category != null) optional.category = newThought.category
+          if (newThought.responding_to != null) optional.responding_to = newThought.responding_to
+          if (newThought.mentions != null && newThought.mentions.length > 0) optional.mentions = newThought.mentions
+          if (Object.keys(optional).length > 0) {
+            const { error: updateErr } = await supabase.from('thoughts').update(optional).eq('id', data.id)
+            if (updateErr) {
+              // Optional columns may not exist yet; fields are already in local state
+            }
           }
           
           console.log('Thought saved successfully:', data)
