@@ -203,22 +203,30 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
         </div>
       )}
 
-      {thought.mentions && thought.mentions.length > 0 && (
-        <div className="flex items-start gap-2 mb-4" style={{ color: 'var(--muted-foreground)' }}>
-          <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
-          <div className="flex flex-wrap gap-2">
-            {thought.mentions.map((name) => (
-              <span
-                key={name}
-                className="text-xs font-serif text-muted-foreground"
-                style={{ color: 'var(--muted-foreground)' }}
-              >
-                {name}
-              </span>
-            ))}
+      {(() => {
+        const mentionList = Array.isArray(thought.mentions)
+          ? thought.mentions
+          : typeof thought.mentions === 'string'
+            ? (thought.mentions ? [thought.mentions] : [])
+            : []
+        if (mentionList.length === 0) return null
+        return (
+          <div className="flex items-start gap-2 mb-4" style={{ color: 'var(--muted-foreground)' }}>
+            <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
+            <div className="flex flex-wrap gap-2">
+              {mentionList.map((name) => (
+                <span
+                  key={String(name)}
+                  className="text-xs font-serif text-muted-foreground"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       <div className="absolute bottom-3 sm:bottom-4 right-4 sm:right-6 flex items-center gap-2">
         {translationEnabled && (

@@ -92,13 +92,13 @@ Output`
         tags = tags.slice(0, 5)
       }
 
-      // Parse NAMES: Name1, Name2 ...
+      // Parse NAMES: Name1, Name2 ... (lenient: NAMES:, Names:, or line with comma-separated names after tags)
       let mentions = []
-      const namesMatch = response.match(/NAMES:\s*([^\n]*)/i)
+      const namesMatch = response.match(/(?:NAMES?|People|Mentioned):\s*([^\n]+)/i)
       if (namesMatch && namesMatch[1]) {
         const raw = namesMatch[1].trim()
-        if (raw) {
-          mentions = raw.split(',').map(n => n.trim()).filter(Boolean)
+        if (raw && !/^(none|n\/a|no one|nothing)$/i.test(raw)) {
+          mentions = raw.split(/[,;]/).map(n => n.trim()).filter(Boolean)
           mentions = [...new Set(mentions)]
         }
       }
