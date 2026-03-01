@@ -343,13 +343,13 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               style={{
                 borderLeftColor: 'var(--stroke)',
                 backgroundColor: '#f5f5f5',
-                color: 'var(--muted-foreground)'
+                color: '#111'
               }}
             >
-              <MdSubdirectoryArrowRight className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
+              <MdSubdirectoryArrowRight className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: '#111' }} />
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 {fuDate && (
-                  <span className="text-xs tracking-wide opacity-80" style={{ color: 'var(--muted-foreground)' }}>{fuDate}</span>
+                  <span className="text-xs tracking-wide opacity-80" style={{ color: '#333' }}>{fuDate}</span>
                 )}
                 <span>{fuText}</span>
               </div>
