@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
@@ -225,21 +225,33 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
         </div>
       )}
 
-      {mentionList.length > 0 && (
-          <div className="flex items-start gap-2 mb-4" style={{ color: 'var(--muted-foreground)' }}>
-            <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
-            <div className="flex flex-wrap gap-2">
-              {mentionList.map((name) => (
-                <span
-                  key={String(name)}
-                  className="text-xs font-serif text-muted-foreground"
-                  style={{ color: 'var(--muted-foreground)' }}
-                >
-                  {name}
-                </span>
-              ))}
+      {(mentionList.length > 0 || thought.thought_type) && (
+        <div className="flex items-start gap-4 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>
+          {mentionList.length > 0 && (
+            <div className="flex items-start gap-2">
+              <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
+              <div className="flex flex-wrap gap-2">
+                {mentionList.map((name) => (
+                  <span
+                    key={String(name)}
+                    className="text-xs font-serif text-muted-foreground"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+          {thought.thought_type && (
+            <div className="flex items-center gap-2">
+              <LayoutList className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+              <span className="text-xs font-serif text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>
+                {thought.thought_type}
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="absolute bottom-3 sm:bottom-4 right-4 sm:right-6 flex items-center gap-2">

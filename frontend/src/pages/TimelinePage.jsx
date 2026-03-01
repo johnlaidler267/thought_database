@@ -194,9 +194,10 @@ export default function TimelinePage() {
         cleanedText = editedTranscript
       }
 
-      // Extract tags and mentions
+      // Extract tags, mentions, and thought type
       let tags = []
       let mentions = []
+      let thought_type = null
       try {
         const result = await extractTags(cleanedText)
         if (Array.isArray(result)) {
@@ -204,6 +205,7 @@ export default function TimelinePage() {
         } else {
           tags = Array.isArray(result?.tags) ? result.tags : []
           mentions = Array.isArray(result?.mentions) ? result.mentions : []
+          thought_type = result?.thought_type ?? null
         }
       } catch (err) {
         console.warn('Tag extraction failed:', err)
@@ -217,6 +219,7 @@ export default function TimelinePage() {
         cleaned_text: cleanedText,
         tags: tags,
         mentions: mentions,
+        thought_type: thought_type,
         created_at: new Date().toISOString(),
       }
 

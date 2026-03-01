@@ -309,9 +309,10 @@ export default function HomePage() {
         cleanedText = editedTranscript
       }
 
-      // Extract tags and mentions (person names)
+      // Extract tags, mentions, and thought type
       let tags = []
       let mentions = []
+      let thought_type = null
       try {
         const result = await extractTags(cleanedText)
         if (Array.isArray(result)) {
@@ -319,6 +320,7 @@ export default function HomePage() {
         } else {
           tags = Array.isArray(result?.tags) ? result.tags : []
           mentions = Array.isArray(result?.mentions) ? result.mentions : []
+          thought_type = result?.thought_type ?? null
         }
       } catch (err) {
         console.warn('Tag extraction failed:', err)
@@ -335,6 +337,7 @@ export default function HomePage() {
         cleaned_text: cleanedText,
         tags: tags,
         mentions: mentions,
+        thought_type: thought_type,
         category: category,
         responding_to: selectedPrompt || null,
         created_at: new Date().toISOString(),
@@ -378,17 +381,18 @@ export default function HomePage() {
             data = result.data
             error = result.error
             if (data) {
-              data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions }
+              data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions, thought_type: newThought.thought_type }
               const optional = {}
               if (newThought.category != null) optional.category = newThought.category
               if (newThought.responding_to != null) optional.responding_to = newThought.responding_to
               if (newThought.mentions != null && newThought.mentions.length > 0) optional.mentions = newThought.mentions
+              if (newThought.thought_type != null) optional.thought_type = newThought.thought_type
               if (Object.keys(optional).length > 0) {
                 await supabase.from('thoughts').update(optional).eq('id', data.id)
               }
             }
           } else if (data) {
-            data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions }
+            data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions, thought_type: newThought.thought_type }
           }
 
           if (error) {

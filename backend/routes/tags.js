@@ -23,7 +23,7 @@ router.post('/', async (req, res) => {
     // If service is not configured, return empty tags and mentions (graceful degradation)
     if (!taggingService.isConfigured()) {
       console.warn('Tagging service not configured, returning empty tags and mentions')
-      return res.json({ tags: [], mentions: [] })
+      return res.json({ tags: [], mentions: [], thought_type: null })
     }
 
     // Extract tags and mentions (person names) using Llama via Groq

@@ -159,6 +159,7 @@ export async function extractTags(cleanedText) {
     return {
       tags: Array.isArray(data.tags) ? data.tags : [],
       mentions: Array.isArray(data.mentions) ? data.mentions : [],
+      thought_type: data.thought_type ?? null,
     }
   } catch (err) {
     if (err.message) {

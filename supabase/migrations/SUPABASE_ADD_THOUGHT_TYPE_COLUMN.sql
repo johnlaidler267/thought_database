@@ -1,0 +1,2 @@
+-- Add thought_type column (IDEA, TASK, INSIGHT, OBSERVATION, EMOTION, QUESTION)
+ALTER TABLE thoughts ADD COLUMN IF NOT EXISTS thought_type TEXT;

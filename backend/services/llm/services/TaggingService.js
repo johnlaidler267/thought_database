@@ -16,9 +16,18 @@ export class TaggingService {
 You are a semantic tagging engine.
 
 Task
-Given a piece of text, do two things:
+Given a piece of text, do three things:
 1. Extract a small set of high-level conceptual tags that describe the core ideas of the text.
 2. Extract the full names of any people mentioned in the text (real people the author is referring to).
+3. Classify the thought into exactly ONE type: IDEA, TASK, INSIGHT, OBSERVATION, EMOTION, QUESTION.
+
+Thought type definitions:
+- IDEA – A new concept, possibility, improvement, or creative construct (future-oriented, "what if" thinking).
+- TASK – An actionable item, reminder, follow-up, or commitment requiring execution.
+- INSIGHT – A realization, lesson, interpretation, or clarified understanding.
+- OBSERVATION – A neutral noticing of facts, patterns, behaviors, or external details.
+- EMOTION – A description of an internal feeling or emotional state.
+- QUESTION – An explicit uncertainty, curiosity, or unresolved problem.
 
 Rules for tags
 
@@ -48,8 +57,9 @@ Output Format (use exactly this structure)
 
 TAGS: #tag1 #tag2 #tag3
 NAMES: Name1, Name2
+TYPE: IDEA
 
-One space between tags. Comma-separated names. No other text.
+One space between tags. Comma-separated names. TYPE must be exactly one word: IDEA, TASK, INSIGHT, OBSERVATION, EMOTION, or QUESTION. No other text.
 
 Interpretation Guidance (tags)
 
@@ -67,14 +77,17 @@ Input
 Output`
   }
 
+  /** Valid thought types returned by the model */
+  static THOUGHT_TYPES = ['IDEA', 'TASK', 'INSIGHT', 'OBSERVATION', 'EMOTION', 'QUESTION']
+
   /**
-   * Extract tags and mentioned person names from text
+   * Extract tags, mentions, and thought type from text
    * @param {string} text - Text to analyze
-   * @returns {Promise<{ tags: string[], mentions: string[] }>} - Tags and list of person names
+   * @returns {Promise<{ tags: string[], mentions: string[], thought_type: string|null }>}
    */
   async extractTags(text) {
     if (!text || !text.trim()) {
-      return { tags: [], mentions: [] }
+      return { tags: [], mentions: [], thought_type: null }
     }
 
     try {
@@ -92,9 +105,9 @@ Output`
         tags = tags.slice(0, 5)
       }
 
-      // Parse NAMES: Name1, Name2 ... (lenient: NAMES:, Names:, or line with comma-separated names after tags)
+      // Parse NAMES: Name1, Name2 ...
       let mentions = []
-      const namesMatch = response.match(/(?:NAMES?|People|Mentioned):\s*([^\n]+)/i)
+      const namesMatch = response.match(/(?:NAMES?|People|Mentioned):[ \t]*([^\n]+)/i)
       if (namesMatch && namesMatch[1]) {
         const raw = namesMatch[1].trim()
         if (raw && !/^(none|n\/a|no one|nothing)$/i.test(raw)) {
@@ -103,13 +116,22 @@ Output`
         }
       }
 
+      // Parse TYPE: IDEA | TASK | INSIGHT | OBSERVATION | EMOTION | QUESTION
+      let thought_type = null
+      const typeMatch = response.match(/TYPE:\s*(\w+)/i)
+      if (typeMatch && typeMatch[1]) {
+        const v = typeMatch[1].toUpperCase()
+        if (TaggingService.THOUGHT_TYPES.includes(v)) thought_type = v
+      }
+
       return {
         tags: Array.isArray(tags) ? tags : [],
         mentions: Array.isArray(mentions) ? mentions : [],
+        thought_type,
       }
     } catch (error) {
       console.error('Tag extraction error:', error)
-      return { tags: [], mentions: [] }
+      return { tags: [], mentions: [], thought_type: null }
     }
   }
 
