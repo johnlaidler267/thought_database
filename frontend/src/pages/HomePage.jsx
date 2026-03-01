@@ -349,42 +349,49 @@ export default function HomePage() {
           
           console.log('Saving thought to Supabase with user_id:', user.id)
 
-          // Insert with core columns only so we never 400 when optional columns are missing
-          const corePayload = {
-            user_id: newThought.user_id,
-            raw_transcript: newThought.raw_transcript,
-            cleaned_text: newThought.cleaned_text,
-            tags: newThought.tags,
-            created_at: newThought.created_at,
-          }
-
-          const result = await supabase
+          // Try full insert first so mentions/category/responding_to persist when columns exist
+          let result = await supabase
             .from('thoughts')
-            .insert([corePayload])
+            .insert([newThought])
             .select()
             .single()
 
           let data = result.data
-          const error = result.error
+          let error = result.error
+
+          // If any optional column is missing, retry with core columns only then PATCH optional
+          if (error?.code === 'PGRST204') {
+            const corePayload = {
+              user_id: newThought.user_id,
+              raw_transcript: newThought.raw_transcript,
+              cleaned_text: newThought.cleaned_text,
+              tags: newThought.tags,
+              created_at: newThought.created_at,
+            }
+            result = await supabase
+              .from('thoughts')
+              .insert([corePayload])
+              .select()
+              .single()
+            data = result.data
+            error = result.error
+            if (data) {
+              data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions }
+              const optional = {}
+              if (newThought.category != null) optional.category = newThought.category
+              if (newThought.responding_to != null) optional.responding_to = newThought.responding_to
+              if (newThought.mentions != null && newThought.mentions.length > 0) optional.mentions = newThought.mentions
+              if (Object.keys(optional).length > 0) {
+                await supabase.from('thoughts').update(optional).eq('id', data.id)
+              }
+            }
+          } else if (data) {
+            data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions }
+          }
 
           if (error) {
             console.error('Supabase insert error:', error)
             throw error
-          }
-
-          // Attach optional fields for local state (and for UI when columns don't exist yet)
-          data = { ...data, category: newThought.category, responding_to: newThought.responding_to, mentions: newThought.mentions }
-
-          // If optional columns exist in the DB, persist them (PATCH); ignore errors so old schemas still work
-          const optional = {}
-          if (newThought.category != null) optional.category = newThought.category
-          if (newThought.responding_to != null) optional.responding_to = newThought.responding_to
-          if (newThought.mentions != null && newThought.mentions.length > 0) optional.mentions = newThought.mentions
-          if (Object.keys(optional).length > 0) {
-            const { error: updateErr } = await supabase.from('thoughts').update(optional).eq('id', data.id)
-            if (updateErr) {
-              // Optional columns may not exist yet; fields are already in local state
-            }
           }
           
           console.log('Thought saved successfully:', data)
