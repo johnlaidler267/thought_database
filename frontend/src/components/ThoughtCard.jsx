@@ -83,6 +83,28 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
     }
   }
 
+  // Underline mention names in the body text (longest names first to avoid partial matches)
+  const mentionList = Array.isArray(thought.mentions)
+    ? thought.mentions
+    : typeof thought.mentions === 'string'
+      ? (thought.mentions ? [thought.mentions] : [])
+      : []
+  const renderBodyWithUnderlines = (text) => {
+    if (!text || mentionList.length === 0) return text
+    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const sorted = [...mentionList].sort((a, b) => (b?.length ?? 0) - (a?.length ?? 0))
+    const pattern = new RegExp('\\b(' + sorted.map(escapeRegex).join('|') + ')\\b', 'gi')
+    const parts = text.split(pattern)
+    return parts.map((part, i) => {
+      if (i % 2 === 0) return part
+      return (
+        <span key={`${i}-${part}`} className="underline" style={{ textDecoration: 'underline' }}>
+          {part}
+        </span>
+      )
+    })
+  }
+
   return (
     <Card
       className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 pb-14 shadow-none relative"
@@ -166,7 +188,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
       )}
 
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
-        {displayText}
+        {renderBodyWithUnderlines(displayText)}
       </p>
 
       {thought.tags && thought.tags.length > 0 && (
@@ -203,14 +225,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
         </div>
       )}
 
-      {(() => {
-        const mentionList = Array.isArray(thought.mentions)
-          ? thought.mentions
-          : typeof thought.mentions === 'string'
-            ? (thought.mentions ? [thought.mentions] : [])
-            : []
-        if (mentionList.length === 0) return null
-        return (
+      {mentionList.length > 0 && (
           <div className="flex items-start gap-2 mb-4" style={{ color: 'var(--muted-foreground)' }}>
             <User className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
             <div className="flex flex-wrap gap-2">
@@ -225,8 +240,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
               ))}
             </div>
           </div>
-        )
-      })()}
+      )}
 
       <div className="absolute bottom-3 sm:bottom-4 right-4 sm:right-6 flex items-center gap-2">
         {translationEnabled && (
