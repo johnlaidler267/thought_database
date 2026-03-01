@@ -416,7 +416,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               <button
                 type="button"
                 onClick={() => setShowFollowUpInput(true)}
-                className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center"
+                className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center group"
                 style={{ color: 'var(--muted-foreground)' }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = 'var(--ink)'
@@ -428,7 +428,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                 }}
                 aria-label="Add follow-up"
               >
-                <RiChatFollowUpLine className="w-4 h-4" />
+                <RiChatFollowUpLine className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
               </button>
             </Tooltip>
           )
@@ -439,7 +439,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             type="button"
             onClick={handleReflectClick}
             disabled={isLoadingReflect}
-            className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => {
               if (!e.currentTarget.disabled) {
@@ -456,7 +456,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             {isLoadingReflect ? (
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
             )}
           </button>
         </Tooltip>
