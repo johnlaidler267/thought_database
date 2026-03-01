@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
+import { RiChatFollowUpLine } from 'react-icons/ri'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
 
@@ -18,14 +19,17 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
   const [translatedText, setTranslatedText] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
+  const [showFollowUpInput, setShowFollowUpInput] = useState(false)
+  const [followUpText, setFollowUpText] = useState('')
   const menuRef = useRef(null)
+  const followUpInputRef = useRef(null)
 
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
@@ -57,6 +61,21 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
       }
     }
   }, [showMenu])
+
+  useEffect(() => {
+    if (showFollowUpInput && followUpInputRef.current) {
+      const t = setTimeout(() => followUpInputRef.current?.focus(), 50)
+      return () => clearTimeout(t)
+    }
+  }, [showFollowUpInput])
+
+  const handleSubmitFollowUp = () => {
+    const text = followUpText.trim()
+    if (!text || !onAddFollowUp) return
+    onAddFollowUp(thought.id, text)
+    setFollowUpText('')
+    setShowFollowUpInput(false)
+  }
 
   const handleCopy = async () => {
     try {
@@ -275,7 +294,99 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
         </div>
       )}
 
-      <div className="absolute bottom-3 sm:bottom-4 right-4 sm:right-6 flex items-center gap-2">
+      {Array.isArray(thought.follow_ups) && thought.follow_ups.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {thought.follow_ups.map((fu, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-2 pl-3 py-1.5 rounded-lg border-l-2 font-serif text-sm"
+              style={{
+                borderLeftColor: 'var(--stroke)',
+                backgroundColor: 'var(--muted)',
+                color: 'var(--muted-foreground)'
+              }}
+            >
+              <FaReply className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
+              <span className="flex-1 min-w-0">{fu.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center gap-2">
+        {onAddFollowUp && (
+          showFollowUpInput ? (
+            <>
+              <input
+                ref={followUpInputRef}
+                type="text"
+                value={followUpText}
+                onChange={(e) => setFollowUpText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSubmitFollowUp()
+                  }
+                  if (e.key === 'Escape') {
+                    setShowFollowUpInput(false)
+                    setFollowUpText('')
+                  }
+                }}
+                placeholder="Add a follow-up..."
+                className="flex-1 min-w-0 px-3 py-2 rounded-md border text-sm font-serif focus:outline-none"
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--stroke)',
+                  color: 'var(--ink)'
+                }}
+                aria-label="Follow-up comment"
+              />
+              <Tooltip text="Submit follow-up" position="bottom">
+                <button
+                  type="button"
+                  onClick={handleSubmitFollowUp}
+                  disabled={!followUpText.trim()}
+                  className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ color: 'var(--muted-foreground)' }}
+                  onMouseEnter={(e) => {
+                    if (!e.currentTarget.disabled) {
+                      e.currentTarget.style.color = 'var(--ink)'
+                      e.currentTarget.style.backgroundColor = 'var(--muted)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--muted-foreground)'
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                  aria-label="Submit follow-up"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </Tooltip>
+            </>
+          ) : (
+            <Tooltip text="Add follow-up" position="bottom">
+              <button
+                type="button"
+                onClick={() => setShowFollowUpInput(true)}
+                className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--ink)'
+                  e.currentTarget.style.backgroundColor = 'var(--muted)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                aria-label="Add follow-up"
+              >
+                <RiChatFollowUpLine className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          )
+        )}
+
         {translationEnabled && (
           <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">
             <button

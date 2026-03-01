@@ -670,6 +670,36 @@ export default function HomePage() {
     setThoughtToDelete(null)
   }
 
+  const handleAddFollowUp = useCallback(async (thoughtId, text) => {
+    if (!text?.trim() || !user) return
+    let newFollowUps
+    setThoughts((prev) => {
+      const thought = prev.find((t) => t.id === thoughtId)
+      const existing = Array.isArray(thought?.follow_ups) ? thought.follow_ups : []
+      const newEntry = { text: text.trim(), created_at: new Date().toISOString() }
+      newFollowUps = [...existing, newEntry]
+      return prev.map((t) => (t.id === thoughtId ? { ...t, follow_ups: newFollowUps } : t))
+    })
+
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .update({ follow_ups: newFollowUps })
+          .eq('id', thoughtId)
+          .eq('user_id', user.id)
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to save follow-up:', err)
+        setThoughts((prev) =>
+          prev.map((t) =>
+            t.id === thoughtId ? { ...t, follow_ups: newFollowUps.slice(0, -1) } : t
+          )
+        )
+      }
+    }
+  }, [user])
+
   // Filter thoughts based on search query (by tag and content) and active category
   const filteredThoughts = useMemo(() => {
     return thoughts.filter((thought) => {
@@ -1048,6 +1078,7 @@ export default function HomePage() {
                 onDelete={handleDeleteThought}
                 onOpenAiPrompts={openAiPromptsFromCard}
                 onTagClick={setSearchQuery}
+                onAddFollowUp={handleAddFollowUp}
               />
             ))
           )}
