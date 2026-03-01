@@ -462,6 +462,7 @@ export default function HomePage() {
       setDraftTranscript('')
       setSelectedPrompt(null)
       setIsEditingTranscript(false)
+      draftTranscriptRef.current = ''
       try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
       // Reset recording flag
       isFromRecordingRef.current = false
@@ -478,6 +479,7 @@ export default function HomePage() {
     setDraftTranscript('')
     setSelectedPrompt(null)
     setIsEditingTranscript(false)
+    draftTranscriptRef.current = ''
     try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
   }
 
