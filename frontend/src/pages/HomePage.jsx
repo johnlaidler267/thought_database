@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Brain } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Brain, ArrowUpDown } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -25,6 +25,9 @@ export default function HomePage() {
   const location = useLocation()
   const [thoughts, setThoughts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortOrder, setSortOrder] = useState('desc') // 'asc' | 'desc' (date only)
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  const sortMenuRef = useRef(null)
   const [categories, setCategories] = useState(['All'])
   const [activeCategory, setActiveCategory] = useState('All')
   const [hoveredCategory, setHoveredCategory] = useState(null)
@@ -577,6 +580,19 @@ export default function HomePage() {
     }
   }, [])
 
+  // Close sort menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target)) {
+        setSortMenuOpen(false)
+      }
+    }
+    if (sortMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [sortMenuOpen])
+
   // Handle adding a new category
   const handleAddCategory = () => {
     const trimmedName = newCategoryName.trim()
@@ -666,6 +682,16 @@ export default function HomePage() {
     })
   }, [thoughts, searchQuery, activeCategory])
 
+  const sortedThoughts = useMemo(() => {
+    const list = [...filteredThoughts]
+    list.sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+      return sortOrder === 'asc' ? ta - tb : tb - ta
+    })
+    return list
+  }, [filteredThoughts, sortOrder])
+
   // Show loading state while checking authentication
   if (authLoading) {
     return (
@@ -731,8 +757,8 @@ export default function HomePage() {
 
       {/* Search Bar */}
       <div className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto">
-          <div className="relative">
+        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
             <Search 
               className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" 
               style={{ color: 'var(--muted-foreground)' }}
@@ -767,6 +793,65 @@ export default function HomePage() {
               >
                 <X className="w-4 h-4" />
               </button>
+            )}
+          </div>
+          <div className="relative flex-shrink-0" ref={sortMenuRef}>
+            <Tooltip text="Sort" position="bottom">
+              <button
+                type="button"
+                onClick={() => setSortMenuOpen((o) => !o)}
+                className="flex items-center justify-center w-10 h-10 rounded border font-serif transition-colors"
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--stroke)',
+                  color: 'var(--muted-foreground)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--ink)'
+                  e.currentTarget.style.color = 'var(--ink)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--stroke)'
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                }}
+                aria-label="Sort"
+                aria-expanded={sortMenuOpen}
+              >
+                <ArrowUpDown className="w-4 h-4" strokeWidth={1.5} />
+              </button>
+            </Tooltip>
+            {sortMenuOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 min-w-[10rem] rounded-md border shadow-lg z-20 py-1"
+                style={{
+                  backgroundColor: 'var(--card)',
+                  borderColor: 'var(--stroke)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => { setSortOrder('desc'); setSortMenuOpen(false) }}
+                  className="w-full text-left px-3 py-2 text-sm font-serif transition-colors"
+                  style={{
+                    color: sortOrder === 'desc' ? 'var(--ink)' : 'var(--muted-foreground)',
+                    backgroundColor: sortOrder === 'desc' ? 'var(--muted)' : 'transparent'
+                  }}
+                >
+                  Date (newest first)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setSortOrder('asc'); setSortMenuOpen(false) }}
+                  className="w-full text-left px-3 py-2 text-sm font-serif transition-colors"
+                  style={{
+                    color: sortOrder === 'asc' ? 'var(--ink)' : 'var(--muted-foreground)',
+                    backgroundColor: sortOrder === 'asc' ? 'var(--muted)' : 'transparent'
+                  }}
+                >
+                  Date (oldest first)
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -946,7 +1031,7 @@ export default function HomePage() {
               </p>
             </div>
           ) : (
-            filteredThoughts.map((thought) => (
+            sortedThoughts.map((thought) => (
               <ThoughtCard
                 key={thought.id}
                 thought={thought}

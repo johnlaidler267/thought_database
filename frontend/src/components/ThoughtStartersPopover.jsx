@@ -34,7 +34,7 @@ export function ThoughtStartersPopover({ prompts, selectedPrompt, onSelectPrompt
               onMouseEnter={useInlineHover ? (e) => { e.currentTarget.style.backgroundColor = 'var(--muted)' } : undefined}
               onMouseLeave={useInlineHover ? (e) => { e.currentTarget.style.backgroundColor = isSelected ? 'var(--muted)' : 'transparent' } : undefined}
             >
-              <span className="flex-shrink-0 w-4 flex items-center justify-center" style={{ height: '1.625em', minHeight: '1.625em' }}>
+              <span className="flex-shrink-0 w-4 flex items-center justify-center ml-1" style={{ height: '1.625em', minHeight: '1.625em' }}>
                 {isSelected && <Check className="w-3.5 h-3.5" strokeWidth={2.5} style={{ color: 'var(--ink)' }} />}
               </span>
               <span className="flex-1 min-w-0">{prompt}</span>
