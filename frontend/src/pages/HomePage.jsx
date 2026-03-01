@@ -1037,6 +1037,7 @@ export default function HomePage() {
                 thought={thought}
                 onDelete={handleDeleteThought}
                 onOpenAiPrompts={openAiPromptsFromCard}
+                onTagClick={setSearchQuery}
               />
             ))
           )}

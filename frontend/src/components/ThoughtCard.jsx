@@ -6,7 +6,7 @@ import { FaReply } from 'react-icons/fa'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -172,17 +172,33 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts }) {
       {thought.tags && thought.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
           {thought.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 text-xs font-serif border border-stroke rounded bg-muted/50 text-muted-foreground"
-              style={{
-                borderColor: 'var(--stroke)',
-                backgroundColor: 'var(--muted)',
-                color: 'var(--muted-foreground)'
-              }}
-            >
-              {tag}
-            </span>
+            onTagClick ? (
+              <button
+                key={tag}
+                type="button"
+                onClick={(e) => { e.preventDefault(); onTagClick(tag) }}
+                className="px-2 py-1 text-xs font-serif leading-tight border border-stroke rounded bg-muted/50 text-muted-foreground cursor-pointer transition-colors hover:border-ink hover:text-ink inline-block align-baseline min-h-0"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)'
+                }}
+              >
+                {tag}
+              </button>
+            ) : (
+              <span
+                key={tag}
+                className="px-2 py-1 text-xs font-serif leading-tight border border-stroke rounded bg-muted/50 text-muted-foreground"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)'
+                }}
+              >
+                {tag}
+              </span>
+            )
           ))}
         </div>
       )}
