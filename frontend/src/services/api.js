@@ -169,3 +169,30 @@ export async function extractTags(cleanedText) {
   }
 }
 
+/**
+ * Get a single short reflection question from the LLM given thought text and follow-ups.
+ * @param {string} thoughtText - The main thought content
+ * @param {Array<string|{text: string}>} followUps - Follow-up entries (strings or objects with .text)
+ * @returns {Promise<string|null>} The question text or null
+ */
+export async function getReflectQuestion(thoughtText, followUps = []) {
+  try {
+    const response = await fetch(`${API_URL}/reflect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thoughtText: thoughtText || '',
+        followUps: Array.isArray(followUps) ? followUps : [],
+      }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || `HTTP ${response.status}`)
+    }
+    const data = await response.json()
+    return data.question ?? null
+  } catch (err) {
+    if (err.message) throw err
+    throw new Error('Failed to get reflection question.')
+  }
+}

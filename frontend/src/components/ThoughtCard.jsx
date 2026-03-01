@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
+import { getReflectQuestion } from '../services/api'
 
 // Exact category names for display (backend stores single-word tokens: IDEA, TASK, etc.)
 const THOUGHT_TYPE_DISPLAY_NAMES = {
@@ -29,6 +30,8 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const [isTranslating, setIsTranslating] = useState(false)
   const [showFollowUpInput, setShowFollowUpInput] = useState(false)
   const [followUpText, setFollowUpText] = useState('')
+  const [aiQuestion, setAiQuestion] = useState(null)
+  const [isLoadingReflect, setIsLoadingReflect] = useState(false)
   const menuRef = useRef(null)
   const followUpInputRef = useRef(null)
 
@@ -76,6 +79,21 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
     onAddFollowUp(thought.id, text)
     setFollowUpText('')
     setShowFollowUpInput(false)
+  }
+
+  const handleReflectClick = async () => {
+    setIsLoadingReflect(true)
+    try {
+      const thoughtText = thought.cleaned_text || thought.content || ''
+      const followUpsList = thought.follow_ups ?? thought.followUps ?? []
+      const question = await getReflectQuestion(thoughtText, followUpsList)
+      setAiQuestion(question || null)
+    } catch (err) {
+      console.error('Reflect question failed:', err)
+      setAiQuestion(null)
+    } finally {
+      setIsLoadingReflect(false)
+    }
   }
 
   const handleCopy = async () => {
@@ -210,6 +228,13 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           </div>
         </div>
       </div>
+
+      {aiQuestion && (
+        <div className="flex items-center gap-2 mb-3 text-xs font-serif italic tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+          <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+          <span>{aiQuestion}</span>
+        </div>
+      )}
 
       {thought.responding_to && (
         <div
@@ -408,6 +433,33 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             </Tooltip>
           )
         )}
+
+        <Tooltip text="AI reflection question" position="bottom">
+          <button
+            type="button"
+            onClick={handleReflectClick}
+            disabled={isLoadingReflect}
+            className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--muted-foreground)'
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+            aria-label="Ask AI reflection question"
+          >
+            {isLoadingReflect ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+          </button>
+        </Tooltip>
 
         {translationEnabled && (
           <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">
