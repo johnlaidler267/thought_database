@@ -16,7 +16,8 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   QUESTION: 'Questions',
   REFERENCE: 'References',
   REFLECTION: 'Feelings & Reflections',
-  EMOTION: 'Feelings & Reflections', // legacy; new type is REFLECTION
+  EMOTION: 'Feelings & Reflections',
+  INSIGHT: 'Insights',
   PLAN: 'Plans',
 }
 
@@ -518,7 +519,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           </div>
         </>
       ) : (
-        <>
+        <div className="min-w-0" style={{ paddingLeft: 0, marginLeft: 0 }}>
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
         {renderBodyWithUnderlines(displayText)}
       </p>
@@ -532,7 +533,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         const hasAny = confirmed.length > 0 || suggestedToShow.length > 0
         if (!hasAny) return null
         return (
-          <div className="flex flex-wrap gap-2 mb-4 items-baseline">
+          <div className="flex flex-wrap gap-2 mb-4 items-baseline" style={{ marginLeft: 0, paddingLeft: 0 }}>
             {confirmed.map((tag) => {
               const isTagActive = Boolean(
                 onTagClick &&
@@ -843,7 +844,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           </div>
         </div>
       )}
-        </>
+        </div>
       )}
 
       <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center gap-2">

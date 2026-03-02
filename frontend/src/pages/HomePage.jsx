@@ -51,6 +51,8 @@ export default function HomePage() {
   const draftTranscriptRef = useRef('')
   const aiPromptsRecordRef = useRef(null)
   const aiPromptsEditorRef = useRef(null)
+  const thoughtsRef = useRef(thoughts)
+  useEffect(() => { thoughtsRef.current = thoughts }, [thoughts])
 
   const { 
     isRecording: isAudioRecording, 
@@ -382,9 +384,10 @@ export default function HomePage() {
                 setSuggestedTagsByThoughtId((prev) => ({ ...prev, [data.id]: suggested }))
               }
               if (mentions.length > 0 || thought_type) {
+                const dataIdStr = String(data.id)
                 setThoughts((prev) =>
                   prev.map((t) =>
-                    t.id === data.id
+                    String(t.id) === dataIdStr
                       ? { ...t, mentions: mentions.length > 0 ? mentions : t.mentions, thought_type: thought_type || t.thought_type }
                       : t
                   )
@@ -396,7 +399,7 @@ export default function HomePage() {
                   supabase
                     .from('thoughts')
                     .update(payload)
-                    .eq('id', data.id)
+                    .eq('id', dataIdStr)
                     .eq('user_id', user.id)
                     .then(({ error }) => { if (error) console.error('Failed to save mentions/thought_type:', error) })
                 }
@@ -651,17 +654,16 @@ export default function HomePage() {
   const handleConfirmSuggestedTag = useCallback(async (thoughtId, tag) => {
     if (!tag?.trim() || thoughtId == null) return
     const idStr = String(thoughtId)
-    let newTags
-    setThoughts((prev) => {
-      const thought = prev.find((t) => String(t.id) === idStr)
-      if (!thought) return prev
-      const existingTags = Array.isArray(thought.tags) ? thought.tags : []
-      if (existingTags.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())) return prev
-      newTags = [...existingTags, tag.trim()]
-      return prev.map((t) => (String(t.id) === idStr ? { ...t, tags: newTags } : t))
-    })
-    if (newTags === undefined) return
+    const currentThoughts = thoughtsRef.current
+    const thought = currentThoughts.find((t) => String(t.id) === idStr)
+    if (!thought) return
+    const existingTags = Array.isArray(thought.tags) ? thought.tags : []
+    if (existingTags.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())) return
+    const newTags = [...existingTags, tag.trim()]
 
+    setThoughts((prev) =>
+      prev.map((t) => (String(t.id) === idStr ? { ...t, tags: newTags } : t))
+    )
     setSuggestedTagsByThoughtId((prev) => {
       const list = prev[thoughtId] || []
       const next = list.filter((t) => String(t).toLowerCase() !== String(tag).toLowerCase())

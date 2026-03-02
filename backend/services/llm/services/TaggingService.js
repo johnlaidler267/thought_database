@@ -52,7 +52,7 @@ Output`
   }
 
   /** Valid thought types returned by the model */
-  static THOUGHT_TYPES = ['IDEA', 'OBSERVATION', 'TASK', 'QUESTION', 'REFERENCE', 'REFLECTION', 'PLAN']
+  static THOUGHT_TYPES = ['IDEA', 'OBSERVATION', 'TASK', 'QUESTION', 'REFERENCE', 'REFLECTION', 'PLAN', 'INSIGHT', 'EMOTION']
 
   /**
    * Build the existing-tags block for the prompt.

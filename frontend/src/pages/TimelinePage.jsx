@@ -21,6 +21,8 @@ export default function TimelinePage() {
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
+  const thoughtsRef = useRef(thoughts)
+  useEffect(() => { thoughtsRef.current = thoughts }, [thoughts])
   const { isRecording, error: recordingError, startRecording, stopRecording, setOnAutoStop } = useAudioRecorder()
 
   // Load thoughts from Supabase on mount
@@ -113,17 +115,16 @@ export default function TimelinePage() {
   const handleConfirmSuggestedTag = useCallback(async (thoughtId, tag) => {
     if (!tag?.trim() || thoughtId == null) return
     const idStr = String(thoughtId)
-    let newTags
-    setThoughts((prev) => {
-      const thought = prev.find((t) => String(t.id) === idStr)
-      if (!thought) return prev
-      const existingTags = Array.isArray(thought.tags) ? thought.tags : []
-      if (existingTags.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())) return prev
-      newTags = [...existingTags, tag.trim()]
-      return prev.map((t) => (String(t.id) === idStr ? { ...t, tags: newTags } : t))
-    })
-    if (newTags === undefined) return
+    const currentThoughts = thoughtsRef.current
+    const thought = currentThoughts.find((t) => String(t.id) === idStr)
+    if (!thought) return
+    const existingTags = Array.isArray(thought.tags) ? thought.tags : []
+    if (existingTags.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())) return
+    const newTags = [...existingTags, tag.trim()]
 
+    setThoughts((prev) =>
+      prev.map((t) => (String(t.id) === idStr ? { ...t, tags: newTags } : t))
+    )
     setSuggestedTagsByThoughtId((prev) => {
       const list = prev[thoughtId] || []
       const next = list.filter((t) => String(t).toLowerCase() !== String(tag).toLowerCase())
