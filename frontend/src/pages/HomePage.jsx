@@ -3,8 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, Brain, ArrowUpDown } from 'lucide-react'
+import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, ArrowUpDown } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
+import { TbPencilQuestion } from 'react-icons/tb'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
@@ -1459,7 +1460,9 @@ export default function HomePage() {
                   e.currentTarget.style.borderColor = 'var(--stroke)'
                 }}
               >
-                <Brain className="w-6 h-6 sm:w-5 sm:h-5" strokeWidth={1.5} />
+                <span className="inline-flex items-center justify-center flex-shrink-0 w-full h-full">
+                  <TbPencilQuestion className="w-6 h-6 sm:w-5 sm:h-5 block" />
+                </span>
               </button>
             </Tooltip>
             <div className="relative flex items-end">

@@ -522,14 +522,13 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 {fuRespondingToAi && (
                   <div
-                    className="flex items-center gap-1.5 text-xs font-serif italic rounded-r border-l-[3px] py-2 px-3 mb-2"
+                    className="text-xs font-serif italic rounded-r border-l-[3px] py-2 px-3 mb-2"
                     style={{
                       color: 'var(--muted-foreground)',
                       borderLeftColor: 'rgba(100, 116, 139, 0.65)',
                       backgroundColor: 'rgba(100, 116, 139, 0.1)'
                     }}
                   >
-                    <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
                     <span className="leading-snug">{fuRespondingToAi}</span>
                   </div>
                 )}
