@@ -21,7 +21,7 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onSaveEdit, activeTags }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, activeTags }) {
   const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -30,6 +30,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const [isTranslating, setIsTranslating] = useState(false)
   const [showFollowUpInput, setShowFollowUpInput] = useState(false)
   const [followUpText, setFollowUpText] = useState('')
+  const [respondingToAiQuestion, setRespondingToAiQuestion] = useState(null) // when follow-up was pre-filled from AI question
   const [aiQuestion, setAiQuestion] = useState(null)
   const [isLoadingReflect, setIsLoadingReflect] = useState(false)
   const [isEditingCard, setIsEditingCard] = useState(false)
@@ -38,6 +39,9 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const menuRef = useRef(null)
   const followUpInputRef = useRef(null)
   const editTextareaRef = useRef(null)
+  const [editingFollowUpIndex, setEditingFollowUpIndex] = useState(null)
+  const [editingFollowUpDraft, setEditingFollowUpDraft] = useState('')
+  const editFollowUpTextareaRef = useRef(null)
 
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
@@ -92,12 +96,35 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
     el.style.height = `${Math.max(200, el.scrollHeight)}px`
   }, [isEditingCard, editedRawText])
 
+  // Auto-grow follow-up edit textarea to fit content
+  useEffect(() => {
+    const el = editFollowUpTextareaRef.current
+    if (!el || editingFollowUpIndex == null) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.max(40, el.scrollHeight)}px`
+  }, [editingFollowUpIndex, editingFollowUpDraft])
+
   const handleSubmitFollowUp = () => {
     const text = followUpText.trim()
     if (!text || !onAddFollowUp) return
-    onAddFollowUp(thought.id, text)
+    const meta = respondingToAiQuestion ? { respondingToAiQuestion } : undefined
+    onAddFollowUp(thought.id, text, meta)
     setFollowUpText('')
+    setRespondingToAiQuestion(null)
     setShowFollowUpInput(false)
+  }
+
+  const handleAiQuestionClick = () => {
+    if (!aiQuestion) return
+    setRespondingToAiQuestion(aiQuestion)
+    setShowFollowUpInput(true)
+    setTimeout(() => followUpInputRef.current?.focus(), 80)
+  }
+
+  const handleFollowUpChange = (e) => {
+    const next = e.target.value
+    setFollowUpText(next)
+    if (respondingToAiQuestion !== null && !next.trim()) setRespondingToAiQuestion(null)
   }
 
   const handleReflectClick = async () => {
@@ -277,10 +304,24 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
       </div>
 
       {aiQuestion && (
-        <div className="flex items-center gap-2 mb-3 text-xs font-serif italic tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
-          <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+        <button
+          type="button"
+          onClick={handleAiQuestionClick}
+          className="flex items-center gap-2 mb-3 text-xs font-serif italic tracking-wide text-left w-full rounded transition-colors cursor-pointer hover:opacity-80 focus:outline-none focus:ring-0 border-0 bg-transparent p-0"
+          style={{ color: 'var(--muted-foreground)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.textDecoration = 'underline'
+            e.currentTarget.style.color = 'var(--ink)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textDecoration = 'none'
+            e.currentTarget.style.color = 'var(--muted-foreground)'
+          }}
+          aria-label="Use this question as follow-up"
+        >
+          <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: 'inherit' }} />
           <span>{aiQuestion}</span>
-        </div>
+        </button>
       )}
 
       {thought.responding_to && (
@@ -450,6 +491,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         <div className="mb-3 space-y-2">
           {list.map((fu, i) => {
             const fuText = typeof fu === 'string' ? fu : (fu?.text ?? '')
+            const fuRespondingToAi = fu && typeof fu === 'object' ? (fu.responding_to_ai ?? fu.respondingToAi) : null
             const fuDate = fu && typeof fu === 'object' && fu.created_at
               ? new Date(fu.created_at).toLocaleString('en-US', {
                   month: 'short',
@@ -461,7 +503,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             return (
             <div
               key={i}
-              className="relative flex items-start gap-2 pl-3 py-1.5 pr-8 rounded-lg border-l-2 font-serif text-sm"
+              className="relative flex items-start gap-2 pl-3 py-2 pr-8 rounded-lg border-l-2 font-serif text-sm"
               style={{
                 borderLeftColor: 'var(--stroke)',
                 backgroundColor: 'var(--muted)',
@@ -470,90 +512,194 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             >
               <MdSubdirectoryArrowRight className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                {fuRespondingToAi && (
+                  <div
+                    className="flex items-center gap-1.5 text-xs font-serif italic rounded-r border-l-[3px] py-2 px-3 mb-2"
+                    style={{
+                      color: 'var(--muted-foreground)',
+                      borderLeftColor: 'rgba(100, 116, 139, 0.65)',
+                      backgroundColor: 'rgba(100, 116, 139, 0.1)'
+                    }}
+                  >
+                    <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+                    <span className="leading-snug">{fuRespondingToAi}</span>
+                  </div>
+                )}
                 {fuDate && (
                   <span className="text-xs tracking-wide opacity-80" style={{ color: 'var(--muted-foreground)' }}>{fuDate}</span>
                 )}
-                <span>{fuText}</span>
-              </div>
-              <div className="absolute flex flex-row items-center gap-0.5" style={{ bottom: 8, right: 10 }}>
-                {onDeleteFollowUp && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteFollowUp(thought.id, i) }}
-                    className="p-0 min-w-0 min-h-0 inline-flex items-center justify-center"
-                    style={{
-                      color: 'var(--muted-foreground)',
-                      transition: 'color 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = '#e57373' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
-                    aria-label="Remove follow-up"
-                  >
-                    <Trash2 size={14} strokeWidth={1.5} />
-                  </button>
+                {editingFollowUpIndex === i ? (
+                  <>
+                    <textarea
+                      ref={editFollowUpTextareaRef}
+                      value={editingFollowUpDraft}
+                      onChange={(e) => setEditingFollowUpDraft(e.target.value)}
+                      className="w-full min-h-0 resize-none overflow-hidden py-0 px-0 border-0 rounded text-sm font-serif leading-relaxed focus:outline-none focus:ring-0 bg-transparent"
+                      style={{ color: 'var(--ink)', minHeight: 24 }}
+                      rows={1}
+                      aria-label="Edit follow-up response"
+                    />
+                    <div className="flex items-center gap-3 mt-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (onEditFollowUp) {
+                            onEditFollowUp(thought.id, i, editingFollowUpDraft.trim())
+                            setEditingFollowUpIndex(null)
+                            setEditingFollowUpDraft('')
+                          }
+                        }}
+                        className="text-xs font-serif border-0 bg-transparent cursor-pointer py-0 px-0"
+                        style={{ color: 'rgba(100, 116, 139, 0.9)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setEditingFollowUpIndex(null)
+                          setEditingFollowUpDraft('')
+                        }}
+                        className="text-xs font-serif border-0 bg-transparent cursor-pointer py-0 px-0"
+                        style={{ color: 'var(--muted-foreground)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <span>{fuText}</span>
                 )}
               </div>
+              {editingFollowUpIndex !== i && (
+                <div className="absolute flex flex-row items-center gap-0.5" style={{ bottom: 8, right: 10 }}>
+                  {onEditFollowUp && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setEditingFollowUpIndex(i)
+                        setEditingFollowUpDraft(fuText)
+                        setTimeout(() => editFollowUpTextareaRef.current?.focus(), 50)
+                      }}
+                      className="p-0 min-w-0 min-h-0 inline-flex items-center justify-center"
+                      style={{
+                        color: 'var(--muted-foreground)',
+                        transition: 'color 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+                      aria-label="Edit follow-up"
+                    >
+                      <Pencil size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  {onDeleteFollowUp && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDeleteFollowUp(thought.id, i) }}
+                      className="p-0 min-w-0 min-h-0 inline-flex items-center justify-center"
+                      style={{
+                        color: 'var(--muted-foreground)',
+                        transition: 'color 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#e57373' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+                      aria-label="Remove follow-up"
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             )
           })}
         </div>
         )
       })()}
+
+      {!isEditingCard && onAddFollowUp && showFollowUpInput && (
+        <div className="min-w-0 flex flex-col" style={{ marginTop: '20px' }}>
+          {respondingToAiQuestion && (
+            <div
+              className="flex items-center gap-1.5 text-[11px] font-serif italic rounded-full px-2 py-0.5 w-fit"
+              style={{
+                color: 'var(--muted-foreground)',
+                backgroundColor: 'var(--muted)',
+                marginBottom: '8px'
+              }}
+            >
+              <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+              Responding to AI prompt
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input
+              ref={followUpInputRef}
+              type="text"
+              value={followUpText}
+              onChange={handleFollowUpChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleSubmitFollowUp()
+                }
+                if (e.key === 'Escape') {
+                  setShowFollowUpInput(false)
+                  setFollowUpText('')
+                  setRespondingToAiQuestion(null)
+                }
+              }}
+              placeholder="Add a follow-up..."
+              className="flex-1 min-w-0 px-3 py-2 rounded-md border text-sm font-serif focus:outline-none"
+              style={{
+                backgroundColor: 'var(--card)',
+                borderColor: 'var(--stroke)',
+                color: 'var(--ink)'
+              }}
+              aria-label="Follow-up comment"
+            />
+            <Tooltip text="Submit follow-up" position="bottom">
+              <button
+                type="button"
+                onClick={handleSubmitFollowUp}
+                disabled={!followUpText.trim()}
+                className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ color: 'var(--muted-foreground)' }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.color = 'var(--ink)'
+                    e.currentTarget.style.backgroundColor = 'var(--muted)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                aria-label="Submit follow-up"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+      )}
         </>
       )}
 
       <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center gap-2">
         {!isEditingCard && onAddFollowUp && (
-          showFollowUpInput ? (
-            <>
-              <input
-                ref={followUpInputRef}
-                type="text"
-                value={followUpText}
-                onChange={(e) => setFollowUpText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleSubmitFollowUp()
-                  }
-                  if (e.key === 'Escape') {
-                    setShowFollowUpInput(false)
-                    setFollowUpText('')
-                  }
-                }}
-                placeholder="Add a follow-up..."
-                className="flex-1 min-w-0 px-3 py-2 rounded-md border text-sm font-serif focus:outline-none"
-                style={{
-                  backgroundColor: 'var(--card)',
-                  borderColor: 'var(--stroke)',
-                  color: 'var(--ink)'
-                }}
-                aria-label="Follow-up comment"
-              />
-              <Tooltip text="Submit follow-up" position="bottom">
-                <button
-                  type="button"
-                  onClick={handleSubmitFollowUp}
-                  disabled={!followUpText.trim()}
-                  className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ color: 'var(--muted-foreground)' }}
-                  onMouseEnter={(e) => {
-                    if (!e.currentTarget.disabled) {
-                      e.currentTarget.style.color = 'var(--ink)'
-                      e.currentTarget.style.backgroundColor = 'var(--muted)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--muted-foreground)'
-                    e.currentTarget.style.backgroundColor = 'transparent'
-                  }}
-                  aria-label="Submit follow-up"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </Tooltip>
-            </>
-          ) : (
+          showFollowUpInput ? null : (
             <Tooltip text="Add follow-up" position="bottom">
               <button
                 type="button"

@@ -677,13 +677,18 @@ export default function HomePage() {
     setThoughtToDelete(null)
   }
 
-  const handleAddFollowUp = useCallback(async (thoughtId, text) => {
+  const handleAddFollowUp = useCallback(async (thoughtId, text, meta) => {
     if (!text?.trim() || !user) return
     let newFollowUps
+    const respondingToAi = meta?.respondingToAiQuestion ?? null
     setThoughts((prev) => {
       const thought = prev.find((t) => t.id === thoughtId)
       const existing = Array.isArray(thought?.follow_ups) ? thought.follow_ups : []
-      const newEntry = { text: text.trim(), created_at: new Date().toISOString() }
+      const newEntry = {
+        text: text.trim(),
+        created_at: new Date().toISOString(),
+        ...(respondingToAi ? { responding_to_ai: respondingToAi } : {})
+      }
       newFollowUps = [...existing, newEntry]
       return prev.map((t) => (t.id === thoughtId ? { ...t, follow_ups: newFollowUps } : t))
     })
@@ -735,6 +740,34 @@ export default function HomePage() {
   const cancelDeleteFollowUp = useCallback(() => {
     setFollowUpToDelete(null)
   }, [])
+
+  const handleEditFollowUp = useCallback(async (thoughtId, index, newText) => {
+    if (newText == null || !user) return
+    const trimmed = typeof newText === 'string' ? newText.trim() : ''
+    let newFollowUps
+    setThoughts((prev) => {
+      const thought = prev.find((t) => t.id === thoughtId)
+      const existing = Array.isArray(thought?.follow_ups) ? thought.follow_ups : []
+      const entry = existing[index]
+      const updated = existing.map((e, i) =>
+        i !== index ? e : { ...(typeof e === 'object' && e ? e : { text: e }), text: trimmed }
+      )
+      newFollowUps = updated
+      return prev.map((t) => (t.id === thoughtId ? { ...t, follow_ups: newFollowUps } : t))
+    })
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .update({ follow_ups: newFollowUps })
+          .eq('id', thoughtId)
+          .eq('user_id', user.id)
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to save follow-up edit:', err)
+      }
+    }
+  }, [user])
 
   const handleReprocessThought = useCallback(async (thoughtId, newRawTranscript) => {
     if (!newRawTranscript?.trim() || !user) return
@@ -1238,6 +1271,7 @@ export default function HomePage() {
                 activeTags={activeTags}
                 onAddFollowUp={handleAddFollowUp}
                 onDeleteFollowUp={handleDeleteFollowUp}
+                onEditFollowUp={handleEditFollowUp}
                 onSaveEdit={handleReprocessThought}
               />
             ))
