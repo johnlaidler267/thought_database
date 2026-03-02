@@ -13,6 +13,9 @@ const groqProvider = new GroqProvider({
   timeout: 20000,
 })
 
+const OUTPUT_ONLY_INSTRUCTION =
+  'Return only the distilled text itself. No preamble, no explanation, no quotation marks, no labels — just the text.'
+
 function getDistillInstruction(level) {
   if (level === 1) {
     return 'Lightly clean up and tighten this thought. Remove filler and redundancy but preserve the full meaning and voice.'
@@ -24,6 +27,18 @@ function getDistillInstruction(level) {
     return 'Reduce this to a single sharp sentence that captures the core concept.'
   }
   return 'Distill this to a concise phrase or title — the purest expression of the idea.'
+}
+
+/** Strip common LLM preamble patterns (e.g. "Here's a distilled version: ...") and return only the content. */
+function stripPreamble(str) {
+  if (!str || typeof str !== 'string') return str
+  let s = str.trim()
+  // Match "Here's ..." or "Here is ..." or "Here are ..." up to and including the colon
+  const preambleMatch = s.match(/^Here(?:'s|\s+is|\s+are)\s+[^:]+:\s*/i)
+  if (preambleMatch) {
+    s = s.slice(preambleMatch[0].length).trim()
+  }
+  return s
 }
 
 router.post('/', async (req, res) => {
@@ -41,14 +56,15 @@ router.post('/', async (req, res) => {
       return res.status(503).json({ error: 'Distill service not configured' })
     }
 
-    const prompt = `${instruction}\n\n---\n\n${text.trim()}`
+    const prompt = `${instruction}\n\n---\n\n${text.trim()}\n\n${OUTPUT_ONLY_INSTRUCTION}`
 
     const result = await groqProvider.complete(prompt, DISTILL_MODEL, {
       max_tokens: 300,
       temperature: 0.3,
     })
 
-    const distilled = (result || '').trim()
+    let distilled = (result || '').trim()
+    distilled = stripPreamble(distilled) || distilled
     res.json({ distilled_text: distilled || text.trim() })
   } catch (error) {
     console.error('Distill route error:', error.message)
