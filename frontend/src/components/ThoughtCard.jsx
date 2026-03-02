@@ -104,6 +104,14 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
     el.style.height = `${Math.max(40, el.scrollHeight)}px`
   }, [editingFollowUpIndex, editingFollowUpDraft])
 
+  // Auto-grow follow-up input textarea to fit content (no scroll, no height cap)
+  useEffect(() => {
+    const el = followUpInputRef.current
+    if (!el || !showFollowUpInput) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.max(el.scrollHeight, 40)}px`
+  }, [showFollowUpInput, followUpText])
+
   const handleSubmitFollowUp = () => {
     const text = followUpText.trim()
     if (!text || !onAddFollowUp) return
@@ -644,9 +652,8 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             </div>
           )}
           <div className="flex items-center gap-2">
-            <input
+            <textarea
               ref={followUpInputRef}
-              type="text"
               value={followUpText}
               onChange={handleFollowUpChange}
               onKeyDown={(e) => {
@@ -661,7 +668,8 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                 }
               }}
               placeholder="Add a follow-up..."
-              className="flex-1 min-w-0 px-3 py-2 rounded-md border text-sm font-serif focus:outline-none"
+              rows={1}
+              className="flex-1 min-w-0 px-3 py-2 rounded-md border text-sm font-serif focus:outline-none resize-none overflow-hidden min-h-0"
               style={{
                 backgroundColor: 'var(--card)',
                 borderColor: 'var(--stroke)',
