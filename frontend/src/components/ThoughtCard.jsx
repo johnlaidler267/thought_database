@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp, Undo2, Folder } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp, Undo2, Redo2, Folder } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
@@ -20,7 +20,7 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, activeTags }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, onDistillStateChange, activeTags }) {
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
@@ -40,19 +40,50 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const [editingFollowUpIndex, setEditingFollowUpIndex] = useState(null)
   const [editingFollowUpDraft, setEditingFollowUpDraft] = useState('')
   const editFollowUpTextareaRef = useRef(null)
-  const [distillationLevel, setDistillationLevel] = useState(0)
-  const [distilledText, setDistilledText] = useState(null)
-  const [distillationStack, setDistillationStack] = useState([]) // undo history: [raw, level1, level2, ...]
+  // Helpers: DB uses snake_case; support both in case of transform
+  const getDistilledFromThought = (t) => (t?.distilled_text ?? t?.distilledText) ?? null
+  const getHistoryFromThought = (t) => Array.isArray(t?.distill_history) ? t.distill_history : (Array.isArray(t?.distillHistory) ? t.distillHistory : [])
+
+  // Initialize from thought so first paint uses same source of truth as Distill/Edit (distilled_text when present, else cleaned_text)
+  const [distillationLevel, setDistillationLevel] = useState(() => {
+    const raw = getDistilledFromThought(thought)
+    const hasDistilled = raw != null && String(raw).trim() !== ''
+    const history = getHistoryFromThought(thought)
+    return hasDistilled ? history.length : 0
+  })
+  const [distilledText, setDistilledText] = useState(() => {
+    const raw = getDistilledFromThought(thought)
+    const hasDistilled = raw != null && String(raw).trim() !== ''
+    return hasDistilled ? raw : null
+  })
+  const [distillationStack, setDistillationStack] = useState(() => getHistoryFromThought(thought))
+  const [distillationForwardStack, setDistillationForwardStack] = useState([]) // redo stack
   const [isDistilling, setIsDistilling] = useState(false)
+
+  // Re-hydrate when thought.id changes (e.g. different card or thought data refreshed)
+  useEffect(() => {
+    const raw = getDistilledFromThought(thought)
+    const hasDistilled = raw != null && String(raw).trim() !== ''
+    const history = getHistoryFromThought(thought)
+    setDistillationLevel(hasDistilled ? history.length : 0)
+    setDistilledText(hasDistilled ? raw : null)
+    setDistillationStack(history)
+    setDistillationForwardStack([])
+  }, [thought.id])
 
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
 
   const originalText = thought.cleaned_text || thought.content
   const baseDisplayText = isTranslated && translatedText ? translatedText : originalText
-  const displayText = distillationLevel > 0 && distilledText != null && distilledText !== ''
-    ? distilledText
-    : baseDisplayText
+  // Single source of truth: show what Distill/Edit write to (distilled_text) when present, else cleaned/original.
+  // Prefer thought prop first (what DB returned on load), then in-session state, then base.
+  const distilledFromThoughtRaw = getDistilledFromThought(thought)
+  const distilledFromThought = distilledFromThoughtRaw != null && String(distilledFromThoughtRaw).trim() !== ''
+    ? distilledFromThoughtRaw
+    : null
+  const distilledFromState = distillationLevel > 0 && distilledText != null && distilledText !== '' ? distilledText : null
+  const displayText = (distilledFromThought ?? distilledFromState) ?? baseDisplayText
   const timestamp = thought.created_at
     ? new Date(thought.created_at).toLocaleString('en-US', {
         month: 'short',
@@ -160,15 +191,17 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
     const currentDisplay = distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
     if (!currentDisplay?.trim()) return
     setIsDistilling(true)
+    setDistillationForwardStack([]) // branching forward discards the old future
     try {
-      // Push current text onto stack before distilling (enables step-by-step undo). Starting a new branch clears forward history implicitly.
-      setDistillationStack((stack) => [...stack, currentDisplay])
+      const newStack = [...distillationStack, currentDisplay]
+      setDistillationStack(newStack)
       const next = await distillText(currentDisplay, distillationLevel + 1)
-      setDistilledText(next.trim() || currentDisplay)
+      const nextText = next.trim() || currentDisplay
+      setDistilledText(nextText)
       setDistillationLevel((l) => l + 1)
+      onDistillStateChange?.(thought.id, { distilled_text: nextText, distill_history: newStack })
     } catch (err) {
       console.error('Distill failed:', err)
-      // Roll back the push on failure so stack stays consistent
       setDistillationStack((stack) => (stack.length > 0 ? stack.slice(0, -1) : []))
     } finally {
       setIsDistilling(false)
@@ -177,12 +210,31 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
 
   const handleRestoreDistill = () => {
     if (distillationLevel === 0 || distillationStack.length === 0) return
+    const currentDisplay = distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
+    setDistillationForwardStack((fwd) => [...fwd, currentDisplay])
     const prev = distillationStack[distillationStack.length - 1]
     const nextStack = distillationStack.slice(0, -1)
     const newLevel = distillationLevel - 1
     setDistillationStack(nextStack)
     setDistillationLevel(newLevel)
     setDistilledText(newLevel === 0 ? null : prev)
+    onDistillStateChange?.(thought.id, {
+      distilled_text: newLevel === 0 ? null : prev,
+      distill_history: newLevel === 0 ? [] : nextStack,
+    })
+  }
+
+  const handleRedoDistill = () => {
+    if (distillationForwardStack.length === 0) return
+    const currentDisplay = distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
+    const newStack = [...distillationStack, currentDisplay]
+    const next = distillationForwardStack[distillationForwardStack.length - 1]
+    const nextFwd = distillationForwardStack.slice(0, -1)
+    setDistillationStack(newStack)
+    setDistillationForwardStack(nextFwd)
+    setDistillationLevel((l) => l + 1)
+    setDistilledText(next)
+    onDistillStateChange?.(thought.id, { distilled_text: next, distill_history: newStack })
   }
 
   const handleCopy = async () => {
@@ -279,19 +331,35 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         </div>
         <div className="flex items-center gap-2">
           {!isEditingCard && (
-          <Tooltip text="Restore" position="bottom">
+          <>
+          <Tooltip text="Undo" position="bottom">
             <button
               onClick={distillationLevel > 0 && distillationStack.length > 0 ? handleRestoreDistill : undefined}
               disabled={distillationLevel === 0 || distillationStack.length === 0}
               className="transition-colors flex items-center justify-center p-1 disabled:opacity-40 disabled:cursor-default"
-              style={{ color: distillationLevel > 0 && distillationStack.length > 0 ? 'var(--muted-foreground)' : 'var(--muted-foreground)' }}
+              style={{ color: 'var(--muted-foreground)' }}
               onMouseEnter={(e) => { if (distillationLevel > 0 && distillationStack.length > 0) e.currentTarget.style.color = 'var(--ink)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
-              aria-label="Restore to pre-distillation"
+              aria-label="Undo distillation"
             >
               <Undo2 className="w-4 h-4" />
             </button>
           </Tooltip>
+          {distillationForwardStack.length > 0 && (
+          <Tooltip text="Redo" position="bottom">
+            <button
+              onClick={handleRedoDistill}
+              className="transition-colors flex items-center justify-center p-1"
+              style={{ color: 'var(--muted-foreground)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+              aria-label="Redo distillation"
+            >
+              <Redo2 className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          )}
+          </>
           )}
           <div className="relative flex items-center justify-center" ref={menuRef}>
             <button
@@ -314,11 +382,11 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                 }}
               >
-                {onSaveEdit && (
+                {onDistillStateChange && (
                   <button
                     onClick={() => {
                       setShowMenu(false)
-                      setEditedRawText(thought.raw_transcript || thought.content || '')
+                      setEditedRawText(displayText)
                       setIsEditingCard(true)
                     }}
                     className="w-full px-4 py-2.5 text-left text-sm font-serif flex items-center gap-2 transition-colors hover:bg-muted"
@@ -394,19 +462,26 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               backgroundColor: 'transparent',
               minHeight: 200
             }}
-            placeholder="Raw transcript..."
-            aria-label="Edit raw transcript"
+            placeholder="Edit thought text..."
+            aria-label="Edit displayed thought text"
           />
           <div className="flex items-center gap-2 mb-4">
             <button
               type="button"
               onClick={async () => {
                 const text = editedRawText.trim()
-                if (!text || !onSaveEdit) return
+                if (!text || !onDistillStateChange) return
                 setIsSavingEdit(true)
                 try {
-                  await onSaveEdit(thought.id, text)
+                  const currentDisplay = displayText
+                  const newStack = [...distillationStack, currentDisplay]
+                  setDistillationStack(newStack)
+                  setDistilledText(text)
+                  setDistillationLevel((l) => l + 1)
+                  setDistillationForwardStack([])
+                  onDistillStateChange(thought.id, { distilled_text: text, distill_history: newStack })
                   setIsEditingCard(false)
+                  setEditedRawText('')
                 } catch (err) {
                   console.error('Failed to save edit:', err)
                 } finally {

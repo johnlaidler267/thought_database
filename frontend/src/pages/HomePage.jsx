@@ -737,6 +737,29 @@ export default function HomePage() {
     }
   }, [user])
 
+  const handleDistillStateChange = useCallback((thoughtId, { distilled_text, distill_history }) => {
+    setThoughts((prev) =>
+      prev.map((t) =>
+        t.id === thoughtId
+          ? { ...t, distilled_text: distilled_text ?? null, distill_history: Array.isArray(distill_history) ? distill_history : [] }
+          : t
+      )
+    )
+    if (supabase && user) {
+      supabase
+        .from('thoughts')
+        .update({
+          distilled_text: distilled_text ?? null,
+          distill_history: Array.isArray(distill_history) ? distill_history : [],
+        })
+        .eq('id', thoughtId)
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (error) console.error('Failed to persist distill state:', error)
+        })
+    }
+  }, [user])
+
   // Toggle tag in active chips: add if not present, remove if present (case-insensitive)
   const handleTagClick = useCallback((tag) => {
     const normalized = tag.trim()
@@ -1163,6 +1186,7 @@ export default function HomePage() {
                 onDeleteFollowUp={handleDeleteFollowUp}
                 onEditFollowUp={handleEditFollowUp}
                 onSaveEdit={handleReprocessThought}
+                onDistillStateChange={handleDistillStateChange}
               />
             ))
           )}
