@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
 import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
-import { getReflectQuestion } from '../services/api'
+import { getReflectQuestion, distillText } from '../services/api'
 
 // Exact category names for display (backend stores single-word tokens: IDEA, TASK, etc.)
 const THOUGHT_TYPE_DISPLAY_NAMES = {
@@ -42,12 +42,18 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const [editingFollowUpIndex, setEditingFollowUpIndex] = useState(null)
   const [editingFollowUpDraft, setEditingFollowUpDraft] = useState('')
   const editFollowUpTextareaRef = useRef(null)
+  const [distillationLevel, setDistillationLevel] = useState(0)
+  const [distilledText, setDistilledText] = useState(null)
+  const [isDistilling, setIsDistilling] = useState(false)
 
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
 
   const originalText = showRaw ? (thought.raw_transcript || thought.content) : (thought.cleaned_text || thought.content)
-  const displayText = isTranslated && translatedText ? translatedText : originalText
+  const baseDisplayText = isTranslated && translatedText ? translatedText : originalText
+  const displayText = distillationLevel > 0 && distilledText != null && distilledText !== ''
+    ? distilledText
+    : baseDisplayText
   const timestamp = thought.created_at
     ? new Date(thought.created_at).toLocaleString('en-US', {
         month: 'short',
@@ -150,10 +156,30 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
     }
   }
 
+  const handleDistillClick = async () => {
+    if (isDistilling) return
+    const input = distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
+    if (!input?.trim()) return
+    setIsDistilling(true)
+    try {
+      const next = await distillText(input, distillationLevel + 1)
+      setDistilledText(next.trim() || input)
+      setDistillationLevel((l) => l + 1)
+    } catch (err) {
+      console.error('Distill failed:', err)
+    } finally {
+      setIsDistilling(false)
+    }
+  }
+
+  const handleRestoreDistill = () => {
+    setDistillationLevel(0)
+    setDistilledText(null)
+  }
+
   const handleCopy = async () => {
     try {
-      const textToCopy = isTranslated && translatedText ? translatedText : (thought.cleaned_text || thought.content)
-      await navigator.clipboard.writeText(textToCopy)
+      await navigator.clipboard.writeText(displayText)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
@@ -412,6 +438,18 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
         {renderBodyWithUnderlines(displayText)}
       </p>
+      {distillationLevel > 0 && (
+        <button
+          type="button"
+          onClick={handleRestoreDistill}
+          className="text-xs font-serif border-0 bg-transparent cursor-pointer py-0 px-0 -mt-2 mb-4 block"
+          style={{ color: 'var(--muted-foreground)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; e.currentTarget.style.color = 'var(--ink)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; e.currentTarget.style.color = 'var(--muted-foreground)' }}
+        >
+          Restore
+        </button>
+      )}
 
       {thought.tags && thought.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
@@ -753,6 +791,37 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <Sparkles className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+            )}
+          </button>
+        </Tooltip>
+        )}
+
+        {!isEditingCard && (
+        <Tooltip text="Distill" position="bottom">
+          <button
+            type="button"
+            onClick={handleDistillClick}
+            disabled={isDistilling}
+            className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              color: distillationLevel > 0 ? 'rgba(100, 116, 139, 0.95)' : 'var(--muted-foreground)',
+            }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = distillationLevel > 0 ? 'rgba(100, 116, 139, 0.95)' : 'var(--muted-foreground)'
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+            aria-label="Distill thought"
+          >
+            {isDistilling ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <ChevronsDownUp className="w-4 h-4 transition-transform duration-200" />
             )}
           </button>
         </Tooltip>

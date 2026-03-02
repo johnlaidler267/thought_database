@@ -5,6 +5,7 @@ import transcribeRouter from './routes/transcribe.js'
 import cleanRouter from './routes/clean.js'
 import tagsRouter from './routes/tags.js'
 import reflectRouter from './routes/reflect.js'
+import distillRouter from './routes/distill.js'
 import stripeRouter from './routes/stripe.js'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
@@ -51,6 +52,8 @@ app.get('/', (req, res) => {
       'POST /api/transcribe',
       'POST /api/clean',
       'POST /api/tags',
+      'POST /api/reflect',
+      'POST /api/distill',
       'POST /api/stripe/webhook'
     ]
   })
@@ -175,6 +178,7 @@ app.use('/api/transcribe', transcribeRouter)
 app.use('/api/clean', cleanRouter)
 app.use('/api/tags', tagsRouter)
 app.use('/api/reflect', reflectRouter)
+app.use('/api/distill', distillRouter)
 app.use('/api/stripe', stripeRouter)
 
 // Health check
@@ -193,6 +197,7 @@ app.use((req, res) => {
     'POST /api/clean',
     'POST /api/tags',
     'POST /api/reflect',
+    'POST /api/distill',
     'POST /api/stripe/webhook'
   ])
   res.status(404).json({ 
@@ -206,6 +211,7 @@ app.use((req, res) => {
       'POST /api/clean',
       'POST /api/tags',
       'POST /api/reflect',
+      'POST /api/distill',
       'POST /api/stripe/webhook'
     ]
   })
@@ -221,6 +227,7 @@ app.listen(PORT, () => {
   console.log(`  POST /api/clean`)
   console.log(`  POST /api/tags`)
   console.log(`  POST /api/reflect`)
+  console.log(`  POST /api/distill`)
   console.log(`  POST /api/stripe/webhook`)
 })
 

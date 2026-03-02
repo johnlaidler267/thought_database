@@ -196,3 +196,23 @@ export async function getReflectQuestion(thoughtText, followUps = []) {
     throw new Error('Failed to get reflection question.')
   }
 }
+
+/**
+ * Distill thought text to a shorter version. Level 1 = light tighten, 2 = 2–3 sentences, 3 = one sentence, 4+ = phrase/title.
+ * @param {string} text - Current displayed text to condense
+ * @param {number} level - Distillation step (1, 2, 3, 4+)
+ * @returns {Promise<string>} Distilled text
+ */
+export async function distillText(text, level) {
+  const response = await fetch(`${API_URL}/distill`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text || '', level: Math.max(1, parseInt(level, 10) || 1) }),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${response.status}`)
+  }
+  const data = await response.json()
+  return data.distilled_text ?? text ?? ''
+}
