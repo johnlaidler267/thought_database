@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp, Undo2 } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
-import { TbWand, TbWandOff } from 'react-icons/tb'
 import { translateText } from '../services/translation'
 import { getReflectQuestion, distillText } from '../services/api'
 
@@ -22,7 +21,6 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
 }
 
 function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, activeTags }) {
-  const [showRaw, setShowRaw] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
@@ -49,7 +47,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
 
-  const originalText = showRaw ? (thought.raw_transcript || thought.content) : (thought.cleaned_text || thought.content)
+  const originalText = thought.cleaned_text || thought.content
   const baseDisplayText = isTranslated && translatedText ? translatedText : originalText
   const displayText = distillationLevel > 0 && distilledText != null && distilledText !== ''
     ? distilledText
@@ -271,16 +269,17 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         </div>
         <div className="flex items-center gap-2">
           {!isEditingCard && (
-          <Tooltip text={showRaw ? 'View cleaned version' : 'View raw transcript'} position="bottom">
+          <Tooltip text="Restore" position="bottom">
             <button
-              onClick={() => setShowRaw(!showRaw)}
-              className="text-muted-foreground hover:text-ink transition-colors flex items-center justify-center p-1"
-              style={{ color: 'var(--muted-foreground)' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--ink)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
-              aria-label={showRaw ? 'View cleaned version' : 'View raw transcript'}
+              onClick={distillationLevel > 0 ? handleRestoreDistill : undefined}
+              disabled={distillationLevel === 0}
+              className="transition-colors flex items-center justify-center p-1 disabled:opacity-40 disabled:cursor-default"
+              style={{ color: distillationLevel > 0 ? 'var(--muted-foreground)' : 'var(--muted-foreground)' }}
+              onMouseEnter={(e) => { if (distillationLevel > 0) e.currentTarget.style.color = 'var(--ink)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+              aria-label="Restore to pre-distillation"
             >
-              {showRaw ? <TbWand className="w-4 h-4" /> : <TbWandOff className="w-4 h-4" />}
+              <Undo2 className="w-4 h-4" />
             </button>
           </Tooltip>
           )}
@@ -438,18 +437,6 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
         {renderBodyWithUnderlines(displayText)}
       </p>
-      {distillationLevel > 0 && (
-        <button
-          type="button"
-          onClick={handleRestoreDistill}
-          className="text-xs font-serif border-0 bg-transparent cursor-pointer py-0 px-0 -mt-2 mb-4 block"
-          style={{ color: 'var(--muted-foreground)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; e.currentTarget.style.color = 'var(--ink)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; e.currentTarget.style.color = 'var(--muted-foreground)' }}
-        >
-          Restore
-        </button>
-      )}
 
       {thought.tags && thought.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
@@ -802,7 +789,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             type="button"
             onClick={handleDistillClick}
             disabled={isDistilling}
-            className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group"
             style={{
               color: distillationLevel > 0 ? 'rgba(100, 116, 139, 0.95)' : 'var(--muted-foreground)',
             }}
@@ -821,7 +808,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
             {isDistilling ? (
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
-              <ChevronsDownUp className="w-4 h-4 transition-transform duration-200" />
+              <ChevronsDownUp className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
             )}
           </button>
         </Tooltip>

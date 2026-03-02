@@ -10,9 +10,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
-import { transcribeAudio, cleanTranscript, extractTags, warmApiConnection } from '../services/api'
+import { transcribeAudio, warmApiConnection } from '../services/api'
 import { translateText } from '../services/translation'
-import { estimateTranscriptionTokens, estimateTokens, estimateTotalTokens, estimateTypedThoughtTokens } from '../utils/tokenEstimator'
+import { estimateTranscriptionTokens, estimateTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
 import { AI_PROMPTS } from '../constants/thoughtStarters'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
@@ -291,61 +291,20 @@ export default function HomePage() {
       return
     }
 
-    // Enforce free tier token cap before using clean/tag APIs
-    if (profile?.tier === 'trial') {
-      const used = profile?.tokens_used || 0
-      if (used >= FREE_TIER_TOKEN_LIMIT) {
-        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
-        return
-      }
-    }
-
     try {
       setLoading(true)
       const editedTranscript = draftTranscript.trim()
 
-      // Clean transcript
-      let cleanedText
-      try {
-        cleanedText = await cleanTranscript(editedTranscript)
-        
-        if (!cleanedText || cleanedText.trim().length === 0) {
-          cleanedText = editedTranscript
-        }
-      } catch (err) {
-        console.error('Cleaning failed, using edited transcript:', err)
-        cleanedText = editedTranscript
-      }
-
-      // Extract tags, mentions, and thought type
-      let tags = []
-      let mentions = []
-      let thought_type = null
-      try {
-        const result = await extractTags(cleanedText)
-        if (Array.isArray(result)) {
-          tags = result
-        } else {
-          tags = Array.isArray(result?.tags) ? result.tags : []
-          mentions = Array.isArray(result?.mentions) ? result.mentions : []
-          thought_type = result?.thought_type ?? null
-        }
-      } catch (err) {
-        console.warn('Tag extraction failed:', err)
-        tags = []
-      }
-
-      // Save to Supabase
-      // Save category if activeCategory is not "All", otherwise save null
+      // Save as-typed: no AI cleanup or tagging on submission
       const category = activeCategory !== 'All' ? activeCategory : null
-      
+
       const newThought = {
         user_id: user?.id,
         raw_transcript: editedTranscript,
-        cleaned_text: cleanedText,
-        tags: tags,
-        mentions: mentions,
-        thought_type: thought_type,
+        cleaned_text: editedTranscript,
+        tags: [],
+        mentions: [],
+        thought_type: null,
         category: category,
         responding_to: selectedPrompt || null,
         created_at: new Date().toISOString(),
@@ -410,35 +369,7 @@ export default function HomePage() {
           
           console.log('Thought saved successfully:', data)
           setThoughts(prev => [data, ...prev])
-          
-          // Update usage for apprentice and trial tiers (track tokens_used)
-          // Transcription was already charged when the transcript was received; here we only charge cleaning + tagging
-          if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
-            try {
-              // For both recorded and typed thoughts: only cleaning + tagging (transcription charged on receipt of transcript)
-              const tokensUsed = estimateTypedThoughtTokens(editedTranscript, cleanedText, tags)
-              
-              if (tokensUsed > 0) {
-                // Increment tokens_used
-                const { error: updateError } = await supabase
-                  .from('profiles')
-                  .update({ 
-                    tokens_used: (profile.tokens_used || 0) + tokensUsed 
-                  })
-                  .eq('id', user.id)
-                
-                if (updateError) {
-                  console.warn('Failed to update usage:', updateError)
-                } else {
-                  // Refresh profile to show updated usage
-                  refreshProfile().catch(err => console.warn('Failed to refresh profile:', err))
-                }
-              }
-            } catch (updateErr) {
-              console.warn('Error updating usage:', updateErr)
-            }
-          }
-          
+
           // Reset recording flag
           isFromRecordingRef.current = false
         } catch (err) {
@@ -773,34 +704,7 @@ export default function HomePage() {
   const handleReprocessThought = useCallback(async (thoughtId, newRawTranscript) => {
     if (!newRawTranscript?.trim() || !user) return
 
-    if (profile?.tier === 'trial') {
-      const used = profile?.tokens_used || 0
-      if (used >= FREE_TIER_TOKEN_LIMIT) {
-        throw new Error(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more.`)
-      }
-    }
-
     const editedTranscript = newRawTranscript.trim()
-    let cleanedText
-    try {
-      cleanedText = await cleanTranscript(editedTranscript)
-      if (!cleanedText || cleanedText.trim().length === 0) cleanedText = editedTranscript
-    } catch (err) {
-      console.error('Cleaning failed:', err)
-      cleanedText = editedTranscript
-    }
-
-    let tags = []
-    let mentions = []
-    let thought_type = null
-    try {
-      const result = await extractTags(cleanedText)
-      tags = Array.isArray(result?.tags) ? result.tags : []
-      mentions = Array.isArray(result?.mentions) ? result.mentions : []
-      thought_type = result?.thought_type ?? null
-    } catch (err) {
-      console.warn('Tag extraction failed:', err)
-    }
 
     setThoughts((prev) =>
       prev.map((t) =>
@@ -808,10 +712,10 @@ export default function HomePage() {
           ? {
               ...t,
               raw_transcript: editedTranscript,
-              cleaned_text: cleanedText,
-              tags,
-              mentions,
-              thought_type,
+              cleaned_text: editedTranscript,
+              tags: [],
+              mentions: [],
+              thought_type: null,
             }
           : t
       )
@@ -822,31 +726,16 @@ export default function HomePage() {
         .from('thoughts')
         .update({
           raw_transcript: editedTranscript,
-          cleaned_text: cleanedText,
-          tags,
-          mentions,
-          thought_type,
+          cleaned_text: editedTranscript,
+          tags: [],
+          mentions: [],
+          thought_type: null,
         })
         .eq('id', thoughtId)
         .eq('user_id', user.id)
       if (error) throw error
     }
-
-    if ((profile?.tier === 'apprentice' || profile?.tier === 'trial') && supabase && user) {
-      try {
-        const tokensUsed = estimateTypedThoughtTokens(editedTranscript, cleanedText, tags)
-        if (tokensUsed > 0) {
-          await supabase
-            .from('profiles')
-            .update({ tokens_used: (profile.tokens_used || 0) + tokensUsed })
-            .eq('id', user.id)
-          refreshProfile?.()
-        }
-      } catch (e) {
-        console.warn('Failed to update usage:', e)
-      }
-    }
-  }, [user, profile, refreshProfile])
+  }, [user])
 
   // Toggle tag in active chips: add if not present, remove if present (case-insensitive)
   const handleTagClick = useCallback((tag) => {
