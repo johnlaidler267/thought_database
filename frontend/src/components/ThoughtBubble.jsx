@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import CopyButton from './CopyButton'
 import { translateText } from '../services/translation'
 
-export default function ThoughtBubble({ thought, onDelete }) {
+export default function ThoughtBubble({ thought, onDelete, suggestedTags = [], onConfirmSuggestedTag }) {
   const [showRaw, setShowRaw] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
   const [translatedText, setTranslatedText] = useState('')
@@ -84,16 +84,36 @@ export default function ThoughtBubble({ thought, onDelete }) {
 
   return (
     <div className="thought-bubble fade-in-up">
-      {/* Tags */}
-      {thought.tags && thought.tags.length > 0 && (
-        <div className="mb-5">
-          {thought.tags.map((tag, index) => (
-            <span key={index} className="tag">
-              #{tag}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Tags: confirmed and suggested in one row */}
+      {(() => {
+        const confirmed = thought.tags && thought.tags.length > 0 ? thought.tags : []
+        const confirmedSet = new Set(confirmed.map((t) => String(t).toLowerCase()))
+        const suggestedToShow = Array.isArray(suggestedTags) && onConfirmSuggestedTag
+          ? suggestedTags.filter((t) => !confirmedSet.has(String(t).toLowerCase()))
+          : []
+        const hasAny = confirmed.length > 0 || suggestedToShow.length > 0
+        if (!hasAny) return null
+        return (
+          <div className="mb-5 flex flex-wrap items-baseline gap-2">
+            {confirmed.map((tag, index) => (
+              <span key={index} className="tag">
+                #{tag}
+              </span>
+            ))}
+            {suggestedToShow.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={(e) => { e.preventDefault(); onConfirmSuggestedTag(thought.id, tag) }}
+                className="py-0.5 px-2 text-xs tracking-wide rounded cursor-pointer text-white/55 hover:text-white/75 transition-colors"
+                aria-label={`Add tag ${tag}`}
+              >
+                + {tag}
+              </button>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Content */}
       <div 

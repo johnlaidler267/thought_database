@@ -14,11 +14,13 @@ const taggingService = new TaggingService({
 
 router.post('/', async (req, res) => {
   try {
-    const { text } = req.body
+    const { text, existingTagVocabulary } = req.body
 
     if (!text) {
       return res.status(400).json({ error: 'No text provided' })
     }
+
+    const vocabulary = Array.isArray(existingTagVocabulary) ? existingTagVocabulary : []
 
     // If service is not configured, return empty tags and mentions (graceful degradation)
     if (!taggingService.isConfigured()) {
@@ -26,8 +28,8 @@ router.post('/', async (req, res) => {
       return res.json({ tags: [], mentions: [], thought_type: null })
     }
 
-    // Extract tags, mentions, and thought_type using Llama via Groq
-    const result = await taggingService.extractTags(text)
+    // Extract tags (suggestions from shared vocabulary), mentions, and thought_type using Llama via Groq
+    const result = await taggingService.extractTags(text, vocabulary)
     const tags = Array.isArray(result.tags) ? result.tags : []
     const mentions = Array.isArray(result.mentions) ? result.mentions : []
     const thought_type = result.thought_type ?? null

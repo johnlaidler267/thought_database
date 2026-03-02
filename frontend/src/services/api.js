@@ -140,14 +140,21 @@ export async function cleanTranscript(rawTranscript) {
   }
 }
 
-export async function extractTags(cleanedText) {
+/**
+ * Get suggested tags (and mentions, thought_type) for text using the user's existing tag vocabulary.
+ * Tags are suggestions only; pass confirmed tags from all thoughts as existingTagVocabulary so the model reuses them.
+ * @param {string} cleanedText - Text to analyze
+ * @param {string[]} [existingTagVocabulary] - User's confirmed tags from all thoughts (reused when possible)
+ */
+export async function extractTags(cleanedText, existingTagVocabulary = []) {
   try {
+    const vocabulary = Array.isArray(existingTagVocabulary) ? existingTagVocabulary : []
     const response = await fetch(`${API_URL}/tags`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text: cleanedText }),
+      body: JSON.stringify({ text: cleanedText, existingTagVocabulary: vocabulary }),
     })
 
     if (!response.ok) {

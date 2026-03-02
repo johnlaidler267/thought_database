@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { supabase } from '../services/supabase'
-import { transcribeAudio, warmApiConnection } from '../services/api'
+import { transcribeAudio, warmApiConnection, extractTags } from '../services/api'
 import { translateText } from '../services/translation'
 import { estimateTranscriptionTokens, estimateTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
@@ -38,6 +38,7 @@ export default function HomePage() {
   const [categoryToDelete, setCategoryToDelete] = useState(null)
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const [followUpToDelete, setFollowUpToDelete] = useState(null) // { thoughtId, index }
+  const [suggestedTagsByThoughtId, setSuggestedTagsByThoughtId] = useState({})
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -370,6 +371,39 @@ export default function HomePage() {
           console.log('Thought saved successfully:', data)
           setThoughts(prev => [data, ...prev])
 
+          // Suggest tags and extract mentions/thought_type in background; update thought when result returns
+          const vocabulary = [...new Set(thoughts.flatMap((t) => t.tags || []).filter(Boolean))]
+          extractTags(editedTranscript, vocabulary)
+            .then((result) => {
+              const suggested = Array.isArray(result?.tags) ? result.tags : []
+              const mentions = Array.isArray(result?.mentions) ? result.mentions : []
+              const thought_type = result?.thought_type ?? null
+              if (suggested.length > 0) {
+                setSuggestedTagsByThoughtId((prev) => ({ ...prev, [data.id]: suggested }))
+              }
+              if (mentions.length > 0 || thought_type) {
+                setThoughts((prev) =>
+                  prev.map((t) =>
+                    t.id === data.id
+                      ? { ...t, mentions: mentions.length > 0 ? mentions : t.mentions, thought_type: thought_type || t.thought_type }
+                      : t
+                  )
+                )
+                const payload = {}
+                if (mentions.length > 0) payload.mentions = mentions
+                if (thought_type) payload.thought_type = thought_type
+                if (Object.keys(payload).length > 0) {
+                  supabase
+                    .from('thoughts')
+                    .update(payload)
+                    .eq('id', data.id)
+                    .eq('user_id', user.id)
+                    .then(({ error }) => { if (error) console.error('Failed to save mentions/thought_type:', error) })
+                }
+              }
+            })
+            .catch(() => {})
+
           // Reset recording flag
           isFromRecordingRef.current = false
         } catch (err) {
@@ -602,12 +636,53 @@ export default function HomePage() {
     }
 
     setThoughts(prev => prev.filter(thought => thought.id !== thoughtToDelete))
+    setSuggestedTagsByThoughtId((prev) => {
+      const next = { ...prev }
+      delete next[thoughtToDelete]
+      return next
+    })
     setThoughtToDelete(null)
   }
 
   const cancelDeleteThought = () => {
     setThoughtToDelete(null)
   }
+
+  const handleConfirmSuggestedTag = useCallback(async (thoughtId, tag) => {
+    if (!tag?.trim() || thoughtId == null) return
+    const idStr = String(thoughtId)
+    let newTags
+    setThoughts((prev) => {
+      const thought = prev.find((t) => String(t.id) === idStr)
+      if (!thought) return prev
+      const existingTags = Array.isArray(thought.tags) ? thought.tags : []
+      if (existingTags.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())) return prev
+      newTags = [...existingTags, tag.trim()]
+      return prev.map((t) => (String(t.id) === idStr ? { ...t, tags: newTags } : t))
+    })
+    if (newTags === undefined) return
+
+    setSuggestedTagsByThoughtId((prev) => {
+      const list = prev[thoughtId] || []
+      const next = list.filter((t) => String(t).toLowerCase() !== String(tag).toLowerCase())
+      const nextState = { ...prev, [thoughtId]: next }
+      if (next.length === 0) delete nextState[thoughtId]
+      return nextState
+    })
+
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .update({ tags: newTags })
+          .eq('id', idStr)
+          .eq('user_id', user.id)
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to save tag:', err)
+      }
+    }
+  }, [user])
 
   const handleAddFollowUp = useCallback(async (thoughtId, text, meta) => {
     if (!text?.trim() || !user) return
@@ -1187,6 +1262,8 @@ export default function HomePage() {
                 onEditFollowUp={handleEditFollowUp}
                 onSaveEdit={handleReprocessThought}
                 onDistillStateChange={handleDistillStateChange}
+                suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
+                onConfirmSuggestedTag={handleConfirmSuggestedTag}
               />
             ))
           )}

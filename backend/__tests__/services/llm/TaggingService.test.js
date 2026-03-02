@@ -41,18 +41,33 @@ describe('TaggingService', () => {
       delete process.env.GROQ_API_KEY
     })
 
-    it('should have semantic tagging prompt', () => {
-      expect(service.prompt).toContain('semantic tagging engine')
-      expect(service.prompt).toContain('{{TEXT}}')
-      expect(service.prompt).toContain('Output 3–5 tags')
-      expect(service.prompt).toContain('NAMES:')
+    it('should have semantic tagging prompt with vocabulary block and text placeholder', () => {
+      expect(service.basePrompt).toContain('semantic tagging engine')
+      expect(service.basePrompt).toContain('{{TEXT}}')
+      expect(service.basePrompt).toContain('{{EXISTING_TAGS_BLOCK}}')
+      expect(service.basePrompt).toContain('Assign 2–4 tags')
+      expect(service.basePrompt).toContain('NAMES:')
+    })
+  })
+
+  describe('buildExistingTagsBlock', () => {
+    it('should return instruction for empty vocabulary', () => {
+      const block = service.buildExistingTagsBlock([])
+      expect(block).toContain('(none yet)')
+      expect(block).toContain('Suggest 2–4 new broad')
+    })
+
+    it('should include provided tags in vocabulary', () => {
+      const block = service.buildExistingTagsBlock(['work', 'relationships'])
+      expect(block).toContain('work')
+      expect(block).toContain('relationships')
     })
   })
 
   describe('extractTags', () => {
-    it('should extract tags, mentions, and thought_type from response', async () => {
+    it('should extract tags, mentions, and thought_type from JSON + NAMES + TYPE response', async () => {
       const text = 'I need to call Sarah tomorrow about the meeting'
-      mockProvider.complete.mockResolvedValue('TAGS: #task #planning #reminder\nNAMES: Sarah\nTYPE: TASK')
+      mockProvider.complete.mockResolvedValue('["task", "planning", "reminder"]\nNAMES: Sarah\nTYPE: TASK')
 
       const result = await service.extractTags(text)
 
@@ -67,6 +82,17 @@ describe('TaggingService', () => {
       )
     })
 
+    it('should inject existing tag vocabulary into prompt when provided', async () => {
+      mockProvider.complete.mockResolvedValue('["work", "basketball"]\nNAMES:\nTYPE: IDEA')
+      await service.extractTags('Some text', ['work', 'relationships', 'basketball'])
+
+      const callArg = mockProvider.complete.mock.calls[0][0]
+      expect(callArg).toContain('work')
+      expect(callArg).toContain('relationships')
+      expect(callArg).toContain('basketball')
+      expect(callArg).toContain('Existing tag vocabulary')
+    })
+
     it('should return empty tags, mentions, and null thought_type if input is empty', async () => {
       const result = await service.extractTags('')
       expect(result).toEqual({ tags: [], mentions: [], thought_type: null })
@@ -79,8 +105,8 @@ describe('TaggingService', () => {
       expect(mockProvider.complete).not.toHaveBeenCalled()
     })
 
-    it('should parse TAGS line with #tag format', async () => {
-      mockProvider.complete.mockResolvedValue('Here are the tags:\nTAGS: #perception #mindfulness #frameworks\nNAMES:\nTYPE: REFLECTION')
+    it('should parse JSON array on first line', async () => {
+      mockProvider.complete.mockResolvedValue('["perception", "mindfulness", "frameworks"]\nNAMES:\nTYPE: REFLECTION')
 
       const result = await service.extractTags('Some text')
 
@@ -89,8 +115,8 @@ describe('TaggingService', () => {
       expect(result.thought_type).toBe('REFLECTION')
     })
 
-    it('should parse multi-word tags', async () => {
-      mockProvider.complete.mockResolvedValue('TAGS: #self image #identity #confidence\nNAMES:\nTYPE: REFLECTION')
+    it('should parse multi-word tags from JSON', async () => {
+      mockProvider.complete.mockResolvedValue('["self image", "identity", "confidence"]\nNAMES:\nTYPE: REFLECTION')
 
       const result = await service.extractTags('Some text')
 
@@ -98,7 +124,7 @@ describe('TaggingService', () => {
     })
 
     it('should normalize tags to lowercase and dedupe', async () => {
-      mockProvider.complete.mockResolvedValue('TAGS: #Creativity #creativity #CREATIVITY #psychology\nNAMES:')
+      mockProvider.complete.mockResolvedValue('["Creativity", "creativity", "CREATIVITY", "psychology"]\nNAMES:')
 
       const result = await service.extractTags('Some text')
 
@@ -106,14 +132,14 @@ describe('TaggingService', () => {
     })
 
     it('should cap at 5 tags', async () => {
-      mockProvider.complete.mockResolvedValue('TAGS: #a #b #c #d #e #f #g\nNAMES:')
+      mockProvider.complete.mockResolvedValue('["a", "b", "c", "d", "e", "f", "g"]\nNAMES:')
 
       const result = await service.extractTags('Some text')
 
       expect(result.tags).toEqual(['a', 'b', 'c', 'd', 'e'])
     })
 
-    it('should return empty tags when response has no #tags', async () => {
+    it('should return empty tags when first line has no JSON array', async () => {
       mockProvider.complete.mockResolvedValue('No tags found for this text.')
 
       const result = await service.extractTags('Some text')
@@ -124,7 +150,7 @@ describe('TaggingService', () => {
     })
 
     it('should parse NAMES line', async () => {
-      mockProvider.complete.mockResolvedValue('TAGS: #meeting\nNAMES: Alice Smith, Bob Jones\nTYPE: TASK')
+      mockProvider.complete.mockResolvedValue('["meeting"]\nNAMES: Alice Smith, Bob Jones\nTYPE: TASK')
 
       const result = await service.extractTags('Some text')
 
@@ -134,14 +160,14 @@ describe('TaggingService', () => {
     })
 
     it('should parse TYPE line and accept only valid values', async () => {
-      mockProvider.complete.mockResolvedValue('TAGS: #idea\nNAMES:\nTYPE: IDEA')
+      mockProvider.complete.mockResolvedValue('["idea"]\nNAMES:\nTYPE: IDEA')
 
       const result = await service.extractTags('Some text')
 
       expect(result.thought_type).toBe('IDEA')
     })
 
-    it('should handle response with no # prefix gracefully', async () => {
+    it('should handle response with no JSON array on first line', async () => {
       mockProvider.complete.mockResolvedValue('perception mindfulness frameworks\nNAMES:')
 
       const result = await service.extractTags('Some text')

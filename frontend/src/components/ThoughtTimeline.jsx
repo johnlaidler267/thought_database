@@ -1,6 +1,6 @@
 import ThoughtBubble from './ThoughtBubble'
 
-export default function ThoughtTimeline({ thoughts, onDelete }) {
+export default function ThoughtTimeline({ thoughts, onDelete, suggestedTagsByThoughtId = {}, onConfirmSuggestedTag }) {
   if (!thoughts || thoughts.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-white/70">
@@ -17,7 +17,13 @@ export default function ThoughtTimeline({ thoughts, onDelete }) {
   return (
     <div className="pb-24">
       {sortedThoughts.map((thought) => (
-        <ThoughtBubble key={thought.id} thought={thought} onDelete={onDelete} />
+        <ThoughtBubble
+          key={thought.id}
+          thought={thought}
+          onDelete={onDelete}
+          suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
+          onConfirmSuggestedTag={onConfirmSuggestedTag}
+        />
       ))}
     </div>
   )

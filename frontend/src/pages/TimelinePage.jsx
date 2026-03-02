@@ -16,6 +16,7 @@ export default function TimelinePage() {
   const [thoughts, setThoughts] = useState([])
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const [showSignOutModal, setShowSignOutModal] = useState(false)
+  const [suggestedTagsByThoughtId, setSuggestedTagsByThoughtId] = useState({})
   const [loading, setLoading] = useState(false)
   const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
@@ -97,12 +98,53 @@ export default function TimelinePage() {
     }
 
     setThoughts(prev => prev.filter(thought => thought.id !== thoughtToDelete))
+    setSuggestedTagsByThoughtId((prev) => {
+      const next = { ...prev }
+      delete next[thoughtToDelete]
+      return next
+    })
     setThoughtToDelete(null)
   }
 
   const cancelDeleteThought = () => {
     setThoughtToDelete(null)
   }
+
+  const handleConfirmSuggestedTag = useCallback(async (thoughtId, tag) => {
+    if (!tag?.trim() || thoughtId == null) return
+    const idStr = String(thoughtId)
+    let newTags
+    setThoughts((prev) => {
+      const thought = prev.find((t) => String(t.id) === idStr)
+      if (!thought) return prev
+      const existingTags = Array.isArray(thought.tags) ? thought.tags : []
+      if (existingTags.some((t) => String(t).toLowerCase() === String(tag).toLowerCase())) return prev
+      newTags = [...existingTags, tag.trim()]
+      return prev.map((t) => (String(t.id) === idStr ? { ...t, tags: newTags } : t))
+    })
+    if (newTags === undefined) return
+
+    setSuggestedTagsByThoughtId((prev) => {
+      const list = prev[thoughtId] || []
+      const next = list.filter((t) => String(t).toLowerCase() !== String(tag).toLowerCase())
+      const nextState = { ...prev, [thoughtId]: next }
+      if (next.length === 0) delete nextState[thoughtId]
+      return nextState
+    })
+
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('thoughts')
+          .update({ tags: newTags })
+          .eq('id', idStr)
+          .eq('user_id', user.id)
+        if (error) throw error
+      } catch (err) {
+        console.error('Failed to save tag:', err)
+      }
+    }
+  }, [user])
 
   // Shared function to process audio blob (used by both manual stop and auto-stop)
   const processAudioBlob = useCallback(async (audioBlob, isAutoStop = false) => {
@@ -194,30 +236,26 @@ export default function TimelinePage() {
         cleanedText = editedTranscript
       }
 
-      // Extract tags, mentions, and thought type
-      let tags = []
+      // Get tag suggestions, mentions, and thought_type (single LLM call with vocabulary)
+      const vocabulary = [...new Set(thoughts.flatMap((t) => t.tags || []).filter(Boolean))]
       let mentions = []
       let thought_type = null
+      let suggestedTags = []
       try {
-        const result = await extractTags(cleanedText)
-        if (Array.isArray(result)) {
-          tags = result
-        } else {
-          tags = Array.isArray(result?.tags) ? result.tags : []
-          mentions = Array.isArray(result?.mentions) ? result.mentions : []
-          thought_type = result?.thought_type ?? null
-        }
+        const result = await extractTags(cleanedText, vocabulary)
+        suggestedTags = Array.isArray(result?.tags) ? result.tags : []
+        mentions = Array.isArray(result?.mentions) ? result.mentions : []
+        thought_type = result?.thought_type ?? null
       } catch (err) {
         console.warn('Tag extraction failed:', err)
-        tags = []
       }
 
-      // Save to Supabase
+      // Save to Supabase with tags: [] (suggestions shown on card; user confirms to persist)
       const newThought = {
         user_id: user.id,
         raw_transcript: editedTranscript,
         cleaned_text: cleanedText,
-        tags: tags,
+        tags: [],
         mentions: mentions,
         thought_type: thought_type,
         created_at: new Date().toISOString(),
@@ -233,6 +271,9 @@ export default function TimelinePage() {
 
           if (error) throw error
           setThoughts(prev => [data, ...prev])
+          if (suggestedTags.length > 0) {
+            setSuggestedTagsByThoughtId((prev) => ({ ...prev, [data.id]: suggestedTags }))
+          }
         } catch (err) {
           console.error('Failed to save to Supabase:', err)
           const mockThought = {
@@ -320,7 +361,12 @@ export default function TimelinePage() {
           </div>
         )}
 
-        <ThoughtTimeline thoughts={thoughts} onDelete={handleDeleteThought} />
+        <ThoughtTimeline
+          thoughts={thoughts}
+          onDelete={handleDeleteThought}
+          suggestedTagsByThoughtId={suggestedTagsByThoughtId}
+          onConfirmSuggestedTag={handleConfirmSuggestedTag}
+        />
       </main>
 
       {/* Transcript Editor - Fixed at bottom */}

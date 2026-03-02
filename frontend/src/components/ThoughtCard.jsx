@@ -20,7 +20,7 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, onDistillStateChange, activeTags }) {
+function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, onDistillStateChange, activeTags, suggestedTags = [], onConfirmSuggestedTag }) {
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
@@ -523,51 +523,72 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         {renderBodyWithUnderlines(displayText)}
       </p>
 
-      {thought.tags && thought.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {thought.tags.map((tag) => {
-            const isTagActive = Boolean(
-              onTagClick &&
-              Array.isArray(activeTags) &&
-              activeTags.some((t) => String(t).trim().toLowerCase() === tag.toLowerCase())
-            )
-            return onTagClick ? (
+      {(() => {
+        const confirmed = thought.tags && thought.tags.length > 0 ? thought.tags : []
+        const confirmedSet = new Set(confirmed.map((t) => String(t).toLowerCase()))
+        const suggestedToShow = Array.isArray(suggestedTags) && onConfirmSuggestedTag
+          ? suggestedTags.filter((t) => !confirmedSet.has(String(t).toLowerCase()))
+          : []
+        const hasAny = confirmed.length > 0 || suggestedToShow.length > 0
+        if (!hasAny) return null
+        return (
+          <div className="flex flex-wrap gap-2 mb-4 items-baseline">
+            {confirmed.map((tag) => {
+              const isTagActive = Boolean(
+                onTagClick &&
+                Array.isArray(activeTags) &&
+                activeTags.some((t) => String(t).trim().toLowerCase() === tag.toLowerCase())
+              )
+              return onTagClick ? (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); onTagClick(tag) }}
+                  className="relative overflow-hidden px-2 py-1 text-xs font-serif leading-tight border border-stroke rounded text-muted-foreground cursor-pointer transition-colors hover:border-ink hover:text-ink inline-block align-baseline min-h-0"
+                  style={{
+                    borderColor: 'var(--stroke)',
+                    color: 'var(--muted-foreground)'
+                  }}
+                >
+                  <span
+                    className="absolute inset-0 rounded transition duration-200"
+                    style={{
+                      backgroundColor: 'var(--muted)',
+                      filter: isTagActive ? 'brightness(0.85)' : 'none'
+                    }}
+                    aria-hidden
+                  />
+                  <span className="relative z-10">{tag}</span>
+                </button>
+              ) : (
+                <span
+                  key={tag}
+                  className="px-2 py-1 text-xs font-serif leading-tight border border-stroke rounded bg-muted/50 text-muted-foreground"
+                  style={{
+                    borderColor: 'var(--stroke)',
+                    backgroundColor: 'var(--muted)',
+                    color: 'var(--muted-foreground)'
+                  }}
+                >
+                  {tag}
+                </span>
+              )
+            })}
+            {suggestedToShow.map((tag) => (
               <button
                 key={tag}
                 type="button"
-                onClick={(e) => { e.preventDefault(); onTagClick(tag) }}
-                className="relative overflow-hidden px-2 py-1 text-xs font-serif leading-tight border border-stroke rounded text-muted-foreground cursor-pointer transition-colors hover:border-ink hover:text-ink inline-block align-baseline min-h-0"
-                style={{
-                  borderColor: 'var(--stroke)',
-                  color: 'var(--muted-foreground)'
-                }}
+                onClick={(e) => { e.preventDefault(); onConfirmSuggestedTag(thought.id, tag) }}
+                className="py-0.5 px-2 text-xs font-serif leading-tight rounded cursor-pointer transition-colors hover:opacity-80 tracking-wide"
+                style={{ color: 'var(--muted-foreground)' }}
+                aria-label={`Add tag ${tag}`}
               >
-                <span
-                  className="absolute inset-0 rounded transition duration-200"
-                  style={{
-                    backgroundColor: 'var(--muted)',
-                    filter: isTagActive ? 'brightness(0.85)' : 'none'
-                  }}
-                  aria-hidden
-                />
-                <span className="relative z-10">{tag}</span>
+                + {tag}
               </button>
-            ) : (
-              <span
-                key={tag}
-                className="px-2 py-1 text-xs font-serif leading-tight border border-stroke rounded bg-muted/50 text-muted-foreground"
-                style={{
-                  borderColor: 'var(--stroke)',
-                  backgroundColor: 'var(--muted)',
-                  color: 'var(--muted-foreground)'
-                }}
-              >
-                {tag}
-              </span>
-            )
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )
+      })()}
 
       {(mentionList.length > 0 || thoughtTypeLabel || (thought.category && thought.category.trim())) && (
         <div className="flex items-center gap-2 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>

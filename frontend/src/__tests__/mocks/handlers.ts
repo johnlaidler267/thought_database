@@ -29,9 +29,9 @@ export const handlers = [
     })
   }),
 
-  // Extract tags endpoint (returns tags, mentions, thought_type)
+  // Extract tags endpoint (returns tags, mentions, thought_type; accepts optional existingTagVocabulary)
   http.post(`${API_URL}/tags`, async ({ request }) => {
-    const body = await request.json() as { text: string }
+    const body = await request.json() as { text: string; existingTagVocabulary?: string[] }
     const tags = body.text.match(/#\w+/g) || []
     return HttpResponse.json({
       tags: tags.map(tag => tag.substring(1)),
