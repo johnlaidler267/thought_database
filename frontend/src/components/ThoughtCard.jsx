@@ -7,6 +7,7 @@ import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
 import { translateText } from '../services/translation'
 import { getReflectQuestion, distillText } from '../services/api'
+import ClarifierPrompt from './ClarifierPrompt'
 
 // Exact category names for display (backend stores single-word tokens: IDEA, TASK, etc.)
 const THOUGHT_TYPE_DISPLAY_NAMES = {
@@ -21,7 +22,32 @@ const THOUGHT_TYPE_DISPLAY_NAMES = {
   PLAN: 'Plans',
 }
 
-function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAddFollowUp, onDeleteFollowUp, onEditFollowUp, onSaveEdit, onDistillStateChange, activeTags, suggestedTags = [], onConfirmSuggestedTag }) {
+function ThoughtCardInner({
+  thought,
+  onDelete,
+  onOpenAiPrompts,
+  onTagClick,
+  onAddFollowUp,
+  onDeleteFollowUp,
+  onEditFollowUp,
+  onSaveEdit,
+  onDistillStateChange,
+  activeTags,
+  suggestedTags = [],
+  onConfirmSuggestedTag,
+  linkedPeople = [],
+  onPersonClick,
+  clarifierForPersonId,
+  clarifierForThoughtId,
+  onClarifierSubmit,
+  onClarifierDismiss,
+  confirmationList = [],
+  onConfirmationChoose,
+  clarifierForNewPerson = null,
+  onNewPersonClarifierComplete,
+  disambiguationList = [],
+  onDisambiguationChoose,
+}) {
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
@@ -591,7 +617,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         )
       })()}
 
-      {(mentionList.length > 0 || thoughtTypeLabel || (thought.category && thought.category.trim())) && (
+      {(mentionList.length > 0 || linkedPeople.length > 0 || thoughtTypeLabel || (thought.category && thought.category.trim())) && (
         <div className="flex items-center gap-2 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>
           {thought.category && thought.category.trim() && (
             <div className="flex items-center gap-1.5">
@@ -612,27 +638,148 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
               </span>
             </div>
           )}
-          {(thoughtTypeLabel || (thought.category && thought.category.trim())) && mentionList.length > 0 && (
+          {(thoughtTypeLabel || (thought.category && thought.category.trim())) && (mentionList.length > 0 || linkedPeople.length > 0) && (
             <span className="w-px h-3 bg-stroke shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
           )}
-          {mentionList.length > 0 && (
+          {(linkedPeople.length > 0 || mentionList.length > 0) && (
             <div className="flex items-center gap-1.5">
               <User className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
               <div className="flex flex-wrap gap-1.5">
-                {mentionList.map((name) => (
-                  <span
-                    key={String(name)}
-                    className="text-xs font-serif text-muted-foreground"
-                    style={{ color: 'var(--muted-foreground)' }}
-                  >
-                    {name}
-                  </span>
-                ))}
+                {linkedPeople.length > 0
+                  ? linkedPeople.map((p) => (
+                      <button
+                        key={p.person_id}
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); onPersonClick?.(p.person_id) }}
+                        className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors"
+                        style={{ color: 'var(--muted-foreground)' }}
+                      >
+                        {p.display_name}{p.clarifier ? ` (${p.clarifier})` : ''}
+                      </button>
+                    ))
+                  : mentionList.map((name) => (
+                      <span
+                        key={String(name)}
+                        className="text-xs font-serif text-muted-foreground"
+                        style={{ color: 'var(--muted-foreground)' }}
+                      >
+                        {name}
+                      </span>
+                    ))}
               </div>
             </div>
           )}
         </div>
       )}
+
+      {clarifierForThoughtId === thought.id && clarifierForPersonId && linkedPeople.some((p) => p.person_id === clarifierForPersonId) && onClarifierSubmit && onClarifierDismiss && (
+        <div className="mt-2 mb-2">
+          <ClarifierPrompt
+            displayName={linkedPeople.find((p) => p.person_id === clarifierForPersonId)?.display_name || 'Someone'}
+            onSubmit={(value) => onClarifierSubmit(clarifierForPersonId, value)}
+            onDismiss={onClarifierDismiss}
+          />
+        </div>
+      )}
+
+      {clarifierForNewPerson && onNewPersonClarifierComplete && (
+        <div className="mt-2 mb-2">
+          <ClarifierPrompt
+            displayName={clarifierForNewPerson.name}
+            promptMessage={`Got it — who is this ${clarifierForNewPerson.name}? Add a note to tell them apart (optional).`}
+            onSubmit={(value) => onNewPersonClarifierComplete(thought.id, clarifierForNewPerson.name, value)}
+            onSkip={() => onNewPersonClarifierComplete(thought.id, clarifierForNewPerson.name, null)}
+            onDismiss={() => onNewPersonClarifierComplete(thought.id, clarifierForNewPerson.name, null)}
+          />
+        </div>
+      )}
+
+      {confirmationList.length > 0 && onConfirmationChoose && confirmationList.map((item) => (
+        <div
+          key={item.name}
+          className="mt-2 mb-2 rounded-lg font-serif text-xs flex flex-wrap items-center gap-2"
+          style={{
+            backgroundColor: '#f5f5f5',
+            padding: '8px 12px',
+            borderRadius: 8,
+            color: 'var(--muted-foreground)',
+          }}
+        >
+          <span className="shrink-0" style={{ color: 'var(--ink)' }}>
+            {item.person.clarifier ? `Is this ${item.person.clarifier}?` : `Is this the same ${item.name} you've mentioned before?`}
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onConfirmationChoose(thought.id, item.name, 'yes')}
+              className="px-2 py-1 rounded border font-serif text-xs cursor-pointer hover:opacity-90 transition-opacity"
+              style={{
+                borderColor: 'var(--stroke)',
+                color: 'var(--ink)',
+                backgroundColor: 'var(--card)',
+              }}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirmationChoose(thought.id, item.name, 'no')}
+              className="px-2 py-1 rounded border font-serif text-xs cursor-pointer hover:opacity-90 transition-opacity"
+              style={{
+                borderColor: 'var(--stroke)',
+                color: 'var(--muted-foreground)',
+                backgroundColor: 'transparent',
+              }}
+            >
+              No, different person
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {disambiguationList.length > 0 && onDisambiguationChoose && disambiguationList.map((item) => (
+        <div
+          key={item.name}
+          className="mt-2 mb-2 rounded-lg font-serif text-xs flex flex-wrap items-center gap-2"
+          style={{
+            backgroundColor: '#f5f5f5',
+            padding: '8px 12px',
+            borderRadius: 8,
+            color: 'var(--muted-foreground)',
+          }}
+        >
+          <span className="shrink-0" style={{ color: 'var(--ink)' }}>Which {item.name}?</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {item.people.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onDisambiguationChoose(thought.id, item.name, p.id)}
+                className="px-2 py-1 rounded border font-serif text-xs cursor-pointer hover:opacity-90 transition-opacity"
+                style={{
+                  borderColor: 'var(--stroke)',
+                  color: 'var(--ink)',
+                  backgroundColor: 'var(--card)',
+                }}
+              >
+                {p.display_name}{p.clarifier ? ` (${p.clarifier})` : ''}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => onDisambiguationChoose(thought.id, item.name, 'new')}
+              className="px-2 py-1 rounded border border-dashed font-serif text-xs cursor-pointer hover:opacity-90 transition-opacity"
+              style={{
+                borderColor: 'var(--stroke)',
+                color: 'var(--muted-foreground)',
+                backgroundColor: 'transparent',
+              }}
+            >
+              Someone new
+            </button>
+          </div>
+        </div>
+      ))}
 
       {(() => {
         const followUpsList = thought.follow_ups ?? thought.followUps

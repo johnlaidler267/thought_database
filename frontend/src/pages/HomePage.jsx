@@ -18,6 +18,8 @@ import { AI_PROMPTS } from '../constants/thoughtStarters'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
 import { ThoughtCard } from '../components/ThoughtCard'
 import { ThoughtStartersPopover } from '../components/ThoughtStartersPopover'
+import PersonProfilePanel from '../components/PersonProfilePanel'
+import ClarifierPrompt from '../components/ClarifierPrompt'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
@@ -39,6 +41,14 @@ export default function HomePage() {
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const [followUpToDelete, setFollowUpToDelete] = useState(null) // { thoughtId, index }
   const [suggestedTagsByThoughtId, setSuggestedTagsByThoughtId] = useState({})
+  const [peopleMap, setPeopleMap] = useState({}) // id -> { id, display_name, clarifier }
+  const [thoughtPeople, setThoughtPeople] = useState([]) // { thought_id, person_id }[]
+  const [openPersonId, setOpenPersonId] = useState(null)
+  const [clarifierForPersonId, setClarifierForPersonId] = useState(null)
+  const [clarifierForThoughtId, setClarifierForThoughtId] = useState(null)
+  const [disambiguationPending, setDisambiguationPending] = useState([]) // { thoughtId, name, people: [{ id, display_name, clarifier }] }[]
+  const [confirmationPending, setConfirmationPending] = useState([]) // { thoughtId, name, person: { id, display_name, clarifier } }[]
+  const [clarifierForNewPerson, setClarifierForNewPerson] = useState(null) // { thoughtId, name } when "No, different person" → show inline clarifier
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -131,13 +141,34 @@ export default function HomePage() {
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        if (data) {
-          setThoughts(
-            data.map((t) => ({
-              ...t,
-              follow_ups: Array.isArray(t.follow_ups) ? t.follow_ups : [],
-            }))
-          )
+        const thoughtList = (data || []).map((t) => ({ ...t, follow_ups: Array.isArray(t.follow_ups) ? t.follow_ups : [] }))
+        setThoughts(thoughtList)
+
+        const thoughtIds = (data || []).map((t) => t.id).filter(Boolean)
+        if (thoughtIds.length > 0) {
+          const { data: tpData, error: tpError } = await supabase.from('thought_people').select('thought_id, person_id').in('thought_id', thoughtIds)
+            if (tpError) {
+              setThoughtPeople([])
+              setPeopleMap({})
+            } else {
+              setThoughtPeople(tpData || [])
+              const personIds = [...new Set((tpData || []).map((r) => r.person_id))]
+              if (personIds.length > 0) {
+                const { data: peopleData, error: peopleError } = await supabase.from('people').select('id, display_name, clarifier').in('id', personIds)
+                if (peopleError) {
+                  setPeopleMap({})
+                } else {
+                  const map = {}
+                  ;(peopleData || []).forEach((p) => { map[p.id] = p })
+                  setPeopleMap(map)
+                }
+              } else {
+                setPeopleMap({})
+              }
+            }
+        } else {
+          setThoughtPeople([])
+          setPeopleMap({})
         }
       } catch (err) {
         console.error('Error loading thoughts:', err)
@@ -403,6 +434,22 @@ export default function HomePage() {
                     .eq('user_id', user.id)
                     .then(({ error }) => { if (error) console.error('Failed to save mentions/thought_type:', error) })
                 }
+                if (mentions.length > 0 && supabase && user) {
+                  resolveMentionsToPeople(mentions, dataIdStr, user.id).then(({ newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending: pending, confirmationPending: confirmPending }) => {
+                    if (newThoughtPeople.length) setThoughtPeople((prev) => [...prev, ...newThoughtPeople])
+                    if (Object.keys(newPeopleMap).length) setPeopleMap((prev) => ({ ...prev, ...newPeopleMap }))
+                    if (newPersonIds.length > 0) {
+                      setClarifierForPersonId(newPersonIds[0])
+                      setClarifierForThoughtId(dataIdStr)
+                    }
+                    if (pending && pending.length > 0) {
+                      setDisambiguationPending((prev) => [...prev, ...pending])
+                    }
+                    if (confirmPending && confirmPending.length > 0) {
+                      setConfirmationPending((prev) => [...prev, ...confirmPending])
+                    }
+                  }).catch((err) => console.error('Resolve mentions to people:', err))
+                }
               }
             })
             .catch(() => {})
@@ -651,6 +698,184 @@ export default function HomePage() {
     setThoughtToDelete(null)
   }
 
+  const resolveMentionsToPeople = useCallback(async (mentions, thoughtId, userId) => {
+    if (!supabase || !userId || !thoughtId || !Array.isArray(mentions) || mentions.length === 0) {
+      return { newPersonIds: [], newThoughtPeople: [], newPeopleMap: {}, disambiguationPending: [], confirmationPending: [] }
+    }
+    const normalized = mentions.map((m) => String(m).trim()).filter(Boolean)
+    const uniqueByLower = [...new Map(normalized.map((n) => [n.toLowerCase(), n])).values()]
+
+    const { data: existingPeople } = await supabase.from('people').select('id, display_name, clarifier').eq('user_id', userId)
+    const byLower = {}
+    ;(existingPeople || []).forEach((p) => {
+      const k = (p.display_name || '').trim().toLowerCase()
+      if (!byLower[k]) byLower[k] = []
+      byLower[k].push({ id: p.id, display_name: p.display_name || '', clarifier: p.clarifier || null })
+    })
+
+    const newPeopleMap = {}
+    const newPersonIds = []
+    const personIdsToLink = []
+    const disambiguationPending = []
+    const confirmationPending = []
+
+    for (const name of uniqueByLower) {
+      const key = name.trim().toLowerCase()
+      const matches = byLower[key] || []
+
+      if (matches.length === 0) {
+        const { data: inserted, error } = await supabase.from('people').insert([{ user_id: userId, display_name: name }]).select('id, display_name, clarifier').single()
+        if (error) {
+          if (error.code === '23505') {
+            const { data: list } = await supabase.from('people').select('id, display_name, clarifier').eq('user_id', userId)
+            const recheck = (list || []).filter((p) => (p.display_name || '').trim().toLowerCase() === key)
+            if (recheck.length === 1) {
+              confirmationPending.push({ thoughtId, name, person: { id: recheck[0].id, display_name: recheck[0].display_name || '', clarifier: recheck[0].clarifier || null } })
+              byLower[key] = recheck.map((p) => ({ id: p.id, display_name: p.display_name || '', clarifier: p.clarifier || null }))
+            } else if (recheck.length > 1) {
+              disambiguationPending.push({ thoughtId, name, people: recheck.map((p) => ({ id: p.id, display_name: p.display_name || '', clarifier: p.clarifier || null })) })
+            }
+            continue
+          }
+          console.error('Insert person:', error)
+          continue
+        }
+        newPeopleMap[inserted.id] = { id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier }
+        newPersonIds.push(inserted.id)
+        personIdsToLink.push(inserted.id)
+        byLower[key] = [{ id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier }]
+      } else if (matches.length === 1) {
+        confirmationPending.push({ thoughtId, name, person: matches[0] })
+      } else {
+        disambiguationPending.push({ thoughtId, name, people: matches })
+      }
+    }
+
+    const newThoughtPeople = personIdsToLink.map((person_id) => ({ thought_id: thoughtId, person_id }))
+    if (newThoughtPeople.length > 0) {
+      await supabase.from('thought_people').upsert(newThoughtPeople, { onConflict: 'thought_id,person_id' })
+    }
+    return { newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending, confirmationPending }
+  }, [supabase])
+
+  const handlePersonClick = useCallback((personId) => setOpenPersonId(personId), [])
+  const handleClosePersonPanel = useCallback(() => setOpenPersonId(null), [])
+
+  const handleClarifierSubmit = useCallback(async (personId, clarifier) => {
+    if (!personId || !supabase || !user) return
+    setClarifierForPersonId(null)
+    setClarifierForThoughtId(null)
+    try {
+      await supabase.from('people').update({ clarifier: clarifier || null }).eq('id', personId).eq('user_id', user.id)
+      setPeopleMap((prev) => {
+        const p = prev[personId]
+        return p ? { ...prev, [personId]: { ...p, clarifier: clarifier || null } } : prev
+      })
+    } catch (err) {
+      console.error('Update clarifier:', err)
+    }
+  }, [user])
+
+  const handleClarifierDismiss = useCallback(() => {
+    setClarifierForPersonId(null)
+    setClarifierForThoughtId(null)
+  }, [])
+
+  const handleConfirmationChoose = useCallback((thoughtId, name, choice) => {
+    if (!user) return
+    const thoughtIdStr = String(thoughtId)
+    setConfirmationPending((prev) => {
+      const i = prev.findIndex((e) => String(e.thoughtId) === thoughtIdStr && e.name === name)
+      if (i === -1) return prev
+      const entry = prev[i]
+      if (choice === 'yes') {
+        const { id: personId, display_name, clarifier } = entry.person
+        setPeopleMap((p) => ({ ...p, [personId]: { id: personId, display_name, clarifier } }))
+        supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: personId }], { onConflict: 'thought_id,person_id' }).then(() => {
+          setThoughtPeople((p) => [...p, { thought_id: thoughtIdStr, person_id: personId }])
+        })
+      } else {
+        setClarifierForNewPerson({ thoughtId: thoughtIdStr, name })
+      }
+      return prev.filter((_, j) => j !== i)
+    })
+  }, [user, supabase])
+
+  const handleNewPersonClarifierComplete = useCallback(async (thoughtId, name, clarifier) => {
+    if (!supabase || !user) return
+    setClarifierForNewPerson(null)
+    const thoughtIdStr = String(thoughtId)
+    const { data: inserted, error } = await supabase.from('people').insert([{ user_id: user.id, display_name: name, clarifier: clarifier || null }]).select('id, display_name, clarifier').single()
+    if (error) {
+      console.error('Create person (new person clarifier):', error)
+      return
+    }
+    setPeopleMap((prev) => ({ ...prev, [inserted.id]: { id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier } }))
+    await supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: inserted.id }], { onConflict: 'thought_id,person_id' })
+    setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: inserted.id }])
+  }, [user, supabase])
+
+  const handleDisambiguationChoose = useCallback(async (thoughtId, name, choice) => {
+    if (!supabase || !user) return
+    const thoughtIdStr = String(thoughtId)
+    let entry
+    setDisambiguationPending((prev) => {
+      const i = prev.findIndex((e) => String(e.thoughtId) === thoughtIdStr && e.name === name)
+      if (i === -1) return prev
+      entry = prev[i]
+      return prev.filter((_, j) => j !== i)
+    })
+    if (!entry) return
+    if (choice === 'new') {
+      const { data: inserted, error } = await supabase.from('people').insert([{ user_id: user.id, display_name: name }]).select('id, display_name, clarifier').single()
+      if (error) {
+        console.error('Create person for disambiguation:', error)
+        return
+      }
+      setPeopleMap((prev) => ({ ...prev, [inserted.id]: { id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier } }))
+      await supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: inserted.id }], { onConflict: 'thought_id,person_id' })
+      setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: inserted.id }])
+      setClarifierForPersonId(inserted.id)
+      setClarifierForThoughtId(thoughtIdStr)
+    } else {
+      const personId = choice
+      const person = entry.people.find((p) => p.id === personId)
+      if (person) {
+        setPeopleMap((prev) => ({ ...prev, [personId]: { id: person.id, display_name: person.display_name, clarifier: person.clarifier } }))
+      }
+      await supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: personId }], { onConflict: 'thought_id,person_id' })
+      setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: personId }])
+    }
+  }, [user, supabase])
+
+  const handleUnlinkThoughtPerson = useCallback(async (thoughtId, personId) => {
+    if (!supabase || !user) return
+    try {
+      await supabase.from('thought_people').delete().eq('thought_id', thoughtId).eq('person_id', personId)
+      setThoughtPeople((prev) => prev.filter((tp) => tp.thought_id !== thoughtId || tp.person_id !== personId))
+    } catch (err) {
+      console.error('Unlink thought-person:', err)
+    }
+  }, [user])
+
+  const handleEditClarifier = useCallback(async (personId, clarifier) => {
+    if (!personId || !supabase || !user) return
+    try {
+      await supabase.from('people').update({ clarifier: clarifier || null }).eq('id', personId).eq('user_id', user.id)
+      setPeopleMap((prev) => {
+        const p = prev[personId]
+        return p ? { ...prev, [personId]: { ...p, clarifier: clarifier || null } } : prev
+      })
+    } catch (err) {
+      console.error('Update clarifier:', err)
+    }
+  }, [user])
+
+  const handleScrollToThought = useCallback((thoughtId) => {
+    const el = document.querySelector(`[data-thought-id="${thoughtId}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
+
   const handleConfirmSuggestedTag = useCallback(async (thoughtId, tag) => {
     if (!tag?.trim() || thoughtId == null) return
     const idStr = String(thoughtId)
@@ -887,6 +1112,24 @@ export default function HomePage() {
     })
     return list
   }, [filteredThoughts, sortOrder])
+
+  const linkedPeopleByThoughtId = useMemo(() => {
+    const out = {}
+    thoughtPeople.forEach(({ thought_id, person_id }) => {
+      const p = peopleMap[person_id]
+      if (!p) return
+      const key = String(thought_id)
+      if (!out[key]) out[key] = []
+      out[key].push({ person_id, display_name: p.display_name, clarifier: p.clarifier })
+    })
+    return out
+  }, [thoughtPeople, peopleMap])
+
+  const openPersonThoughts = useMemo(() => {
+    if (!openPersonId) return []
+    const thoughtIds = thoughtPeople.filter((tp) => tp.person_id === openPersonId).map((tp) => tp.thought_id)
+    return thoughts.filter((t) => thoughtIds.includes(t.id))
+  }, [openPersonId, thoughtPeople, thoughts])
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -1252,25 +1495,50 @@ export default function HomePage() {
             </div>
           ) : (
             sortedThoughts.map((thought) => (
-              <ThoughtCard
-                key={thought.id}
-                thought={thought}
-                onDelete={handleDeleteThought}
-                onOpenAiPrompts={openAiPromptsFromCard}
-                onTagClick={handleTagClick}
-                activeTags={activeTags}
-                onAddFollowUp={handleAddFollowUp}
-                onDeleteFollowUp={handleDeleteFollowUp}
-                onEditFollowUp={handleEditFollowUp}
-                onSaveEdit={handleReprocessThought}
-                onDistillStateChange={handleDistillStateChange}
-                suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
-                onConfirmSuggestedTag={handleConfirmSuggestedTag}
-              />
+              <div key={thought.id} data-thought-id={thought.id}>
+                <ThoughtCard
+                  thought={thought}
+                  onDelete={handleDeleteThought}
+                  onOpenAiPrompts={openAiPromptsFromCard}
+                  onTagClick={handleTagClick}
+                  activeTags={activeTags}
+                  onAddFollowUp={handleAddFollowUp}
+                  onDeleteFollowUp={handleDeleteFollowUp}
+                  onEditFollowUp={handleEditFollowUp}
+                  onSaveEdit={handleReprocessThought}
+                  onDistillStateChange={handleDistillStateChange}
+                  suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
+                  onConfirmSuggestedTag={handleConfirmSuggestedTag}
+                  linkedPeople={linkedPeopleByThoughtId[String(thought.id)] || []}
+                  onPersonClick={handlePersonClick}
+                  clarifierForPersonId={clarifierForPersonId}
+                  clarifierForThoughtId={clarifierForThoughtId}
+                  onClarifierSubmit={handleClarifierSubmit}
+                  onClarifierDismiss={handleClarifierDismiss}
+                  confirmationList={confirmationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
+                  onConfirmationChoose={handleConfirmationChoose}
+                  clarifierForNewPerson={clarifierForNewPerson && String(clarifierForNewPerson.thoughtId) === String(thought.id) ? clarifierForNewPerson : null}
+                  onNewPersonClarifierComplete={handleNewPersonClarifierComplete}
+                  disambiguationList={disambiguationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
+                  onDisambiguationChoose={handleDisambiguationChoose}
+                />
+              </div>
             ))
           )}
         </div>
       </main>
+
+      {openPersonId && (
+        <PersonProfilePanel
+          personId={openPersonId}
+          person={peopleMap[openPersonId]}
+          thoughts={openPersonThoughts}
+          onClose={handleClosePersonPanel}
+          onUnlink={handleUnlinkThoughtPerson}
+          onScrollToThought={handleScrollToThought}
+          onEditClarifier={handleEditClarifier}
+        />
+      )}
 
       {/* Transcript Editor - Fixed at bottom */}
       {isEditingTranscript && (
