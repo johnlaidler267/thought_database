@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
-import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp, Undo2 } from 'lucide-react'
+import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp, Undo2, Folder } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import { MdSubdirectoryArrowRight } from 'react-icons/md'
@@ -42,6 +42,7 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
   const editFollowUpTextareaRef = useRef(null)
   const [distillationLevel, setDistillationLevel] = useState(0)
   const [distilledText, setDistilledText] = useState(null)
+  const [distillationStack, setDistillationStack] = useState([]) // undo history: [raw, level1, level2, ...]
   const [isDistilling, setIsDistilling] = useState(false)
 
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
@@ -156,23 +157,32 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
 
   const handleDistillClick = async () => {
     if (isDistilling) return
-    const input = distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
-    if (!input?.trim()) return
+    const currentDisplay = distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
+    if (!currentDisplay?.trim()) return
     setIsDistilling(true)
     try {
-      const next = await distillText(input, distillationLevel + 1)
-      setDistilledText(next.trim() || input)
+      // Push current text onto stack before distilling (enables step-by-step undo). Starting a new branch clears forward history implicitly.
+      setDistillationStack((stack) => [...stack, currentDisplay])
+      const next = await distillText(currentDisplay, distillationLevel + 1)
+      setDistilledText(next.trim() || currentDisplay)
       setDistillationLevel((l) => l + 1)
     } catch (err) {
       console.error('Distill failed:', err)
+      // Roll back the push on failure so stack stays consistent
+      setDistillationStack((stack) => (stack.length > 0 ? stack.slice(0, -1) : []))
     } finally {
       setIsDistilling(false)
     }
   }
 
   const handleRestoreDistill = () => {
-    setDistillationLevel(0)
-    setDistilledText(null)
+    if (distillationLevel === 0 || distillationStack.length === 0) return
+    const prev = distillationStack[distillationStack.length - 1]
+    const nextStack = distillationStack.slice(0, -1)
+    const newLevel = distillationLevel - 1
+    setDistillationStack(nextStack)
+    setDistillationLevel(newLevel)
+    setDistilledText(newLevel === 0 ? null : prev)
   }
 
   const handleCopy = async () => {
@@ -271,11 +281,11 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
           {!isEditingCard && (
           <Tooltip text="Restore" position="bottom">
             <button
-              onClick={distillationLevel > 0 ? handleRestoreDistill : undefined}
-              disabled={distillationLevel === 0}
+              onClick={distillationLevel > 0 && distillationStack.length > 0 ? handleRestoreDistill : undefined}
+              disabled={distillationLevel === 0 || distillationStack.length === 0}
               className="transition-colors flex items-center justify-center p-1 disabled:opacity-40 disabled:cursor-default"
-              style={{ color: distillationLevel > 0 ? 'var(--muted-foreground)' : 'var(--muted-foreground)' }}
-              onMouseEnter={(e) => { if (distillationLevel > 0) e.currentTarget.style.color = 'var(--ink)' }}
+              style={{ color: distillationLevel > 0 && distillationStack.length > 0 ? 'var(--muted-foreground)' : 'var(--muted-foreground)' }}
+              onMouseEnter={(e) => { if (distillationLevel > 0 && distillationStack.length > 0) e.currentTarget.style.color = 'var(--ink)' }}
               onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
               aria-label="Restore to pre-distillation"
             >
@@ -484,8 +494,30 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
         </div>
       )}
 
-      {(mentionList.length > 0 || thoughtTypeLabel) && (
+      {(mentionList.length > 0 || thoughtTypeLabel || (thought.category && thought.category.trim())) && (
         <div className="flex items-center gap-2 flex-wrap mb-4" style={{ color: 'var(--muted-foreground)' }}>
+          {thought.category && thought.category.trim() && (
+            <div className="flex items-center gap-1.5">
+              <Folder className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+              <span className="text-xs font-serif text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>
+                {thought.category.trim()}
+              </span>
+            </div>
+          )}
+          {thought.category && thought.category.trim() && thoughtTypeLabel && (
+            <span className="w-px h-3 bg-stroke shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
+          )}
+          {thoughtTypeLabel && (
+            <div className="flex items-center gap-1.5">
+              <LayoutList className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+              <span className="text-xs font-serif text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>
+                {thoughtTypeLabel}
+              </span>
+            </div>
+          )}
+          {(thoughtTypeLabel || (thought.category && thought.category.trim())) && mentionList.length > 0 && (
+            <span className="w-px h-3 bg-stroke shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
+          )}
           {mentionList.length > 0 && (
             <div className="flex items-center gap-1.5">
               <User className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
@@ -500,17 +532,6 @@ function ThoughtCardInner({ thought, onDelete, onOpenAiPrompts, onTagClick, onAd
                   </span>
                 ))}
               </div>
-            </div>
-          )}
-          {mentionList.length > 0 && thoughtTypeLabel && (
-            <span className="w-px h-3 bg-stroke shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
-          )}
-          {thoughtTypeLabel && (
-            <div className="flex items-center gap-1.5">
-              <LayoutList className="w-3 h-3 text-muted-foreground shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-              <span className="text-xs font-serif text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>
-                {thoughtTypeLabel}
-              </span>
             </div>
           )}
         </div>
