@@ -1001,7 +1001,7 @@ function ThoughtCardInner({
         </div>
       )}
 
-      <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center gap-2">
+      <div className="absolute bottom-3 sm:bottom-4 left-4 sm:left-6 right-4 sm:right-6 flex items-center justify-end gap-2">
         {!isEditingCard && onAddFollowUp && (
           showFollowUpInput ? null : (
             <Tooltip text="Add follow-up" position="bottom">
