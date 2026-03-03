@@ -792,6 +792,14 @@ export default function HomePage() {
     return thoughts.filter((t) => thoughtIds.includes(t.id))
   }, [openPersonId, thoughtPeople, thoughts])
 
+  const handleClearSearchAndTags = useCallback(() => {
+    setSearchQuery('')
+    setActiveTags([])
+  }, [])
+
+  const handleSortOrderChange = useCallback((order) => setSortOrder(order), [])
+  const handleSortMenuToggle = useCallback((open) => setSortMenuOpen(open), [])
+
   // Show loading state while checking authentication
   if (authLoading) {
     return (
@@ -805,14 +813,6 @@ export default function HomePage() {
   if (!user) {
     return null
   }
-
-  const handleClearSearchAndTags = useCallback(() => {
-    setSearchQuery('')
-    setActiveTags([])
-  }, [])
-
-  const handleSortOrderChange = useCallback((order) => setSortOrder(order), [])
-  const handleSortMenuToggle = useCallback((open) => setSortMenuOpen(open), [])
 
   return (
     <div className="min-h-screen bg-paper flex flex-col" style={pageBackground}>
