@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Card } from '../components/ui/Card'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Mic, Pause, MoreVertical, Copy, Trash2, Search, X, User, Plus, Check, XCircle, Keyboard, CheckCircle, Languages, ArrowUpDown } from 'lucide-react'
-import { FaReply } from 'react-icons/fa'
+import { Mic, Pause, Keyboard } from 'lucide-react'
 import { TbPencilQuestion } from 'react-icons/tb'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
+import { useThoughts } from '../hooks/useThoughts'
+import { useCategories } from '../hooks/useCategories'
+import { usePeopleLink } from '../hooks/usePeopleLink'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, warmApiConnection, extractTags } from '../services/api'
-import { translateText } from '../services/translation'
 import { estimateTranscriptionTokens, estimateTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
 import { AI_PROMPTS } from '../constants/thoughtStarters'
@@ -20,37 +20,70 @@ import { ThoughtCard } from '../components/ThoughtCard'
 import { ThoughtStartersPopover } from '../components/ThoughtStartersPopover'
 import { TranscriptEditor } from '../components/TranscriptEditor'
 import PersonProfilePanel from '../components/PersonProfilePanel'
-import ClarifierPrompt from '../components/ClarifierPrompt'
+import { HomePageHeader } from './HomePage/HomePageHeader'
+import { SearchBar } from './HomePage/SearchBar'
+import { CategoryTabs } from './HomePage/CategoryTabs'
+import { pageBackground, errorBannerStyle, loadingBannerStyle, transcriptEditorOverlay, recordBarGradient, remainingTimeBadge } from './HomePage/styles'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
   const { isDark } = useTheme()
   const navigate = useNavigate()
   const location = useLocation()
-  const [thoughts, setThoughts] = useState([])
+
+  const { thoughts, setThoughts, thoughtPeople, setThoughtPeople, peopleMap, setPeopleMap } =
+    useThoughts(user)
+  const categoriesState = useCategories(user?.id)
+  const {
+    categories,
+    activeCategory,
+    setActiveCategory,
+    isAddingCategory,
+    setIsAddingCategory,
+    newCategoryName,
+    setNewCategoryName,
+    categoryToDelete,
+    handleAddCategory,
+    handleDeleteCategory,
+    confirmDeleteCategory,
+    cancelDeleteCategory,
+  } = categoriesState
+
+  const peopleLink = usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, setPeopleMap)
+  const {
+    linkedPeopleByThoughtId,
+    openPersonId,
+    setOpenPersonId,
+    clarifierForPersonId,
+    clarifierForThoughtId,
+    disambiguationPending,
+    setDisambiguationPending,
+    confirmationPending,
+    setConfirmationPending,
+    clarifierForNewPerson,
+    setClarifierForPersonId,
+    setClarifierForThoughtId,
+    resolveMentionsToPeople,
+    handleClarifierSubmit,
+    handleClarifierDismiss,
+    handleConfirmationChoose,
+    handleNewPersonClarifierComplete,
+    handleDisambiguationChoose,
+    handlePersonClick,
+    handleClosePersonPanel,
+    handleUnlinkThoughtPerson,
+    handleEditClarifier,
+    handleScrollToThought,
+  } = peopleLink
+
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeTags, setActiveTags] = useState([]) // tag chips in search bar; AND with text query
-  const [sortOrder, setSortOrder] = useState('desc') // 'asc' | 'desc' (date only)
+  const [activeTags, setActiveTags] = useState([])
+  const [sortOrder, setSortOrder] = useState('desc')
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   const sortMenuRef = useRef(null)
-  const [categories, setCategories] = useState(['All'])
-  const [activeCategory, setActiveCategory] = useState('All')
-  const [hoveredCategory, setHoveredCategory] = useState(null)
-  const [isAddingCategory, setIsAddingCategory] = useState(false)
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [categoryToDelete, setCategoryToDelete] = useState(null)
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
-  const [followUpToDelete, setFollowUpToDelete] = useState(null) // { thoughtId, index }
+  const [followUpToDelete, setFollowUpToDelete] = useState(null)
   const [suggestedTagsByThoughtId, setSuggestedTagsByThoughtId] = useState({})
-  const [peopleMap, setPeopleMap] = useState({}) // id -> { id, display_name, clarifier }
-  const [thoughtPeople, setThoughtPeople] = useState([]) // { thought_id, person_id }[]
-  const [openPersonId, setOpenPersonId] = useState(null)
-  const [clarifierForPersonId, setClarifierForPersonId] = useState(null)
-  const [clarifierForThoughtId, setClarifierForThoughtId] = useState(null)
-  const [disambiguationPending, setDisambiguationPending] = useState([]) // { thoughtId, name, people: [{ id, display_name, clarifier }] }[]
-  const [confirmationPending, setConfirmationPending] = useState([]) // { thoughtId, name, person: { id, display_name, clarifier } }[]
-  const [clarifierForNewPerson, setClarifierForNewPerson] = useState(null) // { thoughtId, name } when "No, different person" → show inline clarifier
-  const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
@@ -64,7 +97,11 @@ export default function HomePage() {
   const aiPromptsRecordRef = useRef(null)
   const aiPromptsEditorRef = useRef(null)
   const thoughtsRef = useRef(thoughts)
-  useEffect(() => { thoughtsRef.current = thoughts }, [thoughts])
+
+  resolveMentionsToPeopleRef.current = resolveMentionsToPeople
+  useEffect(() => {
+    thoughtsRef.current = thoughts
+  }, [thoughts])
 
   const { 
     isRecording: isAudioRecording, 
@@ -97,92 +134,6 @@ export default function HomePage() {
   useEffect(() => {
     if (user) warmApiConnection()
   }, [user?.id])
-
-  // Load thoughts from Supabase on mount
-  useEffect(() => {
-    async function loadThoughts() {
-      if (!user) return
-
-      // In dev mode (no Supabase), use mock data
-      if (!supabase) {
-        const mockThoughts = [
-          {
-            id: '1',
-            raw_transcript: 'Um, so I was thinking, like, you know, maybe we should, uh, consider doing this project differently? Like, what if we, um, started with a simpler approach?',
-            cleaned_text: 'I was thinking maybe we should consider doing this project differently. What if we started with a simpler approach?',
-            tags: ['Idea', 'Task'],
-            category: null,
-            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '2',
-            raw_transcript: 'Oh, I need to remember to call Sarah tomorrow. She mentioned something about, um, the meeting? Yeah, the meeting on Friday.',
-            cleaned_text: 'I need to remember to call Sarah tomorrow. She mentioned something about the meeting on Friday.',
-            tags: ['Person', 'Task'],
-            category: null,
-            created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '3',
-            raw_transcript: 'The idea of, like, building a personal knowledge base is really interesting. It could help me, um, organize my thoughts better and, you know, make connections between different concepts.',
-            cleaned_text: 'The idea of building a personal knowledge base is really interesting. It could help me organize my thoughts better and make connections between different concepts.',
-            tags: ['Idea'],
-            category: null,
-            created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          },
-        ]
-        setThoughts(mockThoughts)
-        return
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('thoughts')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        const thoughtList = (data || []).map((t) => ({ ...t, follow_ups: Array.isArray(t.follow_ups) ? t.follow_ups : [] }))
-        setThoughts(thoughtList)
-
-        const thoughtIds = (data || []).map((t) => t.id).filter(Boolean)
-        if (thoughtIds.length > 0) {
-          const { data: tpData, error: tpError } = await supabase.from('thought_people').select('thought_id, person_id').in('thought_id', thoughtIds)
-            if (tpError) {
-              setThoughtPeople([])
-              setPeopleMap({})
-            } else {
-              setThoughtPeople(tpData || [])
-              const personIds = [...new Set((tpData || []).map((r) => r.person_id))]
-              if (personIds.length > 0) {
-                const { data: peopleData, error: peopleError } = await supabase.from('people').select('id, display_name, clarifier').in('id', personIds)
-                if (peopleError) {
-                  setPeopleMap({})
-                } else {
-                  const map = {}
-                  ;(peopleData || []).forEach((p) => { map[p.id] = p })
-                  setPeopleMap(map)
-                }
-              } else {
-                setPeopleMap({})
-              }
-            }
-        } else {
-          setThoughtPeople([])
-          setPeopleMap({})
-        }
-      } catch (err) {
-        console.error('Error loading thoughts:', err)
-        // Check if it's a network/DNS error
-        if (err.message?.includes('Failed to fetch') || err.message?.includes('ERR_NAME_NOT_RESOLVED')) {
-          console.error('⚠️ Cannot connect to Supabase. Check if your Supabase project is active and the URL is correct.')
-        }
-      }
-    }
-
-    loadThoughts()
-  }, [user])
 
   const handleRecordStart = () => {
     // Free tier: block starting a recording if already at token limit
@@ -517,27 +468,6 @@ export default function HomePage() {
     isFromRecordingRef.current = false // Mark as typed, not recorded
   }
 
-  // Load categories for the current user (per-user to avoid leaking across accounts)
-  useEffect(() => {
-    if (!user?.id) {
-      setCategories(['All'])
-      setActiveCategory('All')
-      return
-    }
-    const key = `axiomCategories_${user.id}`
-    const saved = localStorage.getItem(key)
-    const list = saved ? JSON.parse(saved) : ['All']
-    setCategories(Array.isArray(list) ? list : ['All'])
-    setActiveCategory('All')
-  }, [user?.id])
-
-  // Save categories to localStorage when they change (per-user key only)
-  useEffect(() => {
-    if (!user?.id || !categories.length) return
-    const key = `axiomCategories_${user.id}`
-    localStorage.setItem(key, JSON.stringify(categories))
-  }, [user?.id, categories])
-
   // Restore draft transcript when returning from another page (e.g. Settings)
   useEffect(() => {
     if (!user) return
@@ -556,15 +486,6 @@ export default function HomePage() {
       sessionStorage.removeItem('vellum_draft_pending')
     }
   }, [user?.id])
-
-  // Cleanup hover timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current)
-      }
-    }
-  }, [])
 
   // Close sort menu on click outside
   useEffect(() => {
@@ -591,42 +512,6 @@ export default function HomePage() {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showAiPrompts])
-
-  // Handle adding a new category
-  const handleAddCategory = () => {
-    const trimmedName = newCategoryName.trim()
-    if (trimmedName && !categories.includes(trimmedName)) {
-      setCategories([...categories, trimmedName])
-      setActiveCategory(trimmedName)
-      setIsAddingCategory(false)
-      setNewCategoryName('')
-    }
-  }
-
-  // Handle deleting a category - show confirmation dialog
-  const handleDeleteCategory = (category) => {
-    if (category === "All") return // Prevent deleting "All" category
-    setCategoryToDelete(category)
-  }
-
-  // Confirm category deletion
-  const confirmDeleteCategory = () => {
-    if (!categoryToDelete) return
-
-    setCategories(categories.filter((cat) => cat !== categoryToDelete))
-
-    // If the deleted category was active, switch to "All"
-    if (activeCategory === categoryToDelete) {
-      setActiveCategory("All")
-    }
-
-    setCategoryToDelete(null)
-  }
-
-  // Cancel category deletion
-  const cancelDeleteCategory = () => {
-    setCategoryToDelete(null)
-  }
 
   const openAiPromptsFromCard = useCallback(() => setShowAiPrompts(true), [])
 
@@ -663,185 +548,6 @@ export default function HomePage() {
   const cancelDeleteThought = () => {
     setThoughtToDelete(null)
   }
-
-  const resolveMentionsToPeople = useCallback(async (mentions, thoughtId, userId) => {
-    if (!supabase || !userId || !thoughtId || !Array.isArray(mentions) || mentions.length === 0) {
-      return { newPersonIds: [], newThoughtPeople: [], newPeopleMap: {}, disambiguationPending: [], confirmationPending: [] }
-    }
-    const normalized = mentions.map((m) => String(m).trim()).filter(Boolean)
-    const uniqueByLower = [...new Map(normalized.map((n) => [n.toLowerCase(), n])).values()]
-
-    const { data: existingPeople } = await supabase.from('people').select('id, display_name, clarifier').eq('user_id', userId)
-    const byLower = {}
-    ;(existingPeople || []).forEach((p) => {
-      const k = (p.display_name || '').trim().toLowerCase()
-      if (!byLower[k]) byLower[k] = []
-      byLower[k].push({ id: p.id, display_name: p.display_name || '', clarifier: p.clarifier || null })
-    })
-
-    const newPeopleMap = {}
-    const newPersonIds = []
-    const personIdsToLink = []
-    const disambiguationPending = []
-    const confirmationPending = []
-
-    for (const name of uniqueByLower) {
-      const key = name.trim().toLowerCase()
-      const matches = byLower[key] || []
-
-      if (matches.length === 0) {
-        const { data: inserted, error } = await supabase.from('people').insert([{ user_id: userId, display_name: name }]).select('id, display_name, clarifier').single()
-        if (error) {
-          if (error.code === '23505') {
-            const { data: list } = await supabase.from('people').select('id, display_name, clarifier').eq('user_id', userId)
-            const recheck = (list || []).filter((p) => (p.display_name || '').trim().toLowerCase() === key)
-            if (recheck.length === 1) {
-              confirmationPending.push({ thoughtId, name, person: { id: recheck[0].id, display_name: recheck[0].display_name || '', clarifier: recheck[0].clarifier || null } })
-              byLower[key] = recheck.map((p) => ({ id: p.id, display_name: p.display_name || '', clarifier: p.clarifier || null }))
-            } else if (recheck.length > 1) {
-              disambiguationPending.push({ thoughtId, name, people: recheck.map((p) => ({ id: p.id, display_name: p.display_name || '', clarifier: p.clarifier || null })) })
-            }
-            continue
-          }
-          console.error('Insert person:', error)
-          continue
-        }
-        newPeopleMap[inserted.id] = { id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier }
-        newPersonIds.push(inserted.id)
-        personIdsToLink.push(inserted.id)
-        byLower[key] = [{ id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier }]
-      } else if (matches.length === 1) {
-        confirmationPending.push({ thoughtId, name, person: matches[0] })
-      } else {
-        disambiguationPending.push({ thoughtId, name, people: matches })
-      }
-    }
-
-    const newThoughtPeople = personIdsToLink.map((person_id) => ({ thought_id: thoughtId, person_id }))
-    if (newThoughtPeople.length > 0) {
-      await supabase.from('thought_people').upsert(newThoughtPeople, { onConflict: 'thought_id,person_id' })
-    }
-    return { newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending, confirmationPending }
-  }, [supabase])
-  resolveMentionsToPeopleRef.current = resolveMentionsToPeople
-
-  const handlePersonClick = useCallback((personId) => setOpenPersonId(personId), [])
-  const handleClosePersonPanel = useCallback(() => setOpenPersonId(null), [])
-
-  const handleClarifierSubmit = useCallback(async (personId, clarifier) => {
-    if (!personId || !supabase || !user) return
-    setClarifierForPersonId(null)
-    setClarifierForThoughtId(null)
-    try {
-      await supabase.from('people').update({ clarifier: clarifier || null }).eq('id', personId).eq('user_id', user.id)
-      setPeopleMap((prev) => {
-        const p = prev[personId]
-        return p ? { ...prev, [personId]: { ...p, clarifier: clarifier || null } } : prev
-      })
-    } catch (err) {
-      console.error('Update clarifier:', err)
-    }
-  }, [user])
-
-  const handleClarifierDismiss = useCallback(() => {
-    setClarifierForPersonId(null)
-    setClarifierForThoughtId(null)
-  }, [])
-
-  const handleConfirmationChoose = useCallback((thoughtId, name, choice) => {
-    if (!user) return
-    const thoughtIdStr = String(thoughtId)
-    setConfirmationPending((prev) => {
-      const i = prev.findIndex((e) => String(e.thoughtId) === thoughtIdStr && e.name === name)
-      if (i === -1) return prev
-      const entry = prev[i]
-      if (choice === 'yes') {
-        const { id: personId, display_name, clarifier } = entry.person
-        setPeopleMap((p) => ({ ...p, [personId]: { id: personId, display_name, clarifier } }))
-        supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: personId }], { onConflict: 'thought_id,person_id' }).then(() => {
-          setThoughtPeople((p) => [...p, { thought_id: thoughtIdStr, person_id: personId }])
-        })
-      } else {
-        setClarifierForNewPerson({ thoughtId: thoughtIdStr, name })
-      }
-      return prev.filter((_, j) => j !== i)
-    })
-  }, [user, supabase])
-
-  const handleNewPersonClarifierComplete = useCallback(async (thoughtId, name, clarifier) => {
-    if (!supabase || !user) return
-    setClarifierForNewPerson(null)
-    const thoughtIdStr = String(thoughtId)
-    const { data: inserted, error } = await supabase.from('people').insert([{ user_id: user.id, display_name: name, clarifier: clarifier || null }]).select('id, display_name, clarifier').single()
-    if (error) {
-      console.error('Create person (new person clarifier):', error)
-      return
-    }
-    setPeopleMap((prev) => ({ ...prev, [inserted.id]: { id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier } }))
-    await supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: inserted.id }], { onConflict: 'thought_id,person_id' })
-    setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: inserted.id }])
-  }, [user, supabase])
-
-  const handleDisambiguationChoose = useCallback(async (thoughtId, name, choice) => {
-    if (!supabase || !user) return
-    const thoughtIdStr = String(thoughtId)
-    let entry
-    setDisambiguationPending((prev) => {
-      const i = prev.findIndex((e) => String(e.thoughtId) === thoughtIdStr && e.name === name)
-      if (i === -1) return prev
-      entry = prev[i]
-      return prev.filter((_, j) => j !== i)
-    })
-    if (!entry) return
-    if (choice === 'new') {
-      const { data: inserted, error } = await supabase.from('people').insert([{ user_id: user.id, display_name: name }]).select('id, display_name, clarifier').single()
-      if (error) {
-        console.error('Create person for disambiguation:', error)
-        return
-      }
-      setPeopleMap((prev) => ({ ...prev, [inserted.id]: { id: inserted.id, display_name: inserted.display_name, clarifier: inserted.clarifier } }))
-      await supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: inserted.id }], { onConflict: 'thought_id,person_id' })
-      setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: inserted.id }])
-      setClarifierForPersonId(inserted.id)
-      setClarifierForThoughtId(thoughtIdStr)
-    } else {
-      const personId = choice
-      const person = entry.people.find((p) => p.id === personId)
-      if (person) {
-        setPeopleMap((prev) => ({ ...prev, [personId]: { id: person.id, display_name: person.display_name, clarifier: person.clarifier } }))
-      }
-      await supabase.from('thought_people').upsert([{ thought_id: thoughtIdStr, person_id: personId }], { onConflict: 'thought_id,person_id' })
-      setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: personId }])
-    }
-  }, [user, supabase])
-
-  const handleUnlinkThoughtPerson = useCallback(async (thoughtId, personId) => {
-    if (!supabase || !user) return
-    try {
-      await supabase.from('thought_people').delete().eq('thought_id', thoughtId).eq('person_id', personId)
-      setThoughtPeople((prev) => prev.filter((tp) => tp.thought_id !== thoughtId || tp.person_id !== personId))
-    } catch (err) {
-      console.error('Unlink thought-person:', err)
-    }
-  }, [user])
-
-  const handleEditClarifier = useCallback(async (personId, clarifier) => {
-    if (!personId || !supabase || !user) return
-    try {
-      await supabase.from('people').update({ clarifier: clarifier || null }).eq('id', personId).eq('user_id', user.id)
-      setPeopleMap((prev) => {
-        const p = prev[personId]
-        return p ? { ...prev, [personId]: { ...p, clarifier: clarifier || null } } : prev
-      })
-    } catch (err) {
-      console.error('Update clarifier:', err)
-    }
-  }, [user])
-
-  const handleScrollToThought = useCallback((thoughtId) => {
-    const el = document.querySelector(`[data-thought-id="${thoughtId}"]`)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [])
 
   const handleConfirmSuggestedTag = useCallback(async (thoughtId, tag) => {
     if (!tag?.trim() || thoughtId == null) return
@@ -1080,18 +786,6 @@ export default function HomePage() {
     return list
   }, [filteredThoughts, sortOrder])
 
-  const linkedPeopleByThoughtId = useMemo(() => {
-    const out = {}
-    thoughtPeople.forEach(({ thought_id, person_id }) => {
-      const p = peopleMap[person_id]
-      if (!p) return
-      const key = String(thought_id)
-      if (!out[key]) out[key] = []
-      out[key].push({ person_id, display_name: p.display_name, clarifier: p.clarifier })
-    })
-    return out
-  }, [thoughtPeople, peopleMap])
-
   const openPersonThoughts = useMemo(() => {
     if (!openPersonId) return []
     const thoughtIds = thoughtPeople.filter((tp) => tp.person_id === openPersonId).map((tp) => tp.thought_id)
@@ -1112,326 +806,52 @@ export default function HomePage() {
     return null
   }
 
+  const handleClearSearchAndTags = useCallback(() => {
+    setSearchQuery('')
+    setActiveTags([])
+  }, [])
+
+  const handleSortOrderChange = useCallback((order) => setSortOrder(order), [])
+  const handleSortMenuToggle = useCallback((open) => setSortMenuOpen(open), [])
+
   return (
-    <div
-      className="min-h-screen bg-paper flex flex-col"
-      style={{
-        backgroundColor: 'var(--paper)',
-        backgroundImage: [
-          'radial-gradient(ellipse 680px 380px at 5% 22%, rgba(0,0,0,0.03), transparent 55%)',
-          'radial-gradient(ellipse 560px 400px at 96% 35%, rgba(0,0,0,0.025), transparent 58%)',
-          'radial-gradient(ellipse 720px 420px at 42% 72%, rgba(0,0,0,0.02), transparent 65%)'
-        ].join(', ')
-      }}
-    >
-      {/* Header */}
-      <header
-        className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4"
-        style={{
-          borderColor: 'var(--stroke)',
-          backgroundColor: 'var(--paper)',
-          backgroundImage: [
-            'radial-gradient(ellipse 520px 280px at 8% 12%, rgba(0,0,0,0.03), transparent 65%)',
-            'radial-gradient(ellipse 480px 320px at 94% 18%, rgba(0,0,0,0.025), transparent 60%)',
-            'radial-gradient(ellipse 600px 360px at 58% 45%, rgba(0,0,0,0.02), transparent 70%)'
-          ].join(', ')
+    <div className="min-h-screen bg-paper flex flex-col" style={pageBackground}>
+      <HomePageHeader
+        isDark={isDark}
+        isAudioRecording={isAudioRecording}
+        showWarning={showWarning}
+        onProfileClick={handleProfileClick}
+        user={user}
+      />
+
+      <SearchBar
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        activeTags={activeTags}
+        onTagClick={handleTagClick}
+        onClearSearchAndTags={handleClearSearchAndTags}
+        sortMenuRef={sortMenuRef}
+        sortOrder={sortOrder}
+        sortMenuOpen={sortMenuOpen}
+        onSortMenuToggle={handleSortMenuToggle}
+        onSortOrderChange={handleSortOrderChange}
+      />
+
+      <CategoryTabs
+        categories={categories}
+        activeCategory={activeCategory}
+        onActiveCategoryChange={setActiveCategory}
+        isAddingCategory={isAddingCategory}
+        newCategoryName={newCategoryName}
+        onNewCategoryNameChange={setNewCategoryName}
+        onAddCategory={handleAddCategory}
+        onStartAddCategory={() => setIsAddingCategory(true)}
+        onCancelAddCategory={() => {
+          setIsAddingCategory(false)
+          setNewCategoryName('')
         }}
-      >
-        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-6 w-6 object-contain" aria-hidden />
-            <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>Vellum</h1>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4 text-xs font-serif">
-            <span className="text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>Status:</span>
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-1.5 h-1.5 rounded-full ${isAudioRecording ? "animate-pulse" : ""}`}
-                style={{
-                  backgroundColor: isAudioRecording ? (showWarning ? '#ff3b30' : 'var(--ink)') : 'var(--muted-foreground)'
-                }}
-              />
-              <span className={`uppercase tracking-wider ${showWarning ? 'font-medium' : ''}`} style={{ color: showWarning ? '#ff3b30' : 'var(--ink)' }}>
-                {isAudioRecording ? "Recording" : "Ready"}
-              </span>
-            </div>
-            {user && (
-              <button
-                onClick={handleProfileClick}
-                className="text-muted-foreground hover:text-ink transition-colors rounded-full flex items-center justify-center"
-                style={{ 
-                  color: 'var(--muted-foreground)',
-                  width: '2rem',
-                  height: '2rem',
-                  padding: 0
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--ink)'
-                  e.currentTarget.style.backgroundColor = 'var(--muted)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--muted-foreground)'
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }}
-                aria-label="Account settings"
-              >
-                <User className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Search Bar: tag chips + free text input */}
-      <div className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <div
-              className="flex flex-wrap items-center gap-2 rounded border border-stroke py-2 pl-10 pr-10 font-serif transition-colors focus-within:border-ink"
-              style={{
-                backgroundColor: 'var(--card)',
-                minHeight: '44px'
-              }}
-            >
-              <Search
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-                style={{ color: 'var(--muted-foreground)' }}
-              />
-            {activeTags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-0.5 rounded-sm font-serif text-xs leading-tight shrink-0 py-0.5 px-2"
-                style={{
-                  backgroundColor: 'var(--muted)',
-                  color: 'var(--muted-foreground)'
-                }}
-              >
-                <span>{tag}</span>
-                <button
-                  type="button"
-                  onClick={() => handleTagClick(tag)}
-                  className="p-0 min-w-0 min-h-0 inline-flex items-center justify-center rounded-sm transition-colors hover:opacity-70"
-                  style={{ color: 'var(--muted-foreground)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
-                  aria-label={`Remove tag ${tag}`}
-                >
-                  <X className="w-2.5 h-2.5" strokeWidth={2} />
-                </button>
-              </span>
-            ))}
-            <input
-              type="text"
-              placeholder={activeTags.length > 0 ? 'Add more tags or type to search...' : 'Search or click a tag...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 min-w-[8rem] py-0.5 bg-transparent border-0 font-serif placeholder:text-muted-foreground focus:outline-none focus:ring-0"
-              style={{
-                color: 'var(--ink)',
-                fontSize: '16px'
-              }}
-            />
-            {(searchQuery || activeTags.length > 0) && (
-              <button
-                type="button"
-                onClick={() => { setSearchQuery(''); setActiveTags([]) }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
-                style={{ color: 'var(--muted-foreground)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
-                aria-label="Clear search and tags"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-            </div>
-          </div>
-          <div className="relative flex-shrink-0" ref={sortMenuRef}>
-            <Tooltip text="Sort" position="bottom">
-              <button
-                type="button"
-                onClick={() => setSortMenuOpen((o) => !o)}
-                className="flex items-center justify-center w-10 h-10 rounded border font-serif transition-colors"
-                style={{
-                  backgroundColor: 'var(--card)',
-                  borderColor: 'var(--stroke)',
-                  color: 'var(--muted-foreground)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--ink)'
-                  e.currentTarget.style.color = 'var(--ink)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--stroke)'
-                  e.currentTarget.style.color = 'var(--muted-foreground)'
-                }}
-                aria-label="Sort"
-                aria-expanded={sortMenuOpen}
-              >
-                <ArrowUpDown className="w-4 h-4" strokeWidth={1.5} />
-              </button>
-            </Tooltip>
-            {sortMenuOpen && (
-              <div
-                className="absolute right-0 top-full mt-1 min-w-[10rem] rounded-md border shadow-lg z-20 py-1"
-                style={{
-                  backgroundColor: 'var(--card)',
-                  borderColor: 'var(--stroke)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => { setSortOrder('desc'); setSortMenuOpen(false) }}
-                  className="w-full text-left px-3 py-2 text-sm font-serif transition-colors"
-                  style={{
-                    color: sortOrder === 'desc' ? 'var(--ink)' : 'var(--muted-foreground)',
-                    backgroundColor: sortOrder === 'desc' ? 'var(--muted)' : 'transparent'
-                  }}
-                >
-                  Date (newest first)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSortOrder('asc'); setSortMenuOpen(false) }}
-                  className="w-full text-left px-3 py-2 text-sm font-serif transition-colors"
-                  style={{
-                    color: sortOrder === 'asc' ? 'var(--ink)' : 'var(--muted-foreground)',
-                    backgroundColor: sortOrder === 'asc' ? 'var(--muted)' : 'transparent'
-                  }}
-                >
-                  Date (oldest first)
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Category Tabs */}
-      <div 
-        className="border-b border-stroke px-4 sm:px-6 py-3 overflow-x-auto category-tabs-container" 
-        style={{ 
-          borderColor: 'var(--stroke)',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }}
-      >
-        <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          <div className="flex items-center gap-2 flex-nowrap" style={{ width: 'max-content', minWidth: 'max-content' }}>
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-4 py-2 rounded font-serif text-sm whitespace-nowrap transition-all duration-200 flex items-center gap-2 flex-shrink-0 ${
-                activeCategory === category
-                  ? "text-paper"
-                  : "border text-muted-foreground hover:text-ink hover:border-ink"
-              }`}
-              style={{
-                backgroundColor: activeCategory === category ? 'var(--ink)' : 'var(--card)',
-                borderColor: activeCategory === category ? 'transparent' : 'var(--stroke)',
-                color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
-                paddingLeft: '1rem',
-                paddingRight: category !== "All" ? '0.75rem' : '1rem',
-                minHeight: '2.5rem',
-                height: '2.5rem',
-                minWidth: 'fit-content'
-              }}
-            >
-              <span className="flex-shrink-0">{category}</span>
-              {/* Delete button always visible (except for "All") */}
-              {category !== "All" && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDeleteCategory(category)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleDeleteCategory(category)
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  className="transition-colors flex items-center justify-center flex-shrink-0 cursor-pointer"
-                  style={{ 
-                    color: activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)',
-                    width: '1rem',
-                    height: '1rem',
-                    minWidth: '1rem'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--destructive)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = activeCategory === category ? 'var(--paper)' : 'var(--muted-foreground)'
-                  }}
-                  aria-label={`Delete ${category} category`}
-                >
-                  <X className="w-3 h-3" />
-                </span>
-              )}
-            </button>
-          ))}
-
-          {isAddingCategory ? (
-            <div className="relative flex-shrink-0">
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddCategory()
-                  if (e.key === "Escape") {
-                    setIsAddingCategory(false)
-                    setNewCategoryName("")
-                  }
-                }}
-                placeholder="Category name..."
-                className="px-4 py-2 pr-10 rounded border border-stroke bg-card font-serif focus:outline-none focus:border-ink w-40"
-                style={{
-                  height: '2.5rem',
-                  minHeight: '2.5rem'
-                }}
-                autoFocus
-              />
-              <button
-                onClick={handleAddCategory}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-ink text-paper flex items-center justify-center hover:bg-muted-foreground transition-colors"
-                aria-label="Add category"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsAddingCategory(true)}
-              className="px-3 py-2 rounded border border-dashed transition-colors flex items-center gap-2 font-serif text-sm flex-shrink-0 whitespace-nowrap"
-              style={{
-                borderColor: 'var(--stroke)',
-                color: 'var(--muted-foreground)',
-                minHeight: '2.5rem',
-                height: '2.5rem'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--ink)'
-                e.currentTarget.style.borderColor = 'var(--ink)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--muted-foreground)'
-                e.currentTarget.style.borderColor = 'var(--stroke)'
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Category</span>
-            </button>
-          )}
-          </div>
-        </div>
-      </div>
+        onDeleteCategory={handleDeleteCategory}
+      />
 
       {/* Timeline - extra bottom padding so card tags stay above the fixed record buttons */}
       <main className={`flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
@@ -1439,13 +859,9 @@ export default function HomePage() {
       }`}>
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto space-y-4 sm:space-y-6">
           {recordingError && (
-            <div 
+            <div
               className="mb-6 p-4 rounded-xl border text-sm"
-              style={{ 
-                background: 'rgba(239, 68, 68, 0.1)',
-                borderColor: 'rgba(239, 68, 68, 0.3)',
-                color: 'var(--ink)'
-              }}
+              style={errorBannerStyle}
               role="alert"
               aria-live="assertive"
             >
@@ -1454,13 +870,9 @@ export default function HomePage() {
           )}
           
           {loading && (
-            <div 
+            <div
               className="mb-6 p-4 rounded-xl border text-sm"
-              style={{ 
-                background: 'var(--muted)',
-                borderColor: 'var(--stroke)',
-                color: 'var(--ink)'
-              }}
+              style={loadingBannerStyle}
               role="status"
               aria-live="polite"
             >
@@ -1530,13 +942,9 @@ export default function HomePage() {
 
       {/* Transcript Editor - Fixed at bottom; owns its own state so typing doesn't re-render HomePage */}
       {isEditingTranscript && (
-        <div 
+        <div
           className="fixed bottom-0 left-0 right-0 z-50 border-t transition-all duration-300 ease-out"
-          style={{ 
-            borderColor: 'var(--stroke)',
-            backgroundColor: 'var(--paper)',
-            boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)'
-          }}
+          style={transcriptEditorOverlay}
         >
           <div className="max-w-[46.2rem] mx-auto px-6 py-4">
             <TranscriptEditor
@@ -1567,12 +975,7 @@ export default function HomePage() {
           {isAudioRecording && remainingTime !== null && (
             <span
               className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-serif tabular-nums shadow-sm"
-              style={{
-                color: 'var(--ink)',
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--stroke)',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
-              }}
+              style={remainingTimeBadge}
               aria-live="polite"
             >
               {formatRemainingTime()} left
