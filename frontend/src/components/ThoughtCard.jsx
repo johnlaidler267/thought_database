@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { Card } from './ui/Card'
 import Tooltip from './ui/Tooltip'
 import { MoreVertical, Copy, Trash2, CheckCircle, Languages, User, LayoutList, Send, Sparkles, Pencil, ChevronsDownUp, Undo2, Redo2, Folder } from 'lucide-react'
@@ -151,12 +151,24 @@ function ThoughtCardInner({
     }
   }, [isEditingCard])
 
-  // Edit textarea uses flex-1 to fill card height; no inline height so flex layout controls it
-  useEffect(() => {
+  // Auto-grow edit textarea to fit content exactly; run on mount (enter edit) and when content changes
+  const resizeEditTextarea = useCallback(() => {
     const el = editTextareaRef.current
-    if (!el || !isEditingCard) return
+    if (!el) return
     el.style.height = 'auto'
-  }, [isEditingCard])
+    el.style.height = el.scrollHeight + 'px'
+  }, [])
+
+  useEffect(() => {
+    if (!isEditingCard) return
+    const el = editTextareaRef.current
+    if (!el) return
+    // Run after paint so textarea has content and scrollHeight is correct when entering edit mode
+    const id = requestAnimationFrame(() => {
+      resizeEditTextarea()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [isEditingCard, editedRawText, resizeEditTextarea])
 
   // Auto-grow follow-up edit textarea to fit content
   useEffect(() => {
@@ -329,7 +341,7 @@ function ThoughtCardInner({
 
   return (
     <Card
-      className={`border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 pb-14 shadow-none relative ${isEditingCard ? 'flex flex-col min-h-[420px]' : ''}`}
+      className={`border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 shadow-none relative ${isEditingCard ? 'pb-6' : 'pb-14'}`}
       style={{
         borderColor: 'var(--stroke)',
         backgroundColor: 'var(--card)'
@@ -476,13 +488,14 @@ function ThoughtCardInner({
       )}
 
       {isEditingCard ? (
-        <div className="flex flex-col flex-1 min-h-0">
+        <>
           <textarea
             ref={editTextareaRef}
             value={editedRawText}
             onChange={(e) => setEditedRawText(e.target.value)}
+            onInput={resizeEditTextarea}
             disabled={isSavingEdit}
-            className="flex-1 min-h-0 w-full min-w-0 text-sm sm:text-base leading-relaxed font-serif text-pretty resize-none overflow-auto px-3 py-2 rounded-lg focus:outline-none focus:ring-0"
+            className="block w-full min-w-0 text-sm sm:text-base leading-relaxed font-serif text-pretty mb-3 resize-none overflow-hidden px-3 py-2 rounded-lg focus:outline-none focus:ring-0"
             style={{
               color: 'var(--ink)',
               backgroundColor: '#fafafa',
@@ -494,7 +507,7 @@ function ThoughtCardInner({
             placeholder="Edit thought text..."
             aria-label="Edit displayed thought text"
           />
-          <div className="flex items-center gap-3 mb-4 mt-3 shrink-0">
+          <div className="flex items-center gap-3 mb-4">
             <button
               type="button"
               onClick={async () => {
@@ -537,7 +550,7 @@ function ThoughtCardInner({
               Cancel
             </button>
           </div>
-        </div>
+        </>
       ) : (
         <div className="min-w-0" style={{ paddingLeft: 0, marginLeft: 0 }}>
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
@@ -553,10 +566,7 @@ function ThoughtCardInner({
         const hasAny = confirmed.length > 0 || suggestedToShow.length > 0
         if (!hasAny) return null
         return (
-          <div
-            className="flex flex-wrap gap-2 mb-4 items-baseline"
-            style={{ marginLeft: '-0.75rem', paddingLeft: 0 }}
-          >
+          <div className="flex flex-wrap gap-2 mb-4 items-baseline">
             {confirmed.map((tag) => {
               const isTagActive = Boolean(
                 onTagClick &&
@@ -598,12 +608,12 @@ function ThoughtCardInner({
                 </span>
               )
             })}
-            {suggestedToShow.map((tag) => (
+            {suggestedToShow.map((tag, i) => (
               <button
                 key={tag}
                 type="button"
                 onClick={(e) => { e.preventDefault(); onConfirmSuggestedTag(thought.id, tag) }}
-                className="py-0.5 px-2 text-xs font-serif leading-tight rounded cursor-pointer transition-colors hover:opacity-80 tracking-wide"
+                className={`py-0.5 text-xs font-serif leading-tight rounded cursor-pointer transition-colors hover:opacity-80 tracking-wide ${i === 0 ? 'pl-0 pr-2' : 'px-2'}`}
                 style={{ color: 'var(--muted-foreground)' }}
                 aria-label={`Add tag ${tag}`}
               >
