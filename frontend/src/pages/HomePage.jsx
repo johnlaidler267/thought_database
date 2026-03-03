@@ -1146,9 +1146,30 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col" style={{ background: 'var(--paper)' }}>
+    <div
+      className="min-h-screen bg-paper flex flex-col"
+      style={{
+        backgroundColor: 'var(--paper)',
+        backgroundImage: [
+          'radial-gradient(ellipse 680px 380px at 5% 22%, rgba(0,0,0,0.03), transparent 55%)',
+          'radial-gradient(ellipse 560px 400px at 96% 35%, rgba(0,0,0,0.025), transparent 58%)',
+          'radial-gradient(ellipse 720px 420px at 42% 72%, rgba(0,0,0,0.02), transparent 65%)'
+        ].join(', ')
+      }}
+    >
       {/* Header */}
-      <header className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={{ borderColor: 'var(--stroke)' }}>
+      <header
+        className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4"
+        style={{
+          borderColor: 'var(--stroke)',
+          backgroundColor: 'var(--paper)',
+          backgroundImage: [
+            'radial-gradient(ellipse 520px 280px at 8% 12%, rgba(0,0,0,0.03), transparent 65%)',
+            'radial-gradient(ellipse 480px 320px at 94% 18%, rgba(0,0,0,0.025), transparent 60%)',
+            'radial-gradient(ellipse 600px 360px at 58% 45%, rgba(0,0,0,0.02), transparent 70%)'
+          ].join(', ')
+        }}
+      >
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-6 w-6 object-contain" aria-hidden />
@@ -1702,26 +1723,29 @@ export default function HomePage() {
             <Tooltip text="Thought starters" position="top">
               <button
                 onClick={() => setShowAiPrompts(!showAiPrompts)}
-                className={`mb-1 transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full ${showAiPrompts ? 'text-ink' : 'text-muted-foreground hover:text-ink'}`}
+                className="mb-1 transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
                 aria-label="AI thought prompts"
                 disabled={isEditingTranscript}
                 style={{
                   backgroundColor: 'var(--card)',
                   border: '1px solid var(--stroke)',
+                  color: showAiPrompts ? 'var(--ink)' : 'var(--muted-foreground)',
                   opacity: isEditingTranscript ? 0.5 : 1,
                   cursor: isEditingTranscript ? 'not-allowed' : 'pointer',
                 }}
                 onMouseEnter={(e) => {
                   if (!isEditingTranscript) {
+                    e.currentTarget.style.color = 'var(--ink)'
                     e.currentTarget.style.borderColor = 'var(--ink)'
                   }
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.color = showAiPrompts ? 'var(--ink)' : 'var(--muted-foreground)'
                   e.currentTarget.style.borderColor = 'var(--stroke)'
                 }}
               >
-                <span className="inline-flex items-center justify-center flex-shrink-0 w-full h-full">
-                  <TbPencilQuestion className="w-6 h-6 sm:w-5 sm:h-5 block" />
+                <span className="inline-flex items-center justify-center flex-shrink-0 w-full h-full" style={{ color: 'inherit', transform: 'translateY(-2px)' }}>
+                  <TbPencilQuestion className="w-6 h-6 sm:w-5 sm:h-5 block" style={{ color: 'inherit' }} />
                 </span>
               </button>
             </Tooltip>
@@ -1777,10 +1801,14 @@ export default function HomePage() {
                     : 'var(--paper)',
                   backgroundImage: isAudioRecording
                     ? 'radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.15), transparent 60%), radial-gradient(circle at center, rgba(255, 255, 255, 0.1), transparent 70%)'
-                    : 'radial-gradient(circle at 30% 30%, rgba(0, 0, 0, 0.08), transparent 60%), radial-gradient(circle at center, rgba(255, 255, 255, 0.15), transparent 70%)',
+                    : [
+                        'radial-gradient(ellipse 80% 50% at 35% 25%, rgba(255, 255, 255, 0.5), transparent 55%)',
+                        'radial-gradient(ellipse 70% 40% at 65% 75%, rgba(0, 0, 0, 0.12), transparent 55%)',
+                        'radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 70%)'
+                      ].join(', '),
                   color: isAudioRecording ? 'var(--paper)' : 'var(--ink)',
                   borderColor: isAudioRecording ? 'transparent' : 'var(--stroke)',
-                  opacity: isEditingTranscript ? 0.5 : 1,
+                  opacity: isEditingTranscript ? 0.5 : 0.88,
                   boxShadow: isAudioRecording
                     ? 'inset 0 2px 4px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1)'
                     : 'inset 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08)'

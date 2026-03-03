@@ -559,7 +559,10 @@ function ThoughtCardInner({
         const hasAny = confirmed.length > 0 || suggestedToShow.length > 0
         if (!hasAny) return null
         return (
-          <div className="flex flex-wrap gap-2 mb-4 items-baseline" style={{ marginLeft: 0, paddingLeft: 0 }}>
+          <div
+            className="flex flex-wrap gap-2 mb-4 items-baseline"
+            style={{ marginLeft: '-0.75rem', paddingLeft: 0 }}
+          >
             {confirmed.map((tag) => {
               const isTagActive = Boolean(
                 onTagClick &&
