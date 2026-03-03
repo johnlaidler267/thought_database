@@ -151,13 +151,12 @@ function ThoughtCardInner({
     }
   }, [isEditingCard])
 
-  // Auto-grow edit textarea to fit content (no fixed height / internal scroll)
+  // Edit textarea uses flex-1 to fill card height; no inline height so flex layout controls it
   useEffect(() => {
     const el = editTextareaRef.current
     if (!el || !isEditingCard) return
     el.style.height = 'auto'
-    el.style.height = `${Math.max(200, el.scrollHeight)}px`
-  }, [isEditingCard, editedRawText])
+  }, [isEditingCard])
 
   // Auto-grow follow-up edit textarea to fit content
   useEffect(() => {
@@ -330,7 +329,7 @@ function ThoughtCardInner({
 
   return (
     <Card
-      className="border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 pb-14 shadow-none relative"
+      className={`border-stroke bg-card hover:bg-muted/30 transition-colors duration-200 pt-6 px-6 pb-14 shadow-none relative ${isEditingCard ? 'flex flex-col min-h-[420px]' : ''}`}
       style={{
         borderColor: 'var(--stroke)',
         backgroundColor: 'var(--card)'
@@ -477,22 +476,25 @@ function ThoughtCardInner({
       )}
 
       {isEditingCard ? (
-        <>
+        <div className="flex flex-col flex-1 min-h-0">
           <textarea
             ref={editTextareaRef}
             value={editedRawText}
             onChange={(e) => setEditedRawText(e.target.value)}
             disabled={isSavingEdit}
-            className="block w-full min-w-0 text-sm sm:text-base leading-relaxed font-serif text-pretty mb-2 resize-none overflow-hidden py-1 border-0 rounded bg-transparent focus:outline-none focus:ring-0"
+            className="flex-1 min-h-0 w-full min-w-0 text-sm sm:text-base leading-relaxed font-serif text-pretty resize-none overflow-auto px-3 py-2 rounded-lg focus:outline-none focus:ring-0"
             style={{
               color: 'var(--ink)',
-              backgroundColor: 'transparent',
-              minHeight: 200
+              backgroundColor: '#fafafa',
+              border: '1px solid rgba(0,0,0,0.08)',
+              transition: 'border-color 0.15s ease'
             }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)' }}
             placeholder="Edit thought text..."
             aria-label="Edit displayed thought text"
           />
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-3 mb-4 mt-3 shrink-0">
             <button
               type="button"
               onClick={async () => {
@@ -516,12 +518,8 @@ function ThoughtCardInner({
                 }
               }}
               disabled={isSavingEdit || !editedRawText.trim()}
-              className="px-3 py-1.5 text-sm font-serif rounded border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                borderColor: 'var(--stroke)',
-                backgroundColor: 'var(--muted)',
-                color: 'var(--ink)'
-              }}
+              className="text-sm font-serif py-0.5 border-0 bg-transparent cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: 'var(--ink)' }}
             >
               {isSavingEdit ? 'Saving…' : 'Save'}
             </button>
@@ -533,17 +531,13 @@ function ThoughtCardInner({
                 setEditedRawText('')
               }}
               disabled={isSavingEdit}
-              className="px-3 py-1.5 text-sm font-serif rounded border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                borderColor: 'var(--stroke)',
-                backgroundColor: 'transparent',
-                color: 'var(--muted-foreground)'
-              }}
+              className="text-sm font-serif py-0.5 border-0 bg-transparent cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: 'var(--muted-foreground)' }}
             >
               Cancel
             </button>
           </div>
-        </>
+        </div>
       ) : (
         <div className="min-w-0" style={{ paddingLeft: 0, marginLeft: 0 }}>
       <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
