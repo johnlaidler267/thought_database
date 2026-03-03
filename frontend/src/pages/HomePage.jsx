@@ -18,6 +18,7 @@ import { AI_PROMPTS } from '../constants/thoughtStarters'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
 import { ThoughtCard } from '../components/ThoughtCard'
 import { ThoughtStartersPopover } from '../components/ThoughtStartersPopover'
+import { TranscriptEditor } from '../components/TranscriptEditor'
 import PersonProfilePanel from '../components/PersonProfilePanel'
 import ClarifierPrompt from '../components/ClarifierPrompt'
 
@@ -52,13 +53,14 @@ export default function HomePage() {
   const hoverTimeoutRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [draftTranscript, setDraftTranscript] = useState('')
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const [showAiPrompts, setShowAiPrompts] = useState(false)
   const [selectedPrompt, setSelectedPrompt] = useState(null)
-  const transcriptTextareaRef = useRef(null)
+  const [editorSessionKey, setEditorSessionKey] = useState(0)
+  const [initialTranscriptForEditor, setInitialTranscriptForEditor] = useState('')
+  const skipPersistRef = useRef(false)
+  const resolveMentionsToPeopleRef = useRef(null)
   const isFromRecordingRef = useRef(false)
-  const draftTranscriptRef = useRef('')
   const aiPromptsRecordRef = useRef(null)
   const aiPromptsEditorRef = useRef(null)
   const thoughtsRef = useRef(thoughts)
@@ -238,8 +240,10 @@ export default function HomePage() {
         return
       }
 
-      // Show transcript immediately so the user isn't left waiting (especially important for new users where profile update can be slow)
-      setDraftTranscript(transcript)
+      // Show transcript in editor (TranscriptEditor owns draft state and focuses itself)
+      skipPersistRef.current = false
+      setInitialTranscriptForEditor(transcript)
+      setEditorSessionKey((k) => k + 1)
       setShowAiPrompts(false)
       setIsEditingTranscript(true)
       isFromRecordingRef.current = true // Mark that this came from recording
@@ -265,25 +269,13 @@ export default function HomePage() {
       if (isAutoStop) {
         alert('Recording stopped at 5 minute limit. Your audio has been transcribed.')
       }
-      
-      // Focus textarea after a brief delay to ensure it's rendered
-      setTimeout(() => {
-        if (transcriptTextareaRef.current) {
-          transcriptTextareaRef.current.focus()
-          // Move cursor to end
-          transcriptTextareaRef.current.setSelectionRange(
-            transcriptTextareaRef.current.value.length,
-            transcriptTextareaRef.current.value.length
-          )
-        }
-      }, 100)
     } catch (err) {
       console.error('Error processing recording:', err)
       const errorMessage = err.message || 'Failed to process recording. Please try again.'
       alert(errorMessage)
       setLoading(false)
     }
-  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef, isSilencePlaceholder])
+  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, isSilencePlaceholder])
 
   const handleRecordStop = async () => {
     const audioBlob = await stopRecording()
@@ -320,22 +312,20 @@ export default function HomePage() {
     return () => { cancelled = true }
   }, [user, processAudioBlob])
 
-  const handleSubmitTranscript = async () => {
-    if (!draftTranscript.trim()) {
-      return
-    }
+  const handleSubmitTranscript = useCallback(async (editedTranscript) => {
+    const trimmed = (editedTranscript || '').trim()
+    if (!trimmed) return
 
     try {
       setLoading(true)
-      const editedTranscript = draftTranscript.trim()
 
       // Save as-typed: no AI cleanup or tagging on submission
       const category = activeCategory !== 'All' ? activeCategory : null
 
       const newThought = {
         user_id: user?.id,
-        raw_transcript: editedTranscript,
-        cleaned_text: editedTranscript,
+        raw_transcript: trimmed,
+        cleaned_text: trimmed,
         tags: [],
         mentions: [],
         thought_type: null,
@@ -406,7 +396,7 @@ export default function HomePage() {
 
           // Suggest tags and extract mentions/thought_type in background; update thought when result returns
           const vocabulary = [...new Set(thoughts.flatMap((t) => t.tags || []).filter(Boolean))]
-          extractTags(editedTranscript, vocabulary)
+          extractTags(trimmed, vocabulary)
             .then((result) => {
               const suggested = Array.isArray(result?.tags) ? result.tags : []
               const mentions = Array.isArray(result?.mentions) ? result.mentions : []
@@ -435,7 +425,7 @@ export default function HomePage() {
                     .then(({ error }) => { if (error) console.error('Failed to save mentions/thought_type:', error) })
                 }
                 if (mentions.length > 0 && supabase && user) {
-                  resolveMentionsToPeople(mentions, dataIdStr, user.id).then(({ newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending: pending, confirmationPending: confirmPending }) => {
+                  resolveMentionsToPeopleRef.current?.(mentions, dataIdStr, user.id).then(({ newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending: pending, confirmationPending: confirmPending }) => {
                     if (newThoughtPeople.length) setThoughtPeople((prev) => [...prev, ...newThoughtPeople])
                     if (Object.keys(newPeopleMap).length) setPeopleMap((prev) => ({ ...prev, ...newPeopleMap }))
                     if (newPersonIds.length > 0) {
@@ -481,13 +471,11 @@ export default function HomePage() {
         setThoughts(prev => [mockThought, ...prev])
       }
 
-      // Clear draft, selected prompt, and close editor
-      setDraftTranscript('')
+      // Close editor without persisting draft (TranscriptEditor checks skipPersistRef on unmount)
+      skipPersistRef.current = true
+      try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
       setSelectedPrompt(null)
       setIsEditingTranscript(false)
-      draftTranscriptRef.current = ''
-      try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
-      // Reset recording flag
       isFromRecordingRef.current = false
     } catch (err) {
       console.error('Error saving thought:', err)
@@ -496,14 +484,11 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeCategory, selectedPrompt, user, supabase, setThoughts, thoughts, setSuggestedTagsByThoughtId, setThoughtPeople, setPeopleMap, setClarifierForPersonId, setClarifierForThoughtId, setDisambiguationPending, setConfirmationPending])
 
   const handleCancelEdit = () => {
-    setDraftTranscript('')
     setSelectedPrompt(null)
     setIsEditingTranscript(false)
-    draftTranscriptRef.current = ''
-    try { sessionStorage.removeItem('vellum_draft_pending') } catch {}
   }
 
   const handleRecordClick = () => {
@@ -524,17 +509,12 @@ export default function HomePage() {
       alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
       return
     }
-    // Open transcript editor for typing
-    setDraftTranscript('')
+    skipPersistRef.current = false
+    setInitialTranscriptForEditor('')
+    setEditorSessionKey((k) => k + 1)
     setShowAiPrompts(false)
     setIsEditingTranscript(true)
     isFromRecordingRef.current = false // Mark as typed, not recorded
-    // Focus the textarea after a brief delay to ensure it's rendered
-    setTimeout(() => {
-      if (transcriptTextareaRef.current) {
-        transcriptTextareaRef.current.focus()
-      }
-    }, 100)
   }
 
   // Load categories for the current user (per-user to avoid leaking across accounts)
@@ -566,7 +546,8 @@ export default function HomePage() {
       if (!saved) return
       const { transcript } = JSON.parse(saved)
       if (typeof transcript === 'string' && transcript.trim() !== '') {
-        setDraftTranscript(transcript)
+        setInitialTranscriptForEditor(transcript)
+        setEditorSessionKey((k) => k + 1)
         setShowAiPrompts(false)
         setIsEditingTranscript(true)
       }
@@ -575,21 +556,6 @@ export default function HomePage() {
       sessionStorage.removeItem('vellum_draft_pending')
     }
   }, [user?.id])
-
-  // Keep ref in sync so unmount cleanup can read latest draft without re-running effect on every keystroke
-  draftTranscriptRef.current = draftTranscript
-
-  // Persist draft transcript only on unmount (navigate away) so it can be restored when coming back
-  useEffect(() => {
-    return () => {
-      const latest = draftTranscriptRef.current
-      if (latest && latest.trim()) {
-        try {
-          sessionStorage.setItem('vellum_draft_pending', JSON.stringify({ transcript: latest }))
-        } catch {}
-      }
-    }
-  }, [])
 
   // Cleanup hover timeout on unmount
   useEffect(() => {
@@ -757,6 +723,7 @@ export default function HomePage() {
     }
     return { newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending, confirmationPending }
   }, [supabase])
+  resolveMentionsToPeopleRef.current = resolveMentionsToPeople
 
   const handlePersonClick = useCallback((personId) => setOpenPersonId(personId), [])
   const handleClosePersonPanel = useCallback(() => setOpenPersonId(null), [])
@@ -1561,7 +1528,7 @@ export default function HomePage() {
         />
       )}
 
-      {/* Transcript Editor - Fixed at bottom */}
+      {/* Transcript Editor - Fixed at bottom; owns its own state so typing doesn't re-render HomePage */}
       {isEditingTranscript && (
         <div 
           className="fixed bottom-0 left-0 right-0 z-50 border-t transition-all duration-300 ease-out"
@@ -1572,127 +1539,19 @@ export default function HomePage() {
           }}
         >
           <div className="max-w-[46.2rem] mx-auto px-6 py-4">
-            <div className="flex items-start gap-3">
-              <div className="flex-1">
-                {selectedPrompt && (
-                  <div
-                    className="group relative flex items-center gap-4 mb-3 pl-3 pr-14 sm:pr-10 py-2 rounded-lg border font-serif text-sm"
-                    style={{
-                      borderColor: 'var(--stroke)',
-                      backgroundColor: 'var(--muted)',
-                      color: 'var(--muted-foreground)'
-                    }}
-                  >
-                    <span className="flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
-                      <FaReply className="w-4 h-4" />
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <p className="italic text-muted-foreground" style={{ color: 'var(--muted-foreground)' }}>{selectedPrompt}</p>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPrompt(null)}
-                      className="absolute top-1/2 right-1 -translate-y-1/2 p-0.5 rounded hover:bg-muted/80 transition-colors"
-                      style={{ color: 'var(--muted-foreground)' }}
-                      aria-label="Clear prompt"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-                {showAiPrompts && (
-                  <div ref={aiPromptsEditorRef} className="mb-3 w-full max-w-[min(90vw,28rem)]">
-                    <ThoughtStartersPopover
-                      prompts={AI_PROMPTS}
-                      selectedPrompt={selectedPrompt}
-                      onSelectPrompt={setSelectedPrompt}
-                      useInlineHover={false}
-                    />
-                  </div>
-                )}
-                <div className="mb-2" aria-hidden />
-                <textarea
-                  ref={transcriptTextareaRef}
-                  value={draftTranscript}
-                  onChange={(e) => setDraftTranscript(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Submit on Cmd/Ctrl + Enter
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault()
-                      handleSubmitTranscript()
-                    }
-                    // Cancel on Escape
-                    if (e.key === 'Escape') {
-                      handleCancelEdit()
-                    }
-                  }}
-                  className="w-full px-4 py-3 rounded-lg border resize-none font-serif text-base leading-relaxed focus:outline-none transition-colors"
-                  style={{
-                    backgroundColor: 'var(--card)',
-                    borderColor: 'var(--stroke)',
-                    color: 'var(--ink)',
-                    minHeight: '120px',
-                    maxHeight: '300px'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = 'var(--ink)'
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'var(--stroke)'
-                  }}
-                  placeholder="Edit your transcript here..."
-                  rows={4}
-                />
-                <div className="flex items-center justify-end mt-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleCancelEdit}
-                      className="px-4 py-2 rounded-lg border font-serif text-sm transition-colors flex items-center gap-2"
-                      style={{
-                        borderColor: 'var(--stroke)',
-                        color: 'var(--muted-foreground)',
-                        backgroundColor: 'transparent'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = 'var(--ink)'
-                        e.currentTarget.style.borderColor = 'var(--ink)'
-                        e.currentTarget.style.backgroundColor = 'var(--muted)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = 'var(--muted-foreground)'
-                        e.currentTarget.style.borderColor = 'var(--stroke)'
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                      }}
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSubmitTranscript}
-                      disabled={!draftTranscript.trim() || loading}
-                      className="px-4 py-2 rounded-lg font-serif text-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor: 'var(--ink)',
-                        color: 'var(--paper)'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!e.currentTarget.disabled) {
-                          e.currentTarget.style.backgroundColor = 'var(--muted-foreground)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!e.currentTarget.disabled) {
-                          e.currentTarget.style.backgroundColor = 'var(--ink)'
-                        }
-                      }}
-                    >
-                      <Check className="w-4 h-4" />
-                      {loading ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TranscriptEditor
+              key={editorSessionKey}
+              initialTranscript={initialTranscriptForEditor}
+              onSubmit={handleSubmitTranscript}
+              onCancel={handleCancelEdit}
+              loading={loading}
+              selectedPrompt={selectedPrompt}
+              onClearPrompt={() => setSelectedPrompt(null)}
+              showAiPrompts={showAiPrompts}
+              onSelectPrompt={setSelectedPrompt}
+              aiPromptsEditorRef={aiPromptsEditorRef}
+              skipPersistRef={skipPersistRef}
+            />
           </div>
         </div>
       )}
