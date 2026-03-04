@@ -11,7 +11,7 @@ import { useThoughts } from '../hooks/useThoughts'
 import { useCategories } from '../hooks/useCategories'
 import { usePeopleLink } from '../hooks/usePeopleLink'
 import { supabase } from '../services/supabase'
-import { transcribeAudio, warmApiConnection, extractTags } from '../services/api'
+import { transcribeAudio, warmApiConnection, extractTags, syncBlurbForThought } from '../services/api'
 import { estimateTranscriptionTokens, estimateTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
 import { AI_PROMPTS } from '../constants/thoughtStarters'
@@ -49,7 +49,15 @@ export default function HomePage() {
     cancelDeleteCategory,
   } = categoriesState
 
-  const peopleLink = usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, setPeopleMap)
+  const keyPointsByThoughtIdRef = useRef({})
+  const onSyncBlurb = useCallback(
+    (thoughtId) => {
+      const kp = keyPointsByThoughtIdRef.current[thoughtId]
+      if (kp && user?.id) syncBlurbForThought(thoughtId, user.id, kp)
+    },
+    [user?.id]
+  )
+  const peopleLink = usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, setPeopleMap, onSyncBlurb)
   const {
     linkedPeopleByThoughtId,
     openPersonId,
@@ -70,6 +78,7 @@ export default function HomePage() {
     handleNewPersonClarifierComplete,
     handleDisambiguationChoose,
     handlePersonClick,
+    handleMentionClick,
     handleClosePersonPanel,
     handleUnlinkThoughtPerson,
     handleEditClarifier,
@@ -98,7 +107,6 @@ export default function HomePage() {
   const aiPromptsEditorRef = useRef(null)
   const thoughtsRef = useRef(thoughts)
 
-  resolveMentionsToPeopleRef.current = resolveMentionsToPeople
   useEffect(() => {
     thoughtsRef.current = thoughts
   }, [thoughts])
@@ -351,12 +359,16 @@ export default function HomePage() {
             .then((result) => {
               const suggested = Array.isArray(result?.tags) ? result.tags : []
               const mentions = Array.isArray(result?.mentions) ? result.mentions : []
+              const key_points = typeof result?.key_points === 'object' ? result.key_points : {}
               const thought_type = result?.thought_type ?? null
+              const dataIdStr = String(data.id)
+              if (Object.keys(key_points).length > 0) {
+                keyPointsByThoughtIdRef.current[dataIdStr] = key_points
+              }
               if (suggested.length > 0) {
                 setSuggestedTagsByThoughtId((prev) => ({ ...prev, [data.id]: suggested }))
               }
               if (mentions.length > 0 || thought_type) {
-                const dataIdStr = String(data.id)
                 setThoughts((prev) =>
                   prev.map((t) =>
                     String(t.id) === dataIdStr
@@ -388,6 +400,16 @@ export default function HomePage() {
                     }
                     if (confirmPending && confirmPending.length > 0) {
                       setConfirmationPending((prev) => [...prev, ...confirmPending])
+                    }
+                    const hasValidKeyPoints = Object.values(key_points).some((v) => v && String(v).trim())
+                    if (hasValidKeyPoints) {
+                      syncBlurbForThought(dataIdStr, user.id, key_points)
+                    } else if (mentions.length > 0) {
+                      const fallback = mentions.reduce((acc, name) => {
+                        acc[name] = trimmed.slice(0, 200).trim() || 'Mentioned in thought'
+                        return acc
+                      }, {})
+                      syncBlurbForThought(dataIdStr, user.id, fallback)
                     }
                   }).catch((err) => console.error('Resolve mentions to people:', err))
                 }
@@ -911,6 +933,7 @@ export default function HomePage() {
                   onConfirmSuggestedTag={handleConfirmSuggestedTag}
                   linkedPeople={linkedPeopleByThoughtId[String(thought.id)] || []}
                   onPersonClick={handlePersonClick}
+                  onMentionClick={handleMentionClick}
                   clarifierForPersonId={clarifierForPersonId}
                   clarifierForThoughtId={clarifierForThoughtId}
                   onClarifierSubmit={handleClarifierSubmit}
@@ -937,6 +960,12 @@ export default function HomePage() {
           onUnlink={handleUnlinkThoughtPerson}
           onScrollToThought={handleScrollToThought}
           onEditClarifier={handleEditClarifier}
+          onPersonUpdate={(personId, updates) => {
+            setPeopleMap((prev) => {
+              const p = prev[personId]
+              return p ? { ...prev, [personId]: { ...p, ...updates } } : prev
+            })
+          }}
         />
       )}
 

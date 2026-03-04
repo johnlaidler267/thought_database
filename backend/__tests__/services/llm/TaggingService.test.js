@@ -71,7 +71,7 @@ describe('TaggingService', () => {
 
       const result = await service.extractTags(text)
 
-      expect(result).toEqual({ tags: ['task', 'planning', 'reminder'], mentions: ['Sarah'], thought_type: 'TASK' })
+      expect(result).toEqual({ tags: ['task', 'planning', 'reminder'], mentions: ['Sarah'], key_points: {}, thought_type: 'TASK' })
       expect(mockProvider.complete).toHaveBeenCalledWith(
         expect.stringContaining(text),
         'llama-3.3-70b-versatile',
@@ -95,13 +95,13 @@ describe('TaggingService', () => {
 
     it('should return empty tags, mentions, and null thought_type if input is empty', async () => {
       const result = await service.extractTags('')
-      expect(result).toEqual({ tags: [], mentions: [], thought_type: null })
+      expect(result).toEqual({ tags: [], mentions: [], key_points: {}, thought_type: null })
       expect(mockProvider.complete).not.toHaveBeenCalled()
     })
 
     it('should return empty tags, mentions, and null thought_type if input is whitespace only', async () => {
       const result = await service.extractTags('   ')
-      expect(result).toEqual({ tags: [], mentions: [], thought_type: null })
+      expect(result).toEqual({ tags: [], mentions: [], key_points: {}, thought_type: null })
       expect(mockProvider.complete).not.toHaveBeenCalled()
     })
 
@@ -180,7 +180,7 @@ describe('TaggingService', () => {
 
       const result = await service.extractTags('Some text')
 
-      expect(result).toEqual({ tags: [], mentions: [], thought_type: null })
+      expect(result).toEqual({ tags: [], mentions: [], key_points: {}, thought_type: null })
     })
 
     it('should handle timeout gracefully', async () => {
@@ -188,7 +188,16 @@ describe('TaggingService', () => {
 
       const result = await service.extractTags('Some text')
 
-      expect(result).toEqual({ tags: [], mentions: [], thought_type: null })
+      expect(result).toEqual({ tags: [], mentions: [], key_points: {}, thought_type: null })
+    })
+
+    it('should parse KEYPOINTS line', async () => {
+      mockProvider.complete.mockResolvedValue('["meeting"]\nNAMES: Sarah, Bob\nKEYPOINTS: Sarah: colleague from marketing | Bob: null\nTYPE: TASK')
+
+      const result = await service.extractTags('Some text')
+
+      expect(result.mentions).toEqual(['Sarah', 'Bob'])
+      expect(result.key_points).toEqual({ Sarah: 'colleague from marketing', Bob: null })
     })
 
     it('should handle empty or whitespace-only tag response', async () => {

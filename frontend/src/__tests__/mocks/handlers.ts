@@ -36,6 +36,7 @@ export const handlers = [
     return HttpResponse.json({
       tags: tags.map(tag => tag.substring(1)),
       mentions: [],
+      key_points: {},
       thought_type: null
     })
   }),

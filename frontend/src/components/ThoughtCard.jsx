@@ -38,6 +38,7 @@ function ThoughtCardInner({
   onConfirmSuggestedTag,
   linkedPeople = [],
   onPersonClick,
+  onMentionClick,
   clarifierForPersonId,
   clarifierForThoughtId,
   onClarifierSubmit,
@@ -347,7 +348,7 @@ function ThoughtCardInner({
       ) : (
         <div className="min-w-0" style={{ paddingLeft: 0, marginLeft: 0 }}>
           <p className="text-sm sm:text-base leading-relaxed font-serif text-ink text-pretty mb-4" style={{ color: 'var(--ink)' }}>
-            {renderBodyWithUnderlines(displayText, thought)}
+            {renderBodyWithUnderlines(displayText, thought, onMentionClick)}
           </p>
 
           <TagRow
@@ -358,7 +359,7 @@ function ThoughtCardInner({
             onConfirmSuggestedTag={onConfirmSuggestedTag}
           />
 
-          <PeopleMetadataRow thought={thought} linkedPeople={linkedPeople} onPersonClick={onPersonClick} />
+          <PeopleMetadataRow thought={thought} linkedPeople={linkedPeople} onPersonClick={onPersonClick} onMentionClick={onMentionClick} />
 
           <ClarifierBannerPerson
             thoughtId={thought.id}

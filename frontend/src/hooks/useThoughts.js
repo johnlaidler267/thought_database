@@ -92,7 +92,7 @@ export function useThoughts(user) {
 
         const { data: peopleData, error: peopleError } = await supabase
           .from('people')
-          .select('id, display_name, clarifier')
+          .select('id, display_name, clarifier, blurb')
           .in('id', personIds)
 
         if (peopleError) {

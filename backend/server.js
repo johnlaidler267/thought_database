@@ -7,6 +7,7 @@ import tagsRouter from './routes/tags.js'
 import reflectRouter from './routes/reflect.js'
 import distillRouter from './routes/distill.js'
 import stripeRouter from './routes/stripe.js'
+import peopleRouter from './routes/people.js'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -179,6 +180,7 @@ app.use('/api/clean', cleanRouter)
 app.use('/api/tags', tagsRouter)
 app.use('/api/reflect', reflectRouter)
 app.use('/api/distill', distillRouter)
+app.use('/api/people', peopleRouter)
 app.use('/api/stripe', stripeRouter)
 
 // Health check

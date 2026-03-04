@@ -38,11 +38,16 @@ Assign 2–4 tags from the provided existing tag list where possible. Only sugge
 Rules for names
 List only people who are explicitly mentioned by name in the text. Use the form the text uses. If no people are mentioned, output nothing after NAMES:.
 
+Rules for key points
+For each person in NAMES, extract a single concise key point about them from the thought—what the thought says about them or their relevance. One short phrase or sentence. If the thought contains nothing meaningful about them beyond the mention, use null.
+
 Output format (use exactly this structure)
 Line 1: A JSON array of 2–4 tag strings only. No preamble, no explanation. Example: ["relationships", "self-doubt", "work"]
 Line 2: NAMES: Name1, Name2
-Line 3: TYPE: IDEA
+Line 3: KEYPOINTS: Name1: point1 | Name2: null
+Line 4: TYPE: IDEA
 
+KEYPOINTS format: Name: point or Name: null. Separate entries with |. Use the exact name from NAMES.
 TYPE must be exactly one word: IDEA, OBSERVATION, TASK, QUESTION, REFERENCE, REFLECTION, or PLAN.
 
 Input
@@ -122,6 +127,26 @@ Output`
         }
       }
 
+      // Parse KEYPOINTS: Name1: point1 | Name2: null
+      const key_points = {}
+      const keypointsMatch = response.match(/(?:KEYPOINTS?):[ \t]*([^\n]+)/i)
+      if (keypointsMatch && keypointsMatch[1] && mentions.length > 0) {
+        const raw = keypointsMatch[1].trim()
+        const entries = raw.split(/\|/).map((e) => e.trim()).filter(Boolean)
+        for (const entry of entries) {
+          const colonIdx = entry.indexOf(':')
+          if (colonIdx > 0) {
+            const name = entry.slice(0, colonIdx).trim()
+            const val = entry.slice(colonIdx + 1).trim()
+            if (name && (val === 'null' || val === '')) {
+              key_points[name] = null
+            } else if (name && val) {
+              key_points[name] = val
+            }
+          }
+        }
+      }
+
       // Parse TYPE: ...
       let thought_type = null
       const typeMatch = response.match(/TYPE:\s*(\w+)/i)
@@ -133,11 +158,70 @@ Output`
       return {
         tags: Array.isArray(tags) ? tags : [],
         mentions: Array.isArray(mentions) ? mentions : [],
+        key_points: typeof key_points === 'object' ? key_points : {},
         thought_type,
       }
     } catch (error) {
       console.error('Tag extraction error:', error)
       return { tags: [], mentions: [], thought_type: null }
+    }
+  }
+
+  /**
+   * Extract a single concise key point about a specific person from thought text.
+   * @param {string} thoughtText - The thought content
+   * @param {string} personName - The person's display name
+   * @returns {Promise<string|null>}
+   */
+  async extractKeyPointForPerson(thoughtText, personName) {
+    if (!thoughtText?.trim() || !personName?.trim()) return null
+    try {
+      const prompt = `From this thought, extract one short key point about "${personName}"—what the thought says about them or their relevance. One phrase or sentence. If the thought says nothing meaningful about them beyond the mention, output exactly: null
+
+Thought:
+${thoughtText.trim()}
+
+Output (key point or null):`
+      const response = await this.provider.complete(prompt, this.model, {
+        max_tokens: 80,
+        temperature: 0.2,
+      })
+      const trimmed = (response || '').trim()
+      if (!trimmed || /^null$/i.test(trimmed)) return null
+      return trimmed
+    } catch (err) {
+      console.error('extractKeyPointForPerson error:', err)
+      return null
+    }
+  }
+
+  /**
+   * Generate a 2–3 sentence blurb summarizing who a person is based on their key points.
+   * @param {string} displayName - Person's display name
+   * @param {string[]} keyPoints - Array of extracted key points
+   * @returns {Promise<string|null>}
+   */
+  async generateBlurb(displayName, keyPoints) {
+    if (!displayName || !Array.isArray(keyPoints) || keyPoints.length === 0) {
+      return null
+    }
+    const filtered = keyPoints.filter((k) => k && String(k).trim())
+    if (filtered.length === 0) return null
+
+    try {
+      const prompt = `Given these facts about "${displayName}" (each from a different note or thought):
+${filtered.map((k) => `- ${k}`).join('\n')}
+
+Write 2–3 sentences summarizing who this person is to the user. Be neutral and factual, not sentimental. Output only the summary, no preamble.`
+      const response = await this.provider.complete(prompt, this.model, {
+        max_tokens: 150,
+        temperature: 0.4,
+      })
+      const trimmed = (response || '').trim()
+      return trimmed || null
+    } catch (err) {
+      console.error('Blurb generation error:', err)
+      return null
     }
   }
 

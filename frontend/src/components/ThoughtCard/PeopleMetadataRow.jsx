@@ -5,7 +5,7 @@ const separatorStyle = { backgroundColor: 'var(--stroke)' }
 const iconStyle = { color: 'var(--muted-foreground)' }
 const textStyle = { color: 'var(--muted-foreground)' }
 
-export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick }) {
+export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, onMentionClick }) {
   const mentionList = getMentionList(thought)
   const thoughtTypeLabel = getThoughtTypeLabel(thought)
   const category = thought.category && thought.category.trim()
@@ -60,13 +60,18 @@ export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick })
                   </button>
                 ))
               : mentionList.map((name) => (
-                  <span
+                  <button
                     key={String(name)}
-                    className="text-xs font-serif text-muted-foreground"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      onMentionClick?.(name, thought.id)
+                    }}
+                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors"
                     style={textStyle}
                   >
                     {name}
-                  </span>
+                  </button>
                 ))}
           </div>
         </div>
