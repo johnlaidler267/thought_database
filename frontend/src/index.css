@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-brand: 'Lugrasimo', cursive;
+}
+
 @layer base {
   :root {
     /* Monochrome palette - Pure whites, grays, and blacks */

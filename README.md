@@ -7,21 +7,28 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 - **Voice Recording**: Large, prominent record button for easy capture (with optional 5-minute auto-stop)
 - **AI-Powered Cleaning**: Removes filler words and stutters while preserving your voice (Gemini)
 - **Smart Tagging**: Automatically extracts category tags (#Idea, #Person, #Task) via Llama
+- **People & Mentions**: Tag people in thoughts; link mentions to person profiles; add clarifiers (e.g. "Sarah from work") to disambiguate; view a Person Profile panel with all thoughts mentioning someone
+- **Follow-ups**: Add follow-up notes to any thought (thread-style); edit and delete follow-ups
+- **AI Reflection Question**: One-click button generates a probing follow-up question from the LLM to deepen reflection
+- **Distill**: AI condenses a thought into a shorter summary; undo/redo through distillation history
+- **Thought Starters**: Dynamic, intent-based prompts (Sparkles popover). Pick an intent → AI generates 5 prompts → pick one → recording starts with prompt pre-filled
 - **Categories**: Organize thoughts with custom category tabs; filter by category
 - **Search**: Search by tag and thought content
+- **Translation**: Translate thoughts to another language; set preferred translation language in Settings
 - **Clean Interface**: Minimalist, high-contrast design inspired by e-readers; light/dark theme
 - **PWA Support**: Installable as a native app; works offline-capable with service worker
 - **Toggle Views**: Switch between cleaned and raw transcript per thought
 - **Auth**: Sign in with Apple, Google, or Email (Magic Links) via Supabase
 - **Settings**: Theme, translation preferences, account management, optional Stripe subscription (Upgrade / Manage)
-- **Confirmation Modals**: Delete thought and delete category use in-app confirmation dialogs (no browser `confirm`)
+- **Confirmation Modals**: Delete thought, delete follow-up, and delete category use in-app confirmation dialogs (no browser `confirm`)
+- **Free Tier**: Token limits for trial/apprentice tiers; upgrade to Pro for higher limits
 
 ## Tech Stack
 
 - **Frontend**: Vite + React 19 + Tailwind CSS, React Router
 - **Backend**: Node.js + Express
-- **Storage**: Supabase (PostgreSQL, Auth, optional Stripe-linked profiles)
-- **APIs**: Groq (Whisper transcription + Llama tagging), Google AI Studio (Gemini text cleaning). See `docs/LLM_INTEGRATION.md` for details.
+- **Storage**: Supabase (PostgreSQL, Auth, people/thought_people, optional Stripe-linked profiles)
+- **APIs**: Groq (Whisper transcription, Llama tagging, reflect questions, distill), Google AI Studio (Gemini text cleaning), Google Translate (optional translation). See `docs/LLM_INTEGRATION.md` for details.
 
 ## Setup
 
@@ -76,7 +83,10 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
    GROQ_API_KEY=your_groq_api_key
    GOOGLE_AI_API_KEY=your_google_ai_api_key
    ```
+   **Required for API auth**: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (from Supabase Dashboard → Settings → API). All LLM/API routes require a valid Supabase JWT; without these, the backend returns 503.
+   For **Person Profile Blurb** (AI-generated summaries): the same keys let the backend update people records.
    For Stripe (optional): see `docs/STRIPE_INTEGRATION_GUIDE.md` for `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and Supabase service role config.
+   For rate limiting: optional `RATE_LIMIT_MAX` (default 100 requests per 15 min per IP).
 
 4. Start the server:
    ```bash
@@ -88,9 +98,17 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 
 1. Create a new Supabase project at [supabase.com](https://supabase.com).
 
-2. Run the SQL in your Supabase SQL editor (in order):
-   - Use **`supabase/SUPABASE_COMPLETE_SETUP.sql`** for a single-file setup (recommended), **or**
-   - See **`supabase/README.md`** for separate schema/migration files.
+2. Run the SQL in your Supabase SQL editor **in this order**:
+   - **`supabase/SUPABASE_COMPLETE_SETUP.sql`** — Base setup (thoughts, profiles, RLS, auth trigger).
+   - **`supabase/migrations/SUPABASE_ADD_CATEGORY_COLUMN.sql`** — Adds `category` to thoughts.
+   - **`supabase/migrations/SUPABASE_ADD_MENTIONS_COLUMN.sql`** — Adds `mentions` (person names) to thoughts.
+   - **`supabase/migrations/SUPABASE_ADD_PEOPLE_AND_THOUGHT_PEOPLE.sql`** — Creates `people` and `thought_people` tables.
+   - **`supabase/migrations/SUPABASE_ADD_FOLLOW_UPS_COLUMN.sql`** — Adds `follow_ups` (JSONB) to thoughts.
+   - **`supabase/migrations/SUPABASE_ADD_DISTILL_COLUMNS.sql`** — Adds `distilled_text` and `distill_history` to thoughts.
+   - **`supabase/migrations/SUPABASE_ADD_RESPONDING_TO_COLUMN.sql`** — Adds `responding_to` (AI prompt) to thoughts.
+   - **`supabase/migrations/SUPABASE_ADD_THOUGHT_TYPE_COLUMN.sql`** — Adds `thought_type` to thoughts.
+   - **`supabase/migrations/SUPABASE_ADD_TOKENS_USED_COLUMN.sql`** — Adds `tokens_used` to profiles (if not already in base setup).
+   - **`supabase/migrations/SUPABASE_ADD_PEOPLE_KEY_POINTS_AND_BLURB.sql`** — Adds `key_points` and `blurb` to people (Person Profile Blurb feature).
 
 3. Configure authentication:
    - Go to **Authentication** > **Providers** and enable Apple, Google, and Email (Magic Links) as needed.
@@ -120,18 +138,19 @@ npm run mode:prod
 thought_database/
 ├── frontend/              # React frontend (Vite)
 │   ├── src/
-│   │   ├── components/   # UI components (ConfirmDialog, RecordButton, ThoughtBubble, etc.)
+│   │   ├── components/   # ThoughtCard, RecordButton, PersonProfilePanel, ClarifierPrompt,
+│   │   │                 # ThoughtStartersPopover, TranscriptEditor, ConfirmDialog, etc.
 │   │   ├── contexts/     # AuthContext, ThemeContext
-│   │   ├── hooks/        # useAudioRecorder
-│   │   ├── pages/        # HomePage, SettingsPage
+│   │   ├── hooks/        # useAudioRecorder, useThoughts, useCategories, usePeopleLink, useDistill
+│   │   ├── pages/        # HomePage, SettingsPage, TermsPage, PrivacyPage
 │   │   ├── services/     # API client, Supabase, translation
 │   │   ├── main.jsx      # Entry point, routes, PWA registration
 │   │   └── index.css
 │   ├── public/           # Static assets, manifest.json, service-worker.js
 │   └── tests/e2e/       # Playwright E2E specs
 ├── backend/              # Express API
-│   ├── routes/          # transcribe, clean, tags, stripe
-│   ├── services/llm/     # Transcription, Cleaning, Tagging (Groq + Google AI)
+│   ├── routes/          # transcribe, clean, tags, reflect, distill, stripe
+│   ├── services/llm/    # Transcription, Cleaning, Tagging (Groq + Google AI)
 │   └── server.js
 ├── docs/                # Setup and integration guides
 │   ├── QUICK_START.md
@@ -141,10 +160,9 @@ thought_database/
 │   ├── TESTING.md
 │   └── ...
 ├── supabase/            # Database schema and migrations
-│   ├── SUPABASE_COMPLETE_SETUP.sql   # Single-file setup (use this for new installs)
-│   ├── README.md
-│   ├── migrations/      # Optional incremental migrations
-│   └── archive/        # Legacy schema files (reference only)
+│   ├── SUPABASE_COMPLETE_SETUP.sql   # Base setup (thoughts, profiles)
+│   ├── migrations/      # Add category, people, thought_people, follow_ups, distill, etc.
+│   └── archive/         # Legacy schema files (reference only)
 ```
 
 ## Usage
@@ -152,10 +170,11 @@ thought_database/
 1. Start both frontend and backend (e.g. `npm run dev` from root).
 2. Open the app (e.g. `http://localhost:5175`).
 3. Sign in via **Welcome** (Apple, Google, or Magic Link).
-4. On the home page: use **Record** to capture a thought, then **Stop** to transcribe, clean, and tag.
+4. On the home page: use **Record** to capture a thought, then **Stop** to transcribe, clean, and tag. Or use **Thought starters** (Sparkles) for prompts.
 5. Edit the draft if needed, then save; the thought appears in your list with tags and optional category.
-6. Use category tabs and search to filter; use the menu on a thought to copy, view raw, translate, or delete (with confirmation).
-7. **Settings**: theme, translation, account, and (if configured) Stripe subscription.
+6. On each thought: add **follow-ups**, ask an **AI reflection question**, **distill** to a shorter summary, or click a **person** to open their profile panel and add a clarifier.
+7. Use category tabs and search to filter; use the menu on a thought to copy, view raw, translate, or delete (with confirmation).
+8. **Settings**: theme, translation language, account, and (if configured) Stripe subscription.
 
 ## Design Philosophy
 

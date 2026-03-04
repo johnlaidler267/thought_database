@@ -1,3 +1,5 @@
+import { supabase } from './supabase'
+
 // Construct API URL - ensure it ends with /api
 const getApiUrl = () => {
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -17,6 +19,14 @@ const getApiUrl = () => {
   return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`
 }
 const API_URL = getApiUrl()
+
+/** Get auth headers for API requests. Returns { Authorization: 'Bearer <token>' } or {}. Exported for use by SettingsPage, AuthContext, etc. */
+export async function getAuthHeaders() {
+  if (!supabase) return {}
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) return {}
+  return { Authorization: `Bearer ${session.access_token}` }
+}
 
 /**
  * Warm the connection to the backend (and wake serverless/cold starts).
@@ -39,8 +49,10 @@ export async function transcribeAudio(audioBlob) {
     const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT_MS)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const response = await fetch(`${API_URL}/transcribe`, {
         method: 'POST',
+        headers: authHeaders,
         body: formData,
         signal: controller.signal,
       })
@@ -96,10 +108,12 @@ export async function cleanTranscript(rawTranscript) {
     const timeoutId = setTimeout(() => controller.abort(), CLEANUP_TIMEOUT_MS)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const response = await fetch(`${API_URL}/clean`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({ transcript: rawTranscript }),
         signal: controller.signal,
@@ -149,10 +163,12 @@ export async function cleanTranscript(rawTranscript) {
 export async function extractTags(cleanedText, existingTagVocabulary = []) {
   try {
     const vocabulary = Array.isArray(existingTagVocabulary) ? existingTagVocabulary : []
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${API_URL}/tags`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
       },
       body: JSON.stringify({ text: cleanedText, existingTagVocabulary: vocabulary }),
     })
@@ -166,6 +182,7 @@ export async function extractTags(cleanedText, existingTagVocabulary = []) {
     return {
       tags: Array.isArray(data.tags) ? data.tags : [],
       mentions: Array.isArray(data.mentions) ? data.mentions : [],
+      key_points: typeof data.key_points === 'object' ? data.key_points : {},
       thought_type: data.thought_type ?? null,
     }
   } catch (err) {
@@ -177,16 +194,76 @@ export async function extractTags(cleanedText, existingTagVocabulary = []) {
 }
 
 /**
+ * Trigger async blurb sync for people mentioned in a thought.
+ * Fire-and-forget; does not block. Backend appends key points and regenerates blurbs.
+ * @param {string} thoughtId - Thought ID
+ * @param {string} userId - User ID
+ * @param {Record<string, string|null>} mentionKeyPoints - Map of display name to key point (or null)
+ */
+/**
+ * Regenerate blurb for an existing person from their linked thoughts.
+ * @param {string} personId - Person ID
+ * @param {string} userId - User ID
+ * @returns {Promise<{ blurb: string|null }>}
+ */
+export async function regenerateBlurbForPerson(personId, userId) {
+  const authHeaders = await getAuthHeaders()
+  const response = await fetch(`${API_URL}/people/regenerate-blurb`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+    body: JSON.stringify({ personId, userId }),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${response.status}`)
+  }
+  const data = await response.json()
+  return { blurb: data.blurb ?? null }
+}
+
+export function syncBlurbForThought(thoughtId, userId, mentionKeyPoints) {
+  if (!thoughtId || !userId || !mentionKeyPoints || Object.keys(mentionKeyPoints).length === 0) return
+  getAuthHeaders().then((authHeaders) =>
+    fetch(`${API_URL}/people/sync-blurb`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ thoughtId, userId, mentionKeyPoints }),
+    })
+  ).catch((err) => console.warn('syncBlurbForThought failed:', err))
+}
+
+/**
  * Get a single short reflection question from the LLM given thought text and follow-ups.
  * @param {string} thoughtText - The main thought content
  * @param {Array<string|{text: string}>} followUps - Follow-up entries (strings or objects with .text)
  * @returns {Promise<string|null>} The question text or null
  */
+/**
+ * Get 5 journaling prompts for a given intent (e.g. "What's on your mind?", "Tell me about your day").
+ * @param {string} intent - User's selected intent label
+ * @returns {Promise<string[]>} Array of 5 prompt strings
+ */
+export async function getThoughtStarterPrompts(intent) {
+  const authHeaders = await getAuthHeaders()
+  const response = await fetch(`${API_URL}/thought-starters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+    body: JSON.stringify({ intent }),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${response.status}`)
+  }
+  const data = await response.json()
+  return Array.isArray(data.prompts) ? data.prompts : []
+}
+
 export async function getReflectQuestion(thoughtText, followUps = []) {
   try {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${API_URL}/reflect`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         thoughtText: thoughtText || '',
         followUps: Array.isArray(followUps) ? followUps : [],
@@ -211,9 +288,10 @@ export async function getReflectQuestion(thoughtText, followUps = []) {
  * @returns {Promise<string>} Distilled text
  */
 export async function distillText(text, level) {
+  const authHeaders = await getAuthHeaders()
   const response = await fetch(`${API_URL}/distill`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({ text: text || '', level: Math.max(1, parseInt(level, 10) || 1) }),
   })
   if (!response.ok) {

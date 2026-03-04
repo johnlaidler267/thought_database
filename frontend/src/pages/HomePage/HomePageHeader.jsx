@@ -28,7 +28,7 @@ export function HomePageHeader({
             className="h-6 w-6 object-contain"
             aria-hidden
           />
-          <h1 className="text-lg font-serif tracking-wide" style={{ color: 'var(--ink)' }}>
+          <h1 className="text-lg font-brand tracking-wide" style={{ color: 'var(--ink)' }}>
             Vellum
           </h1>
         </div>

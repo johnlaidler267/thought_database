@@ -1,12 +1,16 @@
 import express from 'express'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
+import { requireAuth } from './middleware/auth.js'
 import transcribeRouter from './routes/transcribe.js'
 import cleanRouter from './routes/clean.js'
 import tagsRouter from './routes/tags.js'
 import reflectRouter from './routes/reflect.js'
 import distillRouter from './routes/distill.js'
 import stripeRouter from './routes/stripe.js'
+import peopleRouter from './routes/people.js'
+import thoughtStartersRouter from './routes/thoughtStarters.js'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -54,6 +58,7 @@ app.get('/', (req, res) => {
       'POST /api/tags',
       'POST /api/reflect',
       'POST /api/distill',
+      'POST /api/thought-starters',
       'POST /api/stripe/webhook'
     ]
   })
@@ -173,18 +178,33 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 // Now apply JSON middleware for all other routes
 app.use(express.json())
 
-// Routes
-app.use('/api/transcribe', transcribeRouter)
-app.use('/api/clean', cleanRouter)
-app.use('/api/tags', tagsRouter)
-app.use('/api/reflect', reflectRouter)
-app.use('/api/distill', distillRouter)
-app.use('/api/stripe', stripeRouter)
-
-// Health check
+// Health check - no rate limit (for load balancers / monitoring)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
+
+// Rate limiting: protect LLM/API endpoints from abuse (per IP)
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX, 10) || 100
+const apiLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api', apiLimiter)
+
+// Protected routes: require valid Supabase JWT
+const auth = requireAuth(supabase)
+app.use('/api/transcribe', auth, transcribeRouter)
+app.use('/api/clean', auth, cleanRouter)
+app.use('/api/tags', auth, tagsRouter)
+app.use('/api/reflect', auth, reflectRouter)
+app.use('/api/distill', auth, distillRouter)
+app.use('/api/people', auth, peopleRouter)
+app.use('/api/thought-starters', auth, thoughtStartersRouter)
+app.use('/api/stripe', auth, stripeRouter)
 
 // Catch-all for 404s - log what was requested
 // Must be last, after all other routes
@@ -198,6 +218,7 @@ app.use((req, res) => {
     'POST /api/tags',
     'POST /api/reflect',
     'POST /api/distill',
+    'POST /api/thought-starters',
     'POST /api/stripe/webhook'
   ])
   res.status(404).json({ 
@@ -212,6 +233,7 @@ app.use((req, res) => {
       'POST /api/tags',
       'POST /api/reflect',
       'POST /api/distill',
+      'POST /api/thought-starters',
       'POST /api/stripe/webhook'
     ]
   })

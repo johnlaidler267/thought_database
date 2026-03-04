@@ -11,13 +11,12 @@ import { useThoughts } from '../hooks/useThoughts'
 import { useCategories } from '../hooks/useCategories'
 import { usePeopleLink } from '../hooks/usePeopleLink'
 import { supabase } from '../services/supabase'
-import { transcribeAudio, warmApiConnection, extractTags } from '../services/api'
+import { transcribeAudio, warmApiConnection, extractTags, syncBlurbForThought } from '../services/api'
 import { estimateTranscriptionTokens, estimateTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
-import { AI_PROMPTS } from '../constants/thoughtStarters'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
 import { ThoughtCard } from '../components/ThoughtCard'
-import { ThoughtStartersPopover } from '../components/ThoughtStartersPopover'
+import { ThoughtStartersFlow } from '../components/ThoughtStartersFlow'
 import { TranscriptEditor } from '../components/TranscriptEditor'
 import PersonProfilePanel from '../components/PersonProfilePanel'
 import { HomePageHeader } from './HomePage/HomePageHeader'
@@ -50,7 +49,15 @@ export default function HomePage() {
     cancelDeleteCategory,
   } = categoriesState
 
-  const peopleLink = usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, setPeopleMap)
+  const keyPointsByThoughtIdRef = useRef({})
+  const onSyncBlurb = useCallback(
+    (thoughtId) => {
+      const kp = keyPointsByThoughtIdRef.current[thoughtId]
+      if (kp && user?.id) syncBlurbForThought(thoughtId, user.id, kp)
+    },
+    [user?.id]
+  )
+  const peopleLink = usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, setPeopleMap, onSyncBlurb)
   const {
     linkedPeopleByThoughtId,
     openPersonId,
@@ -71,6 +78,7 @@ export default function HomePage() {
     handleNewPersonClarifierComplete,
     handleDisambiguationChoose,
     handlePersonClick,
+    handleMentionClick,
     handleClosePersonPanel,
     handleUnlinkThoughtPerson,
     handleEditClarifier,
@@ -99,7 +107,6 @@ export default function HomePage() {
   const aiPromptsEditorRef = useRef(null)
   const thoughtsRef = useRef(thoughts)
 
-  resolveMentionsToPeopleRef.current = resolveMentionsToPeople
   useEffect(() => {
     thoughtsRef.current = thoughts
   }, [thoughts])
@@ -352,12 +359,16 @@ export default function HomePage() {
             .then((result) => {
               const suggested = Array.isArray(result?.tags) ? result.tags : []
               const mentions = Array.isArray(result?.mentions) ? result.mentions : []
+              const key_points = typeof result?.key_points === 'object' ? result.key_points : {}
               const thought_type = result?.thought_type ?? null
+              const dataIdStr = String(data.id)
+              if (Object.keys(key_points).length > 0) {
+                keyPointsByThoughtIdRef.current[dataIdStr] = key_points
+              }
               if (suggested.length > 0) {
                 setSuggestedTagsByThoughtId((prev) => ({ ...prev, [data.id]: suggested }))
               }
               if (mentions.length > 0 || thought_type) {
-                const dataIdStr = String(data.id)
                 setThoughts((prev) =>
                   prev.map((t) =>
                     String(t.id) === dataIdStr
@@ -389,6 +400,18 @@ export default function HomePage() {
                     }
                     if (confirmPending && confirmPending.length > 0) {
                       setConfirmationPending((prev) => [...prev, ...confirmPending])
+                    }
+                    const hasValidKeyPoints = Object.values(key_points).some((v) =>
+                      Array.isArray(v) ? v.some((p) => p && String(p).trim()) : (v && String(v).trim())
+                    )
+                    if (hasValidKeyPoints) {
+                      syncBlurbForThought(dataIdStr, user.id, key_points)
+                    } else if (mentions.length > 0) {
+                      const fallback = mentions.reduce((acc, name) => {
+                        acc[name] = trimmed.slice(0, 200).trim() || 'Mentioned in thought'
+                        return acc
+                      }, {})
+                      syncBlurbForThought(dataIdStr, user.id, fallback)
                     }
                   }).catch((err) => console.error('Resolve mentions to people:', err))
                 }
@@ -515,6 +538,41 @@ export default function HomePage() {
   }, [showAiPrompts])
 
   const openAiPromptsFromCard = useCallback(() => setShowAiPrompts(true), [])
+
+  // When user picks Record from thought starters: set prompt, dismiss, start recording
+  const handleRecordWithPrompt = useCallback(
+    (prompt) => {
+      setSelectedPrompt(prompt)
+      setShowAiPrompts(false)
+      if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        return
+      }
+      warmApiConnection()
+      setIsRecording(true)
+      isFromRecordingRef.current = true
+      startRecording()
+    },
+    [profile?.tier, profile?.tokens_used, startRecording]
+  )
+
+  // When user picks Type from thought starters: set prompt, dismiss, open transcript editor
+  const handleTypeWithPrompt = useCallback(
+    (prompt) => {
+      if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        return
+      }
+      setSelectedPrompt(prompt)
+      setShowAiPrompts(false)
+      skipPersistRef.current = false
+      setInitialTranscriptForEditor('')
+      setEditorSessionKey((k) => k + 1)
+      setIsEditingTranscript(true)
+      isFromRecordingRef.current = false
+    },
+    [profile?.tier, profile?.tokens_used]
+  )
 
   const handleDeleteThought = useCallback((thoughtId) => {
     setThoughtToDelete(thoughtId)
@@ -960,6 +1018,7 @@ export default function HomePage() {
                   onConfirmSuggestedTag={handleConfirmSuggestedTag}
                   linkedPeople={linkedPeopleByThoughtId[String(thought.id)] || []}
                   onPersonClick={handlePersonClick}
+                  onMentionClick={handleMentionClick}
                   clarifierForPersonId={clarifierForPersonId}
                   clarifierForThoughtId={clarifierForThoughtId}
                   onClarifierSubmit={handleClarifierSubmit}
@@ -988,6 +1047,12 @@ export default function HomePage() {
           onUnlink={handleUnlinkThoughtPerson}
           onScrollToThought={handleScrollToThought}
           onEditClarifier={handleEditClarifier}
+          onPersonUpdate={(personId, updates) => {
+            setPeopleMap((prev) => {
+              const p = prev[personId]
+              return p ? { ...prev, [personId]: { ...p, ...updates } } : prev
+            })
+          }}
         />
       )}
 
@@ -1007,7 +1072,10 @@ export default function HomePage() {
               selectedPrompt={selectedPrompt}
               onClearPrompt={() => setSelectedPrompt(null)}
               showAiPrompts={showAiPrompts}
-              onSelectPrompt={setSelectedPrompt}
+              onSelectPrompt={(prompt) => {
+                setSelectedPrompt(prompt)
+                setShowAiPrompts(false)
+              }}
               aiPromptsEditorRef={aiPromptsEditorRef}
               skipPersistRef={skipPersistRef}
             />
@@ -1065,10 +1133,10 @@ export default function HomePage() {
             <div className="relative flex items-end">
               {showAiPrompts && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 w-[min(90vw,28rem)] min-w-[18rem]">
-                  <ThoughtStartersPopover
-                    prompts={AI_PROMPTS}
+                  <ThoughtStartersFlow
                     selectedPrompt={selectedPrompt}
-                    onSelectPrompt={setSelectedPrompt}
+                    onRecordWithPrompt={handleRecordWithPrompt}
+                    onTypeWithPrompt={handleTypeWithPrompt}
                     useInlineHover
                   />
                 </div>

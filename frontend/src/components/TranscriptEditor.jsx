@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Check, XCircle } from 'lucide-react'
 import { FaReply } from 'react-icons/fa'
-import { ThoughtStartersPopover } from './ThoughtStartersPopover'
-import { AI_PROMPTS } from '../constants/thoughtStarters'
+import { ThoughtStartersFlow } from './ThoughtStartersFlow'
 
 const STORAGE_KEY = 'vellum_draft_pending'
 
@@ -100,8 +99,7 @@ export function TranscriptEditor({
         )}
         {showAiPrompts && (
           <div ref={aiPromptsEditorRef} className="mb-3 w-full max-w-[min(90vw,28rem)]">
-            <ThoughtStartersPopover
-              prompts={AI_PROMPTS}
+            <ThoughtStartersFlow
               selectedPrompt={selectedPrompt}
               onSelectPrompt={onSelectPrompt}
               useInlineHover={false}

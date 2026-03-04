@@ -7,23 +7,7 @@ const separatorStyle = { backgroundColor: 'var(--stroke)' }
 const iconStyle = { color: 'var(--muted-foreground)' }
 const textStyle = { color: 'var(--muted-foreground)' }
 
-function getThoughtCategories(thought) {
-  const arr = thought.categories
-  if (Array.isArray(arr) && arr.length > 0) return arr.filter(Boolean).map(String)
-  const single = thought.category && thought.category.trim()
-  return single ? [single] : []
-}
-
-export function PeopleMetadataRow({
-  thought,
-  linkedPeople = [],
-  onPersonClick,
-  categories = [],
-  onCategoriesChange,
-}) {
-  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false)
-  const categoryTriggerRef = useRef(null)
-
+export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, onMentionClick }) {
   const mentionList = getMentionList(thought)
   const thoughtTypeLabel = getThoughtTypeLabel(thought)
   const thoughtCategories = getThoughtCategories(thought)
@@ -167,13 +151,18 @@ export function PeopleMetadataRow({
                   </button>
                 ))
               : mentionList.map((name) => (
-                  <span
+                  <button
                     key={String(name)}
-                    className="text-xs font-serif text-muted-foreground"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      onMentionClick?.(name, thought.id)
+                    }}
+                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors"
                     style={textStyle}
                   >
                     {name}
-                  </span>
+                  </button>
                 ))}
           </div>
         </div>

@@ -74,7 +74,7 @@ export function DisambiguationBanners({ thoughtId, disambiguationList, onDisambi
   return (
     <>
       {disambiguationList.map((item) => (
-        <div key={item.name} className={BANNER_CLASS} style={bannerRow}>
+        <div key={`${thoughtId}-${item.name}`} className={BANNER_CLASS} style={bannerRow}>
           <span className="shrink-0" style={{ color: 'var(--ink)' }}>
             Which {item.name}?
           </span>

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { X, Pencil, Unlink } from 'lucide-react'
+import { supabase } from '../services/supabase'
 
 /**
- * Slide-in panel showing a person's profile: display name, clarifier, and all thoughts mentioning them.
+ * Slide-in panel showing a person's profile: display name, clarifier, blurb, and all thoughts mentioning them.
  * Backdrop click closes; each thought is a condensed card; unlink removes the thought-person association.
  */
 export default function PersonProfilePanel({
@@ -13,6 +14,7 @@ export default function PersonProfilePanel({
   onUnlink,
   onScrollToThought,
   onEditClarifier,
+  onPersonUpdate,
 }) {
   const [clarifierEdit, setClarifierEdit] = useState('')
   const [isEditingClarifier, setIsEditingClarifier] = useState(false)
@@ -23,6 +25,27 @@ export default function PersonProfilePanel({
       setIsEditingClarifier(false)
     }
   }, [person?.id, person?.clarifier])
+
+  // Fetch latest person data when panel opens (e.g. to get blurb after async sync)
+  useEffect(() => {
+    if (!personId || !supabase || !onPersonUpdate) return
+    const fetchPerson = () => {
+      supabase
+        .from('people')
+        .select('id, display_name, clarifier, blurb')
+        .eq('id', personId)
+        .single()
+        .then(({ data }) => {
+          if (data && data.blurb !== person?.blurb) {
+            onPersonUpdate(personId, { blurb: data.blurb })
+          }
+        })
+        .catch(() => {})
+    }
+    fetchPerson()
+    const retryId = setTimeout(fetchPerson, 4000)
+    return () => clearTimeout(retryId)
+  }, [personId])
 
   if (!personId || !person) return null
 
@@ -122,6 +145,22 @@ export default function PersonProfilePanel({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-4 pb-4 border-b" style={{ borderColor: 'var(--stroke)' }}>
+            <h3 className="text-xs font-serif font-medium mb-2 uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+              About
+            </h3>
+            {person.blurb && String(person.blurb).trim() ? (
+              <p className="text-sm font-serif leading-relaxed" style={{ color: 'var(--ink)' }}>
+                {person.blurb}
+              </p>
+            ) : (
+              <p className="text-sm font-serif italic" style={{ color: 'var(--muted-foreground)' }}>
+                {thoughts?.length > 0
+                  ? 'AI summary will appear here as you add more thoughts about this person.'
+                  : 'Link thoughts to this person to generate an AI summary.'}
+              </p>
+            )}
+          </div>
           <p className="text-xs font-serif mb-3" style={{ color: 'var(--muted-foreground)' }}>
             Mentioned in {count} thought{count !== 1 ? 's' : ''}
           </p>

@@ -78,7 +78,7 @@ export default function WelcomeScreen() {
       <div className="max-w-md w-full">
         {/* Title + subtitle: centered as one block */}
         <div className="flex flex-col items-center text-center mb-12">
-          <h1 className="flex items-center justify-center gap-2 w-full text-6xl font-serif font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
+          <h1 className="flex items-center justify-center gap-2 w-full text-6xl font-brand font-normal tracking-tight mb-4" style={{ color: 'var(--ink)' }}>
             <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-14 w-14 object-contain shrink-0" aria-hidden />
             <span>Vellum</span>
           </h1>

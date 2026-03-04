@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../services/supabase'
+import { getAuthHeaders } from '../services/api'
 import { LANGUAGES } from '../services/translation'
 import { FREE_TIER_TOKEN_LIMIT, APPRENTICE_TIER_TOKEN_LIMIT } from '../constants'
 
@@ -169,10 +170,12 @@ export default function SettingsPage() {
     if (sessionId && user?.id) {
       const verifySession = async () => {
         try {
+          const authHeaders = await getAuthHeaders()
           const response = await fetch(`${API_BASE_URL}/api/stripe/verify-session`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...authHeaders,
             },
             body: JSON.stringify({ sessionId }),
           })
@@ -211,10 +214,12 @@ const handleSubscribe = async (targetTier = 'pro') => {
   }
 
   try {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${API_BASE_URL}/api/stripe/create-checkout-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
       },
       body: JSON.stringify({
         userId: user.id,
@@ -291,10 +296,12 @@ const handleSubscribe = async (targetTier = 'pro') => {
     }
 
     try {
+      const authHeaders = await getAuthHeaders()
       const response = await fetch(`${API_BASE_URL}/api/stripe/create-portal-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({
           customerId: customerIdToUse,
