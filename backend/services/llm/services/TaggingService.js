@@ -213,10 +213,10 @@ Output (one key point per line, or null):`
     if (filtered.length === 0) return null
 
     try {
-      const prompt = `Given these facts about "${displayName}" (each from a different note or thought):
+      const prompt = `Given these impressions about "${displayName}" from your own notes:
 ${filtered.map((k) => `- ${k}`).join('\n')}
 
-Write 2–3 sentences summarizing who this person is to the user. Be neutral and factual, not sentimental. Output only the summary, no preamble. Instead of saying "the speaker" when describing the user, say "you" instead.`
+Write 2–3 sentences capturing who this person is to you — their personality, how they make you feel, and what you tend to talk about. Write as if describing them to a close friend who's never met them. Output only the summary, no preamble. Refer to the user as "you".`
       const response = await this.provider.complete(prompt, this.model, {
         max_tokens: 150,
         temperature: 0.4,
