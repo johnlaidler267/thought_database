@@ -53,6 +53,7 @@ function ThoughtCardInner({
   categories = [],
   onCategoriesChange,
 }) {
+  const { showError } = useToast()
   const menuRef = useRef(null)
   const followUpInputRef = useRef(null)
   const editTextareaRef = useRef(null)

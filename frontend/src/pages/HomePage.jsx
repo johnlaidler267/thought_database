@@ -29,6 +29,7 @@ import { pageBackground, errorBannerStyle, loadingBannerStyle, transcriptEditorO
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()
   const { isDark } = useTheme()
+  const { showError } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
 
