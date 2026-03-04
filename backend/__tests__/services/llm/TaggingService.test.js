@@ -197,7 +197,16 @@ describe('TaggingService', () => {
       const result = await service.extractTags('Some text')
 
       expect(result.mentions).toEqual(['Sarah', 'Bob'])
-      expect(result.key_points).toEqual({ Sarah: 'colleague from marketing', Bob: null })
+      expect(result.key_points).toEqual({ Sarah: ['colleague from marketing'], Bob: null })
+    })
+
+    it('should parse KEYPOINTS with multiple points per person', async () => {
+      mockProvider.complete.mockResolvedValue('["work"]\nNAMES: Sarah\nKEYPOINTS: Sarah: colleague from marketing; mentioned the Friday meeting\nTYPE: TASK')
+
+      const result = await service.extractTags('Some text')
+
+      expect(result.mentions).toEqual(['Sarah'])
+      expect(result.key_points).toEqual({ Sarah: ['colleague from marketing', 'mentioned the Friday meeting'] })
     })
 
     it('should handle empty or whitespace-only tag response', async () => {

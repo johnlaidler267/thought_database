@@ -39,11 +39,18 @@ router.post('/sync-blurb', async (req, res) => {
       return
     }
 
-    // Normalize mentionKeyPoints keys for case-insensitive lookup
+    // Normalize mentionKeyPoints: values can be string, string[], or null
     const keyPointsByLower = {}
     for (const [name, point] of Object.entries(mentionKeyPoints)) {
-      if (name && (point === null || (typeof point === 'string' && point.trim()))) {
-        keyPointsByLower[(name || '').trim().toLowerCase()] = point && String(point).trim() ? point.trim() : null
+      if (!name) continue
+      const key = (name || '').trim().toLowerCase()
+      if (point === null) {
+        keyPointsByLower[key] = null
+      } else if (Array.isArray(point)) {
+        const points = point.filter((p) => p && String(p).trim()).map((p) => String(p).trim())
+        keyPointsByLower[key] = points.length > 0 ? points : null
+      } else if (typeof point === 'string' && point.trim()) {
+        keyPointsByLower[key] = [point.trim()]
       }
     }
     if (Object.keys(keyPointsByLower).length === 0) return
@@ -71,12 +78,13 @@ router.post('/sync-blurb', async (req, res) => {
     for (const person of people) {
       const displayName = (person.display_name || '').trim()
       const key = displayName.toLowerCase()
-      const keyPoint = keyPointsByLower[key]
+      const pointsToAdd = keyPointsByLower[key]
 
-      if (keyPoint == null) continue
+      if (pointsToAdd == null) continue
 
+      const toAdd = Array.isArray(pointsToAdd) ? pointsToAdd : [pointsToAdd]
       const existing = Array.isArray(person.key_points) ? person.key_points : []
-      const newKeyPoints = [...existing, keyPoint]
+      const newKeyPoints = [...existing, ...toAdd]
 
       let blurb = null
       if (taggingService.isConfigured()) {
@@ -154,8 +162,8 @@ router.post('/regenerate-blurb', async (req, res) => {
     for (const thought of thoughts) {
       const text = thought.cleaned_text || thought.raw_transcript || ''
       if (!text.trim()) continue
-      const point = await taggingService.extractKeyPointForPerson(text, displayName)
-      if (point) keyPoints.push(point)
+      const points = await taggingService.extractKeyPointsForPerson(text, displayName)
+      keyPoints.push(...points)
     }
 
     let blurb = null

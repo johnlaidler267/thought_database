@@ -401,7 +401,9 @@ export default function HomePage() {
                     if (confirmPending && confirmPending.length > 0) {
                       setConfirmationPending((prev) => [...prev, ...confirmPending])
                     }
-                    const hasValidKeyPoints = Object.values(key_points).some((v) => v && String(v).trim())
+                    const hasValidKeyPoints = Object.values(key_points).some((v) =>
+                      Array.isArray(v) ? v.some((p) => p && String(p).trim()) : (v && String(v).trim())
+                    )
                     if (hasValidKeyPoints) {
                       syncBlurbForThought(dataIdStr, user.id, key_points)
                     } else if (mentions.length > 0) {
