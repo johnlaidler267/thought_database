@@ -26,7 +26,7 @@ import { HomePageHeader } from './HomePage/HomePageHeader'
 import { SearchBar } from './HomePage/SearchBar'
 import { CategoryTabs } from './HomePage/CategoryTabs'
 import { VirtualizedThoughtList } from './HomePage/VirtualizedThoughtList'
-import { pageBackground, errorBannerStyle, loadingBannerStyle, transcriptEditorOverlay, recordBarGradient, remainingTimeBadge } from './HomePage/styles'
+import { pageBackground, errorBannerStyle, loadingBannerStyle, transcriptEditorOverlay, remainingTimeBadge } from './HomePage/styles'
 
 export default function HomePage() {
   const { user, profile, refreshProfile, loading: authLoading } = useAuth()

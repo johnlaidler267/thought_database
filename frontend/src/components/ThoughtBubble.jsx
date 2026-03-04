@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import CopyButton from './CopyButton'
 import { translateText } from '../services/translation'
 import { useToast } from '../contexts/ToastContext'
@@ -17,35 +17,7 @@ export default function ThoughtBubble({ thought, onDelete, suggestedTags = [], o
   // Get translation settings from localStorage
   const translationEnabled = JSON.parse(localStorage.getItem('translationEnabled') || 'false')
   const translationLanguage = localStorage.getItem('translationLanguage') || 'es'
-  
-  // #region agent log
-  useEffect(() => {
-    if (buttonGroupRef.current && viewRawBtnRef.current && copyBtnRef.current && deleteBtnRef.current) {
-      const container = buttonGroupRef.current
-      const viewRaw = viewRawBtnRef.current
-      const copyWrapper = copyBtnRef.current
-      const copyButton = copyWrapper.querySelector('button')
-      const deleteBtn = deleteBtnRef.current
-      
-      const containerStyles = window.getComputedStyle(container)
-      const viewRawStyles = window.getComputedStyle(viewRaw)
-      const copyWrapperStyles = window.getComputedStyle(copyWrapper)
-      const copyButtonStyles = copyButton ? window.getComputedStyle(copyButton) : null
-      const deleteStyles = window.getComputedStyle(deleteBtn)
-      
-      const containerRect = container.getBoundingClientRect()
-      const viewRawRect = viewRaw.getBoundingClientRect()
-      const copyWrapperRect = copyWrapper.getBoundingClientRect()
-      const deleteRect = deleteBtn.getBoundingClientRect()
-      
-      const spacing1 = copyWrapperRect.left - viewRawRect.right
-      const spacing2 = deleteRect.left - copyWrapperRect.right
-      
-      fetch('http://127.0.0.1:7242/ingest/5b97fac4-1d2b-447f-88f0-c0ca912d0145',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThoughtBubble.jsx:useEffect',message:'Button spacing with space-x utility',data:{containerClasses:container.className,hasSpaceX:container.className.includes('space-x'),viewRawMarginRight:viewRawStyles.marginRight,viewRawMarginLeft:viewRawStyles.marginLeft,copyWrapperMarginRight:copyWrapperStyles.marginRight,copyWrapperMarginLeft:copyWrapperStyles.marginLeft,deleteMarginRight:deleteStyles.marginRight,deleteMarginLeft:deleteStyles.marginLeft,spacingViewRawToCopy:spacing1,spacingCopyToDelete:spacing2,viewRawRight:viewRawRect.right,copyWrapperLeft:copyWrapperRect.left,copyWrapperRight:copyWrapperRect.right,deleteLeft:deleteRect.left},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    }
-  }, [showRaw])
-  // #endregion
-  
+
   const originalText = showRaw ? thought.raw_transcript : thought.cleaned_text
   const displayText = isTranslated && translatedText ? translatedText : originalText
   

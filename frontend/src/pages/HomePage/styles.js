@@ -54,7 +54,6 @@ export const transcriptEditorOverlay = {
   backgroundColor: 'var(--paper)',
   boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.1)',
 }
-export const recordBarGradient = `linear-gradient(to top, var(--paper), var(--paper), transparent)`
 export const remainingTimeBadge = {
   color: 'var(--ink)',
   backgroundColor: 'var(--card)',
