@@ -25,12 +25,21 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null
 
-// CORS: if FRONTEND_URL or CORS_ORIGIN is set (e.g. on Render), allow that origin + localhost; else allow all
+// CORS: production requires FRONTEND_URL and allows only that origin; development allows localhost or all
+const isProduction = process.env.NODE_ENV === 'production'
 const frontendUrl = process.env.FRONTEND_URL || process.env.CORS_ORIGIN
+
+if (isProduction && !frontendUrl) {
+  console.error('In production, FRONTEND_URL (or CORS_ORIGIN) must be set. Refusing to start with open CORS.')
+  process.exit(1)
+}
+
 app.use(cors({
-  origin: frontendUrl
-    ? [frontendUrl, 'http://localhost:5175', 'http://localhost:5173']
-    : true,
+  origin: isProduction
+    ? frontendUrl
+    : frontendUrl
+      ? [frontendUrl, 'http://localhost:5175', 'http://localhost:5173']
+      : true,
 }))
 
 // Request logging middleware for debugging
