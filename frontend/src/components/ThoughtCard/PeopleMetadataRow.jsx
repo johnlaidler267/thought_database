@@ -7,7 +7,24 @@ const separatorStyle = { backgroundColor: 'var(--stroke)' }
 const iconStyle = { color: 'var(--muted-foreground)' }
 const textStyle = { color: 'var(--muted-foreground)' }
 
-export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, onMentionClick }) {
+function getThoughtCategories(thought) {
+  const arr = thought.categories
+  if (Array.isArray(arr) && arr.length > 0) return arr.filter(Boolean).map(String)
+  const single = thought.category && thought.category.trim()
+  return single ? [single] : []
+}
+
+export function PeopleMetadataRow({
+  thought,
+  linkedPeople = [],
+  onPersonClick,
+  onMentionClick,
+  categories = [],
+  onCategoriesChange,
+}) {
+  const categoryTriggerRef = useRef(null)
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false)
+
   const mentionList = getMentionList(thought)
   const thoughtTypeLabel = getThoughtTypeLabel(thought)
   const thoughtCategories = getThoughtCategories(thought)
@@ -17,7 +34,6 @@ export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, o
   const hasPeople = linkedPeople.length > 0 || mentionList.length > 0
 
   const showCategoryBlock = hasCategoryBlock
-  const showGhostFolder = false
 
   const categoryDisplayLabel =
     thoughtCategories.length === 0
@@ -38,7 +54,7 @@ export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, o
     setCategoryPopoverOpen(false)
   }
 
-  if (!showCategoryBlock && !showGhostFolder && !hasType && !hasPeople) return null
+  if (!showCategoryBlock && !hasType && !hasPeople) return null
 
   return (
     <div
@@ -48,62 +64,37 @@ export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, o
         position: 'relative',
       }}
     >
-      {(showCategoryBlock || showGhostFolder) && (
-        <div
-          className="flex items-center gap-1.5"
-          style={showGhostFolder ? { position: 'absolute', left: 0, top: 0, zIndex: 1 } : { position: 'relative' }}
-          ref={categoryTriggerRef}
-        >
-          {showCategoryBlock && (
-            <>
-              {canAssignCategories ? (
-                <button
-                  type="button"
-                  onClick={() => setCategoryPopoverOpen((o) => !o)}
-                  className="flex items-center gap-1.5 text-xs font-serif cursor-pointer border-0 bg-transparent p-0 transition-colors duration-200"
-                  style={textStyle}
-                  aria-label={`Categories: ${categoryDisplayLabel}`}
-                  aria-expanded={categoryPopoverOpen}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--ink)'
-                    e.currentTarget.style.opacity = '0.9'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--muted-foreground)'
-                    e.currentTarget.style.opacity = '1'
-                  }}
-                >
-                  <Folder className="w-3 h-3 shrink-0" style={{ color: 'inherit' }} />
-                  <span style={{ color: 'inherit' }}>{categoryDisplayLabel}</span>
-                </button>
-              ) : (
-                <>
-                  <Folder className="w-3 h-3 text-muted-foreground shrink-0" style={iconStyle} />
-                  <span className="text-xs font-serif text-muted-foreground" style={textStyle}>
-                    {categoryDisplayLabel}
-                  </span>
-                </>
-              )}
-            </>
-          )}
-          {showGhostFolder && (
+      {showCategoryBlock && (
+        <div className="flex items-center gap-1.5" style={{ position: 'relative' }} ref={categoryTriggerRef}>
+          {canAssignCategories ? (
             <button
               type="button"
-              onClick={() => setCategoryPopoverOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-serif border-0 bg-transparent p-0 cursor-pointer transition-opacity duration-200"
-              style={{ color: 'var(--muted-foreground)', opacity: 0.4 }}
-              aria-label="Assign to categories"
+              onClick={() => setCategoryPopoverOpen((o) => !o)}
+              className="flex items-center gap-1.5 text-xs font-serif cursor-pointer border-0 bg-transparent p-0 transition-colors duration-200"
+              style={textStyle}
+              aria-label={`Categories: ${categoryDisplayLabel}`}
               aria-expanded={categoryPopoverOpen}
               onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.7'
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.opacity = '0.9'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '0.4'
+                e.currentTarget.style.color = 'var(--muted-foreground)'
+                e.currentTarget.style.opacity = '1'
               }}
             >
-              <Folder className="w-3 h-3 shrink-0" />
+              <Folder className="w-3 h-3 shrink-0" style={{ color: 'inherit' }} />
+              <span style={{ color: 'inherit' }}>{categoryDisplayLabel}</span>
             </button>
+          ) : (
+            <>
+              <Folder className="w-3 h-3 text-muted-foreground shrink-0" style={iconStyle} />
+              <span className="text-xs font-serif text-muted-foreground" style={textStyle}>
+                {categoryDisplayLabel}
+              </span>
+            </>
           )}
+
           {categoryPopoverOpen && canAssignCategories && (
             <CategoryAssignPopover
               anchorRef={categoryTriggerRef}
@@ -116,9 +107,11 @@ export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, o
           )}
         </div>
       )}
+
       {showCategoryBlock && hasType && (
         <span className="w-px h-3 bg-stroke shrink-0" style={separatorStyle} aria-hidden />
       )}
+
       {hasType && (
         <div className="flex items-center gap-1.5">
           <LayoutList className="w-3 h-3 text-muted-foreground shrink-0" style={iconStyle} />
@@ -127,9 +120,11 @@ export function PeopleMetadataRow({ thought, linkedPeople = [], onPersonClick, o
           </span>
         </div>
       )}
+
       {(hasType || showCategoryBlock) && hasPeople && (
         <span className="w-px h-3 bg-stroke shrink-0" style={separatorStyle} aria-hidden />
       )}
+
       {hasPeople && (
         <div className="flex items-center gap-1.5">
           <User className="w-3 h-3 text-muted-foreground shrink-0" style={iconStyle} />

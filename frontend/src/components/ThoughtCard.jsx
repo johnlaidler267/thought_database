@@ -361,7 +361,14 @@ function ThoughtCardInner({
             onConfirmSuggestedTag={onConfirmSuggestedTag}
           />
 
-          <PeopleMetadataRow thought={thought} linkedPeople={linkedPeople} onPersonClick={onPersonClick} onMentionClick={onMentionClick} />
+          <PeopleMetadataRow
+            thought={thought}
+            linkedPeople={linkedPeople}
+            onPersonClick={onPersonClick}
+            onMentionClick={onMentionClick}
+            categories={categories}
+            onCategoriesChange={onCategoriesChange}
+          />
 
           <ClarifierBannerPerson
             thoughtId={thought.id}
