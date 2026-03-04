@@ -18,8 +18,18 @@ export function useCategories(userId) {
     }
     const key = `axiomCategories_${userId}`
     const saved = localStorage.getItem(key)
-    const list = saved ? JSON.parse(saved) : ['All']
-    setCategories(Array.isArray(list) ? list : ['All'])
+    let list = ['All']
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed.includes('All') ? parsed : ['All', ...parsed]
+        }
+      } catch {
+        list = ['All']
+      }
+    }
+    setCategories(list)
     setActiveCategory('All')
   }, [userId])
 
