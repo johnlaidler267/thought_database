@@ -956,6 +956,7 @@ export default function HomePage() {
           personId={openPersonId}
           person={peopleMap[openPersonId]}
           thoughts={openPersonThoughts}
+          userId={user?.id}
           onClose={handleClosePersonPanel}
           onUnlink={handleUnlinkThoughtPerson}
           onScrollToThought={handleScrollToThought}

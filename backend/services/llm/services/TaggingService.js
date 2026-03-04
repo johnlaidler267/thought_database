@@ -204,7 +204,7 @@ Output (key point or null):`
   async generateBlurb(displayName, keyPoints) {
     if (!displayName || !Array.isArray(keyPoints) || keyPoints.length === 0) {
       return null
-    }
+    }s
     const filtered = keyPoints.filter((k) => k && String(k).trim())
     if (filtered.length === 0) return null
 
@@ -212,7 +212,7 @@ Output (key point or null):`
       const prompt = `Given these facts about "${displayName}" (each from a different note or thought):
 ${filtered.map((k) => `- ${k}`).join('\n')}
 
-Write 2–3 sentences summarizing who this person is to the user. Be neutral and factual, not sentimental. Output only the summary, no preamble.`
+Write 2–3 sentences summarizing who this person is to the user. Be neutral and factual, not sentimental. Output only the summary, no preamble. Instead of saying "the speaker" when describing the user, say "you" instead.`
       const response = await this.provider.complete(prompt, this.model, {
         max_tokens: 150,
         temperature: 0.4,
