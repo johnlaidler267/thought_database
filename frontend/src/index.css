@@ -476,3 +476,12 @@
 .category-tabs-container::-webkit-scrollbar {
   display: none;
 }
+
+/* Thought card: prevent sticky hover/active on mobile (tap leaves buttons looking "pressed") */
+@media (hover: none) {
+  [data-thought-id] button:hover,
+  [data-thought-id] button:focus,
+  [data-thought-id] button:active {
+    background-color: transparent !important;
+  }
+}

@@ -40,7 +40,7 @@ export function ActionBar({
         <Tooltip text="Add follow-up" position="bottom">
           <button
             type="button"
-            onClick={onShowFollowUpInput}
+            onClick={(e) => { onShowFollowUpInput(); e.currentTarget.blur() }}
             className="p-2 rounded-md transition-all duration-200 hover:bg-muted flex items-center justify-center group"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={handleFollowUpMouseEnter}
@@ -56,7 +56,7 @@ export function ActionBar({
         <Tooltip text="AI reflection question" position="bottom">
           <button
             type="button"
-            onClick={onReflectClick}
+            onClick={(e) => { onReflectClick(); e.currentTarget.blur() }}
             disabled={isLoadingReflect}
             className={actionButtonClass}
             style={{ color: 'var(--muted-foreground)' }}
@@ -77,7 +77,7 @@ export function ActionBar({
         <Tooltip text="Distill" position="bottom">
           <button
             type="button"
-            onClick={onDistillClick}
+            onClick={(e) => { onDistillClick(); e.currentTarget.blur() }}
             disabled={isDistilling}
             className={actionButtonClass}
             style={{ color: distillColor }}
@@ -106,7 +106,7 @@ export function ActionBar({
         <Tooltip text={isTranslated ? 'Show original' : 'Translate'} position="bottom">
           <button
             type="button"
-            onClick={onTranslate}
+            onClick={(e) => { onTranslate(); e.currentTarget.blur() }}
             disabled={isTranslating}
             className="p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ color: isTranslated ? 'var(--ink)' : 'var(--muted-foreground)' }}
@@ -135,7 +135,7 @@ export function ActionBar({
         <Tooltip text="Copy" position="bottom">
           <button
             type="button"
-            onClick={onCopy}
+            onClick={(e) => { onCopy(); e.currentTarget.blur() }}
             className="p-2 rounded-md transition-all duration-200 hover:bg-muted group flex items-center justify-center"
             style={{ color: 'var(--muted-foreground)' }}
             onMouseEnter={(e) => {
