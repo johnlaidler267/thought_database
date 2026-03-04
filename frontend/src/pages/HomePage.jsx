@@ -36,6 +36,7 @@ export default function HomePage() {
   const categoriesState = useCategories(user?.id)
   const {
     categories,
+    setCategories,
     activeCategory,
     setActiveCategory,
     isAddingCategory,
@@ -735,6 +736,50 @@ export default function HomePage() {
     }
   }, [user])
 
+  const handleThoughtCategoriesChange = useCallback(
+    async (thoughtId, nextCategories) => {
+      const list = Array.isArray(nextCategories) ? nextCategories : []
+      const primary = list[0] || null
+      setThoughts((prev) =>
+        prev.map((t) =>
+          t.id === thoughtId ? { ...t, categories: list, category: primary } : t
+        )
+      )
+      setCategories((prev) => {
+        const next = [...prev]
+        let changed = false
+        for (const name of list) {
+          if (name && name !== 'All' && !prev.includes(name)) {
+            next.push(name)
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+      if (supabase && user) {
+        try {
+          const payload = { category: primary }
+          if (list.length) payload.categories = list
+          const { error } = await supabase
+            .from('thoughts')
+            .update(payload)
+            .eq('id', thoughtId)
+            .eq('user_id', user.id)
+          if (error && payload.categories) {
+            await supabase
+              .from('thoughts')
+              .update({ category: primary })
+              .eq('id', thoughtId)
+              .eq('user_id', user.id)
+          }
+        } catch (err) {
+          console.error('Failed to update thought categories:', err)
+        }
+      }
+    },
+    [user, setThoughts, setCategories, supabase]
+  )
+
   // Toggle tag in active chips: add if not present, remove if present (case-insensitive)
   const handleTagClick = useCallback((tag) => {
     const normalized = tag.trim()
@@ -751,7 +796,11 @@ export default function HomePage() {
   const filteredThoughts = useMemo(() => {
     return thoughts.filter((thought) => {
       if (activeCategory !== 'All') {
-        if (thought.category !== activeCategory) return false
+        const thoughtCats = thought.categories ?? (thought.category ? [thought.category] : [])
+        const matches = Array.isArray(thoughtCats)
+          ? thoughtCats.includes(activeCategory)
+          : thought.category === activeCategory
+        if (!matches) return false
       }
       // Entry must have every active tag (thought.tags contains each, case-insensitive)
       const thoughtTagLower = (thought.tags || []).map((t) => String(t).toLowerCase())
@@ -921,6 +970,8 @@ export default function HomePage() {
                   onNewPersonClarifierComplete={handleNewPersonClarifierComplete}
                   disambiguationList={disambiguationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
                   onDisambiguationChoose={handleDisambiguationChoose}
+                  categories={categories}
+                  onCategoriesChange={handleThoughtCategoriesChange}
                 />
               </div>
             ))

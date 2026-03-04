@@ -140,7 +140,7 @@
   }
 
   /* Prevent iOS Safari auto-zoom on input focus */
-  input[type="text"],
+  input[type="text"]:not(.category-popover-new-input),
   input[type="email"],
   input[type="password"],
   input[type="search"],
@@ -149,6 +149,11 @@
   textarea,
   select {
     font-size: 16px !important;
+  }
+
+  /* Category popover: match menu font size (13px) */
+  .category-popover-new-input {
+    font-size: 13px !important;
   }
 
   /* Improve touch targets on mobile */

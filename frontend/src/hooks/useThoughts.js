@@ -60,6 +60,7 @@ export function useThoughts(user) {
         const thoughtList = (data || []).map((t) => ({
           ...t,
           follow_ups: Array.isArray(t.follow_ups) ? t.follow_ups : [],
+          categories: Array.isArray(t.categories) ? t.categories : (t.category ? [t.category] : []),
         }))
         if (cancelled) return
         setThoughts(thoughtList)

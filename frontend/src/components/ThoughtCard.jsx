@@ -48,6 +48,8 @@ function ThoughtCardInner({
   onNewPersonClarifierComplete,
   disambiguationList = [],
   onDisambiguationChoose,
+  categories = [],
+  onCategoriesChange,
 }) {
   const menuRef = useRef(null)
   const followUpInputRef = useRef(null)
@@ -358,7 +360,13 @@ function ThoughtCardInner({
             onConfirmSuggestedTag={onConfirmSuggestedTag}
           />
 
-          <PeopleMetadataRow thought={thought} linkedPeople={linkedPeople} onPersonClick={onPersonClick} />
+          <PeopleMetadataRow
+            thought={thought}
+            linkedPeople={linkedPeople}
+            onPersonClick={onPersonClick}
+            categories={categories}
+            onCategoriesChange={onCategoriesChange}
+          />
 
           <ClarifierBannerPerson
             thoughtId={thought.id}
