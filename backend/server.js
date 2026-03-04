@@ -42,14 +42,16 @@ app.use(cors({
   origin: allowedOrigins,
 }))
 
-// Request logging middleware for debugging
+// Request logging: method + path only in production; add headers in development
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`)
-  console.log(`  Headers:`, {
-    'content-type': req.headers['content-type'],
-    'content-length': req.headers['content-length'],
-    origin: req.headers.origin
-  })
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`  Headers:`, {
+      'content-type': req.headers['content-type'],
+      'content-length': req.headers['content-length'],
+      origin: req.headers.origin
+    })
+  }
   next()
 })
 
