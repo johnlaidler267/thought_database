@@ -11,7 +11,7 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
 - **Follow-ups**: Add follow-up notes to any thought (thread-style); edit and delete follow-ups
 - **AI Reflection Question**: One-click button generates a probing follow-up question from the LLM to deepen reflection
 - **Distill**: AI condenses a thought into a shorter summary; undo/redo through distillation history
-- **Thought Starters**: AI prompts (Sparkles popover) to spark ideas when recording or drafting
+- **Thought Starters**: Dynamic, intent-based prompts (Sparkles popover). Pick an intent → AI generates 5 prompts → pick one → recording starts with prompt pre-filled
 - **Categories**: Organize thoughts with custom category tabs; filter by category
 - **Search**: Search by tag and thought content
 - **Translation**: Translate thoughts to another language; set preferred translation language in Settings

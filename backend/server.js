@@ -10,6 +10,7 @@ import reflectRouter from './routes/reflect.js'
 import distillRouter from './routes/distill.js'
 import stripeRouter from './routes/stripe.js'
 import peopleRouter from './routes/people.js'
+import thoughtStartersRouter from './routes/thoughtStarters.js'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
@@ -57,6 +58,7 @@ app.get('/', (req, res) => {
       'POST /api/tags',
       'POST /api/reflect',
       'POST /api/distill',
+      'POST /api/thought-starters',
       'POST /api/stripe/webhook'
     ]
   })
@@ -201,6 +203,7 @@ app.use('/api/tags', auth, tagsRouter)
 app.use('/api/reflect', auth, reflectRouter)
 app.use('/api/distill', auth, distillRouter)
 app.use('/api/people', auth, peopleRouter)
+app.use('/api/thought-starters', auth, thoughtStartersRouter)
 app.use('/api/stripe', auth, stripeRouter)
 
 // Catch-all for 404s - log what was requested
@@ -215,6 +218,7 @@ app.use((req, res) => {
     'POST /api/tags',
     'POST /api/reflect',
     'POST /api/distill',
+    'POST /api/thought-starters',
     'POST /api/stripe/webhook'
   ])
   res.status(404).json({ 
@@ -229,6 +233,7 @@ app.use((req, res) => {
       'POST /api/tags',
       'POST /api/reflect',
       'POST /api/distill',
+      'POST /api/thought-starters',
       'POST /api/stripe/webhook'
     ]
   })

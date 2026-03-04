@@ -14,10 +14,9 @@ import { supabase } from '../services/supabase'
 import { transcribeAudio, warmApiConnection, extractTags, syncBlurbForThought } from '../services/api'
 import { estimateTranscriptionTokens, estimateTokens } from '../utils/tokenEstimator'
 import { FREE_TIER_TOKEN_LIMIT } from '../constants'
-import { AI_PROMPTS } from '../constants/thoughtStarters'
 import { hasRecoveryFlag, clearRecoveryFlag, getPendingRecording, clearPendingRecording } from '../utils/recordingRecovery'
 import { ThoughtCard } from '../components/ThoughtCard'
-import { ThoughtStartersPopover } from '../components/ThoughtStartersPopover'
+import { ThoughtStartersFlow } from '../components/ThoughtStartersFlow'
 import { TranscriptEditor } from '../components/TranscriptEditor'
 import PersonProfilePanel from '../components/PersonProfilePanel'
 import { HomePageHeader } from './HomePage/HomePageHeader'
@@ -539,6 +538,41 @@ export default function HomePage() {
 
   const openAiPromptsFromCard = useCallback(() => setShowAiPrompts(true), [])
 
+  // When user picks Record from thought starters: set prompt, dismiss, start recording
+  const handleRecordWithPrompt = useCallback(
+    (prompt) => {
+      setSelectedPrompt(prompt)
+      setShowAiPrompts(false)
+      if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        return
+      }
+      warmApiConnection()
+      setIsRecording(true)
+      isFromRecordingRef.current = true
+      startRecording()
+    },
+    [profile?.tier, profile?.tokens_used, startRecording]
+  )
+
+  // When user picks Type from thought starters: set prompt, dismiss, open transcript editor
+  const handleTypeWithPrompt = useCallback(
+    (prompt) => {
+      if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
+        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        return
+      }
+      setSelectedPrompt(prompt)
+      setShowAiPrompts(false)
+      skipPersistRef.current = false
+      setInitialTranscriptForEditor('')
+      setEditorSessionKey((k) => k + 1)
+      setIsEditingTranscript(true)
+      isFromRecordingRef.current = false
+    },
+    [profile?.tier, profile?.tokens_used]
+  )
+
   const handleDeleteThought = useCallback((thoughtId) => {
     setThoughtToDelete(thoughtId)
   }, [])
@@ -987,7 +1021,10 @@ export default function HomePage() {
               selectedPrompt={selectedPrompt}
               onClearPrompt={() => setSelectedPrompt(null)}
               showAiPrompts={showAiPrompts}
-              onSelectPrompt={setSelectedPrompt}
+              onSelectPrompt={(prompt) => {
+                setSelectedPrompt(prompt)
+                setShowAiPrompts(false)
+              }}
               aiPromptsEditorRef={aiPromptsEditorRef}
               skipPersistRef={skipPersistRef}
             />
@@ -1045,10 +1082,10 @@ export default function HomePage() {
             <div className="relative flex items-end">
               {showAiPrompts && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 w-[min(90vw,28rem)] min-w-[18rem]">
-                  <ThoughtStartersPopover
-                    prompts={AI_PROMPTS}
+                  <ThoughtStartersFlow
                     selectedPrompt={selectedPrompt}
-                    onSelectPrompt={setSelectedPrompt}
+                    onRecordWithPrompt={handleRecordWithPrompt}
+                    onTypeWithPrompt={handleTypeWithPrompt}
                     useInlineHover
                   />
                 </div>

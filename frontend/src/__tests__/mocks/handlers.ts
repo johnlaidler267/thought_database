@@ -41,6 +41,19 @@ export const handlers = [
     })
   }),
 
+  // Thought starters (dynamic prompts by intent)
+  http.post(`${API_URL}/thought-starters`, async ({ request }) => {
+    const body = await request.json() as { intent: string }
+    const prompts = [
+      `What's on your mind about ${body.intent}?`,
+      'How does that make you feel?',
+      'What would you like to explore?',
+      'What surprised you?',
+      'What would you do differently?',
+    ]
+    return HttpResponse.json({ prompts })
+  }),
+
   // Stripe endpoints
   http.post(`${API_URL}/stripe/create-checkout-session`, async ({ request }) => {
     const body = await request.json() as { userId: string; email: string; tier?: string }

@@ -30,7 +30,8 @@
     "formdata-node": "^6.0.3",
     "multer": "^2.0.2",
     "openai": "^6.15.0",
-    "stripe": "^20.1.0"
+    "stripe": "^20.1.0",
+    "undici": "^5.29.0"
   },
   "devDependencies": {
     "@types/supertest": "^6.0.3",

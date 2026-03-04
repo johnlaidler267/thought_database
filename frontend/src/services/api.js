@@ -238,6 +238,26 @@ export function syncBlurbForThought(thoughtId, userId, mentionKeyPoints) {
  * @param {Array<string|{text: string}>} followUps - Follow-up entries (strings or objects with .text)
  * @returns {Promise<string|null>} The question text or null
  */
+/**
+ * Get 5 journaling prompts for a given intent (e.g. "What's on your mind?", "Tell me about your day").
+ * @param {string} intent - User's selected intent label
+ * @returns {Promise<string[]>} Array of 5 prompt strings
+ */
+export async function getThoughtStarterPrompts(intent) {
+  const authHeaders = await getAuthHeaders()
+  const response = await fetch(`${API_URL}/thought-starters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+    body: JSON.stringify({ intent }),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${response.status}`)
+  }
+  const data = await response.json()
+  return Array.isArray(data.prompts) ? data.prompts : []
+}
+
 export async function getReflectQuestion(thoughtText, followUps = []) {
   try {
     const authHeaders = await getAuthHeaders()
