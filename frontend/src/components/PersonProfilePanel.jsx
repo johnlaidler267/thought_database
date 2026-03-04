@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, Pencil, Unlink, Sparkles } from 'lucide-react'
+import { X, Pencil, Unlink } from 'lucide-react'
 import { supabase } from '../services/supabase'
-import { regenerateBlurbForPerson } from '../services/api'
 
 /**
  * Slide-in panel showing a person's profile: display name, clarifier, blurb, and all thoughts mentioning them.
@@ -11,7 +10,6 @@ export default function PersonProfilePanel({
   personId,
   person,
   thoughts,
-  userId,
   onClose,
   onUnlink,
   onScrollToThought,
@@ -20,7 +18,6 @@ export default function PersonProfilePanel({
 }) {
   const [clarifierEdit, setClarifierEdit] = useState('')
   const [isEditingClarifier, setIsEditingClarifier] = useState(false)
-  const [isGeneratingBlurb, setIsGeneratingBlurb] = useState(false)
 
   useEffect(() => {
     if (person) {
@@ -63,20 +60,6 @@ export default function PersonProfilePanel({
   const handleSaveClarifier = () => {
     onEditClarifier?.(personId, clarifierEdit.trim() || null)
     setIsEditingClarifier(false)
-  }
-
-  const handleGenerateBlurb = async () => {
-    if (!userId || !personId || isGeneratingBlurb) return
-    setIsGeneratingBlurb(true)
-    try {
-      const { blurb } = await regenerateBlurbForPerson(personId, userId)
-      if (blurb) onPersonUpdate?.(personId, { blurb })
-    } catch (err) {
-      console.error('Generate blurb failed:', err)
-      alert(err.message || 'Failed to generate AI summary')
-    } finally {
-      setIsGeneratingBlurb(false)
-    }
   }
 
   return (
@@ -163,23 +146,9 @@ export default function PersonProfilePanel({
 
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-4 pb-4 border-b" style={{ borderColor: 'var(--stroke)' }}>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <h3 className="text-xs font-serif font-medium uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
-                About
-              </h3>
-              {userId && thoughts?.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleGenerateBlurb}
-                  disabled={isGeneratingBlurb}
-                  className="text-xs font-serif px-2 py-1 rounded border flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                  style={{ borderColor: 'var(--stroke)', color: 'var(--ink)' }}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  {isGeneratingBlurb ? 'Generating…' : 'Generate AI summary'}
-                </button>
-              )}
-            </div>
+            <h3 className="text-xs font-serif font-medium mb-2 uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+              About
+            </h3>
             {person.blurb && String(person.blurb).trim() ? (
               <p className="text-sm font-serif leading-relaxed" style={{ color: 'var(--ink)' }}>
                 {person.blurb}

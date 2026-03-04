@@ -17,10 +17,14 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
 
   const linkedPeopleByThoughtId = useMemo(() => {
     const out = {}
+    const seen = {}
     thoughtPeople.forEach(({ thought_id, person_id }) => {
+      const key = String(thought_id)
+      const dedupeKey = `${key}:${person_id}`
+      if (seen[dedupeKey]) return
+      seen[dedupeKey] = true
       const p = peopleMap[person_id]
       if (!p) return
-      const key = String(thought_id)
       if (!out[key]) out[key] = []
       out[key].push({ person_id, display_name: p.display_name, clarifier: p.clarifier })
     })
@@ -365,7 +369,12 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
         await supabase
           .from('thought_people')
           .upsert([{ thought_id: thoughtIdStr, person_id: person.id }], { onConflict: 'thought_id,person_id' })
-        setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: person.id }])
+        setThoughtPeople((prev) => {
+          const exists = prev.some(
+            (tp) => String(tp.thought_id) === thoughtIdStr && tp.person_id === person.id
+          )
+          return exists ? prev : [...prev, { thought_id: thoughtIdStr, person_id: person.id }]
+        })
         setOpenPersonId(person.id)
         onSyncBlurb?.(thoughtIdStr)
       } else if (matches.length === 0) {
@@ -385,16 +394,27 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
         await supabase
           .from('thought_people')
           .upsert([{ thought_id: thoughtIdStr, person_id: inserted.id }], { onConflict: 'thought_id,person_id' })
-        setThoughtPeople((prev) => [...prev, { thought_id: thoughtIdStr, person_id: inserted.id }])
+        setThoughtPeople((prev) => {
+          const exists = prev.some(
+            (tp) => String(tp.thought_id) === thoughtIdStr && tp.person_id === inserted.id
+          )
+          return exists ? prev : [...prev, { thought_id: thoughtIdStr, person_id: inserted.id }]
+        })
         setOpenPersonId(inserted.id)
         setClarifierForPersonId(inserted.id)
         setClarifierForThoughtId(thoughtIdStr)
         onSyncBlurb?.(thoughtIdStr)
       } else {
-        setDisambiguationPending((prev) => [
-          ...prev,
-          { thoughtId: thoughtIdStr, name: name.trim(), people: matches.map((p) => ({ id: p.id, display_name: p.display_name, clarifier: p.clarifier })) },
-        ])
+        setDisambiguationPending((prev) => {
+          const alreadyPending = prev.some(
+            (e) => String(e.thoughtId) === thoughtIdStr && e.name === name.trim()
+          )
+          if (alreadyPending) return prev
+          return [
+            ...prev,
+            { thoughtId: thoughtIdStr, name: name.trim(), people: matches.map((p) => ({ id: p.id, display_name: p.display_name, clarifier: p.clarifier })) },
+          ]
+        })
       }
     },
     [user, setThoughtPeople, setPeopleMap, onSyncBlurb]

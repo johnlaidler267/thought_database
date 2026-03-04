@@ -83,8 +83,10 @@ A minimalist PWA Insight Engine for personal thoughts. Capture voice recordings,
    GROQ_API_KEY=your_groq_api_key
    GOOGLE_AI_API_KEY=your_google_ai_api_key
    ```
-   For **Person Profile Blurb** (AI-generated summaries): add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (from Supabase Dashboard → Settings → API). The service role key lets the backend update people records.
+   **Required for API auth**: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (from Supabase Dashboard → Settings → API). All LLM/API routes require a valid Supabase JWT; without these, the backend returns 503.
+   For **Person Profile Blurb** (AI-generated summaries): the same keys let the backend update people records.
    For Stripe (optional): see `docs/STRIPE_INTEGRATION_GUIDE.md` for `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and Supabase service role config.
+   For rate limiting: optional `RATE_LIMIT_MAX` (default 100 requests per 15 min per IP).
 
 4. Start the server:
    ```bash

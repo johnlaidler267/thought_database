@@ -90,9 +90,9 @@ export default function EditableTitle() {
               onBlur={handleTitleBlur}
               onKeyDown={handleTitleKeyDown}
               onClick={(e) => e.stopPropagation()}
-              className="text-2xl font-semibold tracking-tight text-white bg-transparent border-none outline-none focus:ring-0 focus:outline-none flex-1 min-w-[200px]"
+              className="text-2xl font-brand font-semibold tracking-tight text-white bg-transparent border-none outline-none focus:ring-0 focus:outline-none flex-1 min-w-[200px]"
               style={{ 
-                fontFamily: 'inherit',
+                fontFamily: 'Lugrasimo, cursive',
                 fontSize: '1.5rem',
                 lineHeight: '1.75rem'
               }}
@@ -100,7 +100,7 @@ export default function EditableTitle() {
           ) : (
             <>
               <img src={isDark ? '/logo-dark.png' : '/logo.png'} alt="" className="h-7 w-7 shrink-0 object-contain" aria-hidden />
-              <h1 className="text-2xl font-semibold tracking-tight text-white">
+              <h1 className="text-2xl font-brand font-semibold tracking-tight text-white">
                 {title}
               </h1>
               <svg

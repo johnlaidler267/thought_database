@@ -1,3 +1,5 @@
+import { supabase } from './supabase'
+
 // Construct API URL - ensure it ends with /api
 const getApiUrl = () => {
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -17,6 +19,14 @@ const getApiUrl = () => {
   return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`
 }
 const API_URL = getApiUrl()
+
+/** Get auth headers for API requests. Returns { Authorization: 'Bearer <token>' } or {}. Exported for use by SettingsPage, AuthContext, etc. */
+export async function getAuthHeaders() {
+  if (!supabase) return {}
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) return {}
+  return { Authorization: `Bearer ${session.access_token}` }
+}
 
 /**
  * Warm the connection to the backend (and wake serverless/cold starts).
@@ -39,8 +49,10 @@ export async function transcribeAudio(audioBlob) {
     const timeoutId = setTimeout(() => controller.abort(), TRANSCRIPTION_TIMEOUT_MS)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const response = await fetch(`${API_URL}/transcribe`, {
         method: 'POST',
+        headers: authHeaders,
         body: formData,
         signal: controller.signal,
       })
@@ -96,10 +108,12 @@ export async function cleanTranscript(rawTranscript) {
     const timeoutId = setTimeout(() => controller.abort(), CLEANUP_TIMEOUT_MS)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const response = await fetch(`${API_URL}/clean`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({ transcript: rawTranscript }),
         signal: controller.signal,
@@ -149,10 +163,12 @@ export async function cleanTranscript(rawTranscript) {
 export async function extractTags(cleanedText, existingTagVocabulary = []) {
   try {
     const vocabulary = Array.isArray(existingTagVocabulary) ? existingTagVocabulary : []
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${API_URL}/tags`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
       },
       body: JSON.stringify({ text: cleanedText, existingTagVocabulary: vocabulary }),
     })
@@ -191,9 +207,10 @@ export async function extractTags(cleanedText, existingTagVocabulary = []) {
  * @returns {Promise<{ blurb: string|null }>}
  */
 export async function regenerateBlurbForPerson(personId, userId) {
+  const authHeaders = await getAuthHeaders()
   const response = await fetch(`${API_URL}/people/regenerate-blurb`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({ personId, userId }),
   })
   if (!response.ok) {
@@ -206,11 +223,13 @@ export async function regenerateBlurbForPerson(personId, userId) {
 
 export function syncBlurbForThought(thoughtId, userId, mentionKeyPoints) {
   if (!thoughtId || !userId || !mentionKeyPoints || Object.keys(mentionKeyPoints).length === 0) return
-  fetch(`${API_URL}/people/sync-blurb`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ thoughtId, userId, mentionKeyPoints }),
-  }).catch((err) => console.warn('syncBlurbForThought failed:', err))
+  getAuthHeaders().then((authHeaders) =>
+    fetch(`${API_URL}/people/sync-blurb`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ thoughtId, userId, mentionKeyPoints }),
+    })
+  ).catch((err) => console.warn('syncBlurbForThought failed:', err))
 }
 
 /**
@@ -221,9 +240,10 @@ export function syncBlurbForThought(thoughtId, userId, mentionKeyPoints) {
  */
 export async function getReflectQuestion(thoughtText, followUps = []) {
   try {
+    const authHeaders = await getAuthHeaders()
     const response = await fetch(`${API_URL}/reflect`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         thoughtText: thoughtText || '',
         followUps: Array.isArray(followUps) ? followUps : [],
@@ -248,9 +268,10 @@ export async function getReflectQuestion(thoughtText, followUps = []) {
  * @returns {Promise<string>} Distilled text
  */
 export async function distillText(text, level) {
+  const authHeaders = await getAuthHeaders()
   const response = await fetch(`${API_URL}/distill`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({ text: text || '', level: Math.max(1, parseInt(level, 10) || 1) }),
   })
   if (!response.ok) {

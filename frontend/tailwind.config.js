@@ -10,6 +10,7 @@ export default {
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'system-ui', 'sans-serif'],
         serif: ['Lora', 'Georgia', 'Merriweather', 'serif'],
+        brand: ['Lugrasimo', 'cursive'],
         mono: ['Geist Mono', 'monospace'],
       },
       colors: {
