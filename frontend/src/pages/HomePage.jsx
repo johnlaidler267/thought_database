@@ -391,11 +391,11 @@ export default function HomePage() {
                     .then(({ error }) => { if (error) console.error('Failed to save mentions/thought_type:', error) })
                 }
                 if (mentions.length > 0 && supabase && user) {
-                  resolveMentionsToPeopleRef.current?.(mentions, dataIdStr, user.id).then(({ newPersonIds, newThoughtPeople, newPeopleMap, disambiguationPending: pending, confirmationPending: confirmPending }) => {
+                  resolveMentionsToPeopleRef.current?.(mentions, dataIdStr, user.id).then(({ newPersonIdsRequiringClarifier, newThoughtPeople, newPeopleMap, disambiguationPending: pending, confirmationPending: confirmPending }) => {
                     if (newThoughtPeople.length) setThoughtPeople((prev) => [...prev, ...newThoughtPeople])
                     if (Object.keys(newPeopleMap).length) setPeopleMap((prev) => ({ ...prev, ...newPeopleMap }))
-                    if (newPersonIds.length > 0) {
-                      setClarifierForPersonId(newPersonIds[0])
+                    if (newPersonIdsRequiringClarifier?.length > 0) {
+                      setClarifierForPersonId(newPersonIdsRequiringClarifier[0])
                       setClarifierForThoughtId(dataIdStr)
                     }
                     if (pending && pending.length > 0) {

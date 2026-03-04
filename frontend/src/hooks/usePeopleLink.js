@@ -1,6 +1,23 @@
 import { useState, useCallback, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 
+/** Self-evident relationship names that skip the "Who is [Name]?" clarifier prompt. */
+const SELF_EVIDENT_RELATIONSHIP_NAMES = new Set([
+  'dad', 'father', 'daddy', 'papa', 'pops',
+  'mom', 'mum', 'mother', 'mommy', 'mummy', 'mama', 'ma',
+  'grandma', 'grandmother', 'granny', 'nana', 'nan',
+  'grandpa', 'grandfather', 'grandad', 'granddad', 'grampy', 'gramps',
+  'brother', 'sister', 'son', 'daughter', 'kid', 'kids',
+  'wife', 'husband', 'partner', 'spouse',
+  'uncle', 'aunt', 'auntie', 'cousin',
+  'stepdad', 'stepmom', 'stepfather', 'stepmother', 'stepmum',
+])
+
+function isSelfEvidentRelationshipName(name) {
+  if (!name || typeof name !== 'string') return false
+  return SELF_EVIDENT_RELATIONSHIP_NAMES.has(name.trim().toLowerCase())
+}
+
 /**
  * Manages people–thought linking: resolveMentionsToPeople, clarifier/disambiguation/confirmation flows,
  * linkedPeopleByThoughtId, and panel open state. Parent must pass thoughtPeople, peopleMap and their setters
@@ -36,6 +53,7 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
       if (!supabase || !userId || !thoughtId || !Array.isArray(mentions) || mentions.length === 0) {
         return {
           newPersonIds: [],
+          newPersonIdsRequiringClarifier: [],
           newThoughtPeople: [],
           newPeopleMap: {},
           disambiguationPending: [],
@@ -62,6 +80,7 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
 
       const newPeopleMap = {}
       const newPersonIds = []
+      const newPersonIdsRequiringClarifier = []
       const personIdsToLink = []
       const disambiguationPendingOut = []
       const confirmationPendingOut = []
@@ -121,6 +140,9 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
           }
           newPersonIds.push(inserted.id)
           personIdsToLink.push(inserted.id)
+          if (!isSelfEvidentRelationshipName(name)) {
+            newPersonIdsRequiringClarifier.push(inserted.id)
+          }
           byLower[key] = [
             {
               id: inserted.id,
@@ -143,6 +165,7 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
       }
       return {
         newPersonIds,
+        newPersonIdsRequiringClarifier,
         newThoughtPeople,
         newPeopleMap,
         disambiguationPending: disambiguationPendingOut,
