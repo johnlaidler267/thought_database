@@ -1,30 +1,26 @@
-import { useRef, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import ThoughtBubble from './ThoughtBubble'
 
-const ROW_ESTIMATE = 220
+const ROW_ESTIMATE = 280
 const LOAD_MORE_THRESHOLD = 400
 
-export default function ThoughtTimeline({
+export function VirtualizedThoughtList({
   scrollContainerRef,
   thoughts,
-  onDelete,
-  suggestedTagsByThoughtId = {},
-  onConfirmSuggestedTag,
+  hasMore,
+  loadingMore,
   onLoadMore,
-  hasMore = false,
-  loadingMore = false,
+  renderCard,
 }) {
   const rowVirtualizer = useVirtualizer({
     count: thoughts.length,
     getScrollElement: () => scrollContainerRef?.current ?? null,
     estimateSize: () => ROW_ESTIMATE,
-    overscan: 5,
+    overscan: 4,
   })
 
   const virtualItems = rowVirtualizer.getVirtualItems()
 
-  // When user scrolls near bottom of the container, load next page
   useEffect(() => {
     if (!onLoadMore || !hasMore || loadingMore) return
     const el = scrollContainerRef?.current
@@ -42,13 +38,7 @@ export default function ThoughtTimeline({
     return () => el.removeEventListener('scroll', check)
   }, [onLoadMore, hasMore, loadingMore, scrollContainerRef])
 
-  if (!thoughts || thoughts.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-white/70">
-        <p className="font-sans">No thoughts yet. Start recording to capture your first thought.</p>
-      </div>
-    )
-  }
+  if (!thoughts.length) return null
 
   return (
     <div
@@ -74,23 +64,19 @@ export default function ThoughtTimeline({
               transform: `translateY(${virtualRow.start}px)`,
             }}
           >
-            <ThoughtBubble
-              thought={thought}
-              onDelete={onDelete}
-              suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
-              onConfirmSuggestedTag={onConfirmSuggestedTag}
-            />
+            {renderCard(thought)}
           </div>
         )
       })}
       {loadingMore && (
         <div
-          className="flex items-center justify-center py-4 text-white/60 text-sm"
+          className="flex items-center justify-center py-4 text-sm"
           style={{
             position: 'absolute',
             left: 0,
             width: '100%',
             top: rowVirtualizer.getTotalSize(),
+            color: 'var(--muted-foreground)',
           }}
         >
           <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" aria-hidden />

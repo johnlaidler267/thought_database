@@ -16,18 +16,18 @@ function escapeIlike(s) {
  * Filtering is always done in Supabase (never filter a local array).
  *
  * @param {object} user - Auth user
- * @param {{ searchQuery?: string, category?: string, tags?: string[] }} filters - Optional filters; changes reset to page 1
+ * @param {{ searchQuery?: string, category?: string, tags?: string[], sortOrder?: 'asc'|'desc' }} filters - Optional filters; changes reset to page 1
  * @returns {{ thoughts: object[], setThoughts: function, hasMore: boolean, loading: boolean, loadingMore: boolean, loadMore: function, error: Error|null }}
  */
 export function usePaginatedThoughts(user, filters = {}) {
-  const { searchQuery = '', category = '', tags: activeTags = [] } = filters
+  const { searchQuery = '', category = '', tags: activeTags = [], sortOrder = 'desc' } = filters
   const [thoughts, setThoughts] = useState([])
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const pageRef = useRef(0)
-  const filtersKeyRef = useRef(JSON.stringify({ searchQuery, category, tags: activeTags }))
+  const filtersKeyRef = useRef(JSON.stringify({ searchQuery, category, tags: activeTags, sortOrder }))
 
   const fetchPage = useCallback(
     async (page) => {
@@ -40,7 +40,7 @@ export function usePaginatedThoughts(user, filters = {}) {
         .from('thoughts')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: sortOrder === 'asc' })
         .range(from, to)
 
       // Category: thoughts where categories contains the selected category (or legacy category column)
@@ -67,7 +67,7 @@ export function usePaginatedThoughts(user, filters = {}) {
       if (err) throw err
       return data ?? []
     },
-    [user?.id, searchQuery, category, activeTags]
+    [user?.id, searchQuery, category, activeTags, sortOrder]
   )
 
   const loadFirstPage = useCallback(() => {
@@ -160,14 +160,14 @@ export function usePaginatedThoughts(user, filters = {}) {
 
   // Initial load and when filters change: reset and fetch page 0
   useEffect(() => {
-    const filtersKey = JSON.stringify({ searchQuery, category, tags: activeTags })
+    const filtersKey = JSON.stringify({ searchQuery, category, tags: activeTags, sortOrder })
     if (filtersKey !== filtersKeyRef.current) {
       filtersKeyRef.current = filtersKey
       setThoughts([])
       setHasMore(true)
     }
     loadFirstPage()
-  }, [loadFirstPage, searchQuery, category, activeTags])
+  }, [loadFirstPage, searchQuery, category, activeTags, sortOrder])
 
   return {
     thoughts,

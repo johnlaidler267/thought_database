@@ -9,7 +9,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useToast } from '../contexts/ToastContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
-import { useThoughts } from '../hooks/useThoughts'
+import { usePaginatedThoughts } from '../hooks/usePaginatedThoughts'
+import { useThoughtPeopleForThoughts } from '../hooks/useThoughtPeopleForThoughts'
 import { useCategories } from '../hooks/useCategories'
 import { usePeopleLink } from '../hooks/usePeopleLink'
 import { supabase } from '../services/supabase'
@@ -24,6 +25,7 @@ import PersonProfilePanel from '../components/PersonProfilePanel'
 import { HomePageHeader } from './HomePage/HomePageHeader'
 import { SearchBar } from './HomePage/SearchBar'
 import { CategoryTabs } from './HomePage/CategoryTabs'
+import { VirtualizedThoughtList } from './HomePage/VirtualizedThoughtList'
 import { pageBackground, errorBannerStyle, loadingBannerStyle, transcriptEditorOverlay, recordBarGradient, remainingTimeBadge } from './HomePage/styles'
 
 export default function HomePage() {
@@ -33,8 +35,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const { thoughts, setThoughts, thoughtPeople, setThoughtPeople, peopleMap, setPeopleMap } =
-    useThoughts(user)
+  const timelineScrollRef = useRef(null)
   const categoriesState = useCategories(user?.id)
   const {
     categories,
@@ -51,6 +52,28 @@ export default function HomePage() {
     confirmDeleteCategory,
     cancelDeleteCategory,
   } = categoriesState
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeTags, setActiveTags] = useState([])
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  const sortMenuRef = useRef(null)
+
+  const {
+    thoughts,
+    setThoughts,
+    hasMore: timelineHasMore,
+    loading: timelineLoading,
+    loadingMore: timelineLoadingMore,
+    loadMore: timelineLoadMore,
+  } = usePaginatedThoughts(user, {
+    searchQuery,
+    category: activeCategory,
+    tags: activeTags,
+    sortOrder,
+  })
+  const { thoughtPeople, setThoughtPeople, peopleMap, setPeopleMap } =
+    useThoughtPeopleForThoughts(thoughts)
 
   const keyPointsByThoughtIdRef = useRef({})
   const onSyncBlurb = useCallback(
@@ -88,11 +111,6 @@ export default function HomePage() {
     handleScrollToThought,
   } = peopleLink
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeTags, setActiveTags] = useState([])
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [sortMenuOpen, setSortMenuOpen] = useState(false)
-  const sortMenuRef = useRef(null)
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const [followUpToDelete, setFollowUpToDelete] = useState(null)
   const [suggestedTagsByThoughtId, setSuggestedTagsByThoughtId] = useState({})
@@ -853,48 +871,7 @@ export default function HomePage() {
     })
   }, [])
 
-  // Filter thoughts: must match ALL active tags (AND) and the free-text query
-  const filteredThoughts = useMemo(() => {
-    return thoughts.filter((thought) => {
-      if (activeCategory !== 'All') {
-        const thoughtCats = thought.categories ?? (thought.category ? [thought.category] : [])
-        const matches = Array.isArray(thoughtCats)
-          ? thoughtCats.includes(activeCategory)
-          : thought.category === activeCategory
-        if (!matches) return false
-      }
-      // Entry must have every active tag (thought.tags contains each, case-insensitive)
-      const thoughtTagLower = (thought.tags || []).map((t) => String(t).toLowerCase())
-      for (const active of activeTags) {
-        const a = active.trim().toLowerCase()
-        if (!a) continue
-        if (!thoughtTagLower.some((t) => t === a)) return false
-      }
-      // Free-text: match tag or content
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        const matchesTag = thought.tags && thought.tags.some((tag) =>
-          tag.toLowerCase().includes(query)
-        )
-        const matchesCleanedText = thought.cleaned_text &&
-          thought.cleaned_text.toLowerCase().includes(query)
-        const matchesRawText = thought.raw_transcript &&
-          thought.raw_transcript.toLowerCase().includes(query)
-        if (!(matchesTag || matchesCleanedText || matchesRawText)) return false
-      }
-      return true
-    })
-  }, [thoughts, searchQuery, activeCategory, activeTags])
-
-  const sortedThoughts = useMemo(() => {
-    const list = [...filteredThoughts]
-    list.sort((a, b) => {
-      const ta = a.created_at ? new Date(a.created_at).getTime() : 0
-      const tb = b.created_at ? new Date(b.created_at).getTime() : 0
-      return sortOrder === 'asc' ? ta - tb : tb - ta
-    })
-    return list
-  }, [filteredThoughts, sortOrder])
+  // Thoughts are already filtered and sorted by Supabase (usePaginatedThoughts)
 
   const openPersonThoughts = useMemo(() => {
     if (!openPersonId) return []
@@ -963,10 +940,13 @@ export default function HomePage() {
         onDeleteCategory={handleDeleteCategory}
       />
 
-      {/* Timeline - extra bottom padding so card tags stay above the fixed record buttons */}
-      <main className={`flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
-        isEditingTranscript ? 'pb-80' : 'pb-52 sm:pb-56'
-      }`}>
+      {/* Timeline - virtualized + paginated; scroll container for consistent viewport */}
+      <main
+        ref={timelineScrollRef}
+        className={`flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
+          isEditingTranscript ? 'pb-80' : 'pb-52 sm:pb-56'
+        }`}
+      >
         <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto space-y-4 sm:space-y-6">
           {recordingError && (
             <div
@@ -978,7 +958,7 @@ export default function HomePage() {
               {recordingError}
             </div>
           )}
-          
+
           {loading && (
             <div
               className="mb-6 p-4 rounded-xl border text-sm"
@@ -993,50 +973,60 @@ export default function HomePage() {
             </div>
           )}
 
-          {thoughts.length === 0 ? (
-            <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
-              <p className="font-serif">No thoughts yet. Start recording to capture your first thought.</p>
+          {timelineLoading ? (
+            <div className="flex items-center justify-center py-12" style={{ color: 'var(--muted-foreground)' }}>
+              <span className="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" aria-hidden />
+              <span>Loading timeline…</span>
             </div>
-          ) : filteredThoughts.length === 0 ? (
+          ) : thoughts.length === 0 ? (
             <div className="flex items-center justify-center h-64" style={{ color: 'var(--muted-foreground)' }}>
               <p className="font-serif">
-                {(searchQuery || activeTags.length > 0) ? 'No thoughts found matching your filters.' : 'No thoughts added'}
+                {(searchQuery || activeTags.length > 0 || (activeCategory && activeCategory !== 'All'))
+                  ? 'No thoughts found matching your filters.'
+                  : 'No thoughts yet. Start recording to capture your first thought.'}
               </p>
             </div>
           ) : (
-            sortedThoughts.map((thought) => (
-              <div key={thought.id} data-thought-id={thought.id}>
-                <ThoughtCard
-                  thought={thought}
-                  onDelete={handleDeleteThought}
-                  onOpenAiPrompts={openAiPromptsFromCard}
-                  onTagClick={handleTagClick}
-                  activeTags={activeTags}
-                  onAddFollowUp={handleAddFollowUp}
-                  onDeleteFollowUp={handleDeleteFollowUp}
-                  onEditFollowUp={handleEditFollowUp}
-                  onSaveEdit={handleReprocessThought}
-                  onDistillStateChange={handleDistillStateChange}
-                  suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
-                  onConfirmSuggestedTag={handleConfirmSuggestedTag}
-                  linkedPeople={linkedPeopleByThoughtId[String(thought.id)] || []}
-                  onPersonClick={handlePersonClick}
-                  onMentionClick={handleMentionClick}
-                  clarifierForPersonId={clarifierForPersonId}
-                  clarifierForThoughtId={clarifierForThoughtId}
-                  onClarifierSubmit={handleClarifierSubmit}
-                  onClarifierDismiss={handleClarifierDismiss}
-                  confirmationList={confirmationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
-                  onConfirmationChoose={handleConfirmationChoose}
-                  clarifierForNewPerson={clarifierForNewPerson && String(clarifierForNewPerson.thoughtId) === String(thought.id) ? clarifierForNewPerson : null}
-                  onNewPersonClarifierComplete={handleNewPersonClarifierComplete}
-                  disambiguationList={disambiguationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
-                  onDisambiguationChoose={handleDisambiguationChoose}
-                  categories={categories}
-                  onCategoriesChange={handleThoughtCategoriesChange}
-                />
-              </div>
-            ))
+            <VirtualizedThoughtList
+              scrollContainerRef={timelineScrollRef}
+              thoughts={thoughts}
+              hasMore={timelineHasMore}
+              loadingMore={timelineLoadingMore}
+              onLoadMore={timelineLoadMore}
+              renderCard={(thought) => (
+                <div key={thought.id} data-thought-id={thought.id} className="mb-4 sm:mb-6">
+                  <ThoughtCard
+                    thought={thought}
+                    onDelete={handleDeleteThought}
+                    onOpenAiPrompts={openAiPromptsFromCard}
+                    onTagClick={handleTagClick}
+                    activeTags={activeTags}
+                    onAddFollowUp={handleAddFollowUp}
+                    onDeleteFollowUp={handleDeleteFollowUp}
+                    onEditFollowUp={handleEditFollowUp}
+                    onSaveEdit={handleReprocessThought}
+                    onDistillStateChange={handleDistillStateChange}
+                    suggestedTags={suggestedTagsByThoughtId[thought.id] || []}
+                    onConfirmSuggestedTag={handleConfirmSuggestedTag}
+                    linkedPeople={linkedPeopleByThoughtId[String(thought.id)] || []}
+                    onPersonClick={handlePersonClick}
+                    onMentionClick={handleMentionClick}
+                    clarifierForPersonId={clarifierForPersonId}
+                    clarifierForThoughtId={clarifierForThoughtId}
+                    onClarifierSubmit={handleClarifierSubmit}
+                    onClarifierDismiss={handleClarifierDismiss}
+                    confirmationList={confirmationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
+                    onConfirmationChoose={handleConfirmationChoose}
+                    clarifierForNewPerson={clarifierForNewPerson && String(clarifierForNewPerson.thoughtId) === String(thought.id) ? clarifierForNewPerson : null}
+                    onNewPersonClarifierComplete={handleNewPersonClarifierComplete}
+                    disambiguationList={disambiguationPending.filter((e) => String(e.thoughtId) === String(thought.id))}
+                    onDisambiguationChoose={handleDisambiguationChoose}
+                    categories={categories}
+                    onCategoriesChange={handleThoughtCategoriesChange}
+                  />
+                </div>
+              )}
+            />
           )}
         </div>
       </main>

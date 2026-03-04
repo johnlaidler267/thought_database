@@ -34,30 +34,32 @@ export default function TimelinePage() {
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
   const thoughtsRef = useRef(thoughts)
+  const timelineScrollRef = useRef(null)
+  const [scrollContainerReady, setScrollContainerReady] = useState(false)
   const scrollRestoredRef = useRef(false)
   useEffect(() => { thoughtsRef.current = thoughts }, [thoughts])
   const { isRecording, error: recordingError, startRecording, stopRecording, setOnAutoStop } = useAudioRecorder()
 
-  // Restore scroll position when returning to the timeline
+  // Restore scroll position when returning to the timeline (container scroll)
   useEffect(() => {
     if (scrollRestoredRef.current || timelineLoading || thoughts.length === 0) return
     const saved = sessionStorage.getItem(TIMELINE_SCROLL_KEY)
-    if (saved != null) {
+    if (saved != null && timelineScrollRef.current) {
       const y = Number(saved)
       if (Number.isFinite(y)) {
         scrollRestoredRef.current = true
         requestAnimationFrame(() => {
-          window.scrollTo(0, y)
+          if (timelineScrollRef.current) timelineScrollRef.current.scrollTop = y
         })
       }
     }
   }, [timelineLoading, thoughts.length])
 
-  // Save scroll position when leaving the timeline (unmount or navigate)
+  // Save scroll position when leaving the timeline (container scroll)
   useEffect(() => {
     return () => {
-      if (typeof window !== 'undefined' && window.scrollingElement) {
-        sessionStorage.setItem(TIMELINE_SCROLL_KEY, String(window.scrollingElement.scrollTop))
+      if (timelineScrollRef.current) {
+        sessionStorage.setItem(TIMELINE_SCROLL_KEY, String(timelineScrollRef.current.scrollTop))
       }
     }
   }, [])
@@ -352,15 +354,25 @@ export default function TimelinePage() {
             <span>Loading timeline…</span>
           </div>
         ) : (
-          <ThoughtTimeline
-            thoughts={thoughts}
-            onDelete={handleDeleteThought}
-            suggestedTagsByThoughtId={suggestedTagsByThoughtId}
-            onConfirmSuggestedTag={handleConfirmSuggestedTag}
-            onLoadMore={loadMore}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-          />
+          <div
+            ref={(el) => {
+              timelineScrollRef.current = el
+              setScrollContainerReady((prev) => (!!el !== prev ? !!el : prev))
+            }}
+            className="min-h-[60vh] overflow-y-auto pb-24"
+            style={{ height: 'calc(100vh - 10rem)' }}
+          >
+            <ThoughtTimeline
+              scrollContainerRef={timelineScrollRef}
+              thoughts={thoughts}
+              onDelete={handleDeleteThought}
+              suggestedTagsByThoughtId={suggestedTagsByThoughtId}
+              onConfirmSuggestedTag={handleConfirmSuggestedTag}
+              onLoadMore={loadMore}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+            />
+          </div>
         )}
       </main>
 
