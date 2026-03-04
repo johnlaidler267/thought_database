@@ -365,18 +365,23 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
 
       if (matches.length === 1) {
         const person = matches[0]
+        const alreadyLinked = (thoughtPeople || []).some(
+          (tp) => String(tp.thought_id) === thoughtIdStr && tp.person_id === person.id
+        )
         setPeopleMap((prev) => ({ ...prev, [person.id]: { id: person.id, display_name: person.display_name, clarifier: person.clarifier } }))
-        await supabase
-          .from('thought_people')
-          .upsert([{ thought_id: thoughtIdStr, person_id: person.id }], { onConflict: 'thought_id,person_id' })
-        setThoughtPeople((prev) => {
-          const exists = prev.some(
-            (tp) => String(tp.thought_id) === thoughtIdStr && tp.person_id === person.id
-          )
-          return exists ? prev : [...prev, { thought_id: thoughtIdStr, person_id: person.id }]
-        })
+        if (!alreadyLinked) {
+          await supabase
+            .from('thought_people')
+            .upsert([{ thought_id: thoughtIdStr, person_id: person.id }], { onConflict: 'thought_id,person_id' })
+          setThoughtPeople((prev) => {
+            const exists = prev.some(
+              (tp) => String(tp.thought_id) === thoughtIdStr && tp.person_id === person.id
+            )
+            return exists ? prev : [...prev, { thought_id: thoughtIdStr, person_id: person.id }]
+          })
+          onSyncBlurb?.(thoughtIdStr)
+        }
         setOpenPersonId(person.id)
-        onSyncBlurb?.(thoughtIdStr)
       } else if (matches.length === 0) {
         const { data: inserted, error } = await supabase
           .from('people')

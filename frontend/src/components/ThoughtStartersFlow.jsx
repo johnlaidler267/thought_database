@@ -113,13 +113,6 @@ export function ThoughtStartersFlow({
           ))}
         </div>
         <style>{`
-          .thought-starters-modal-enter {
-            animation: thought-starters-fade-in 100ms ease-out forwards;
-          }
-          @keyframes thought-starters-fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
           .thought-starters-card {
             display: flex;
             align-items: center;
@@ -127,19 +120,19 @@ export function ThoughtStartersFlow({
             border: none;
             cursor: pointer;
             transition: background-color 0.15s ease;
-            animation: thought-starters-card-in 150ms ease-out forwards;
+            animation: thought-starters-card-in 80ms ease-out forwards;
             opacity: 0;
-            transform: translateY(6px);
+            transform: translateY(4px);
           }
-          .thought-starters-card:nth-child(1) { animation-delay: 80ms; }
-          .thought-starters-card:nth-child(2) { animation-delay: 130ms; }
-          .thought-starters-card:nth-child(3) { animation-delay: 180ms; }
-          .thought-starters-card:nth-child(4) { animation-delay: 230ms; }
-          .thought-starters-card:nth-child(5) { animation-delay: 280ms; }
+          .thought-starters-card:nth-child(1) { animation-delay: 0ms; }
+          .thought-starters-card:nth-child(2) { animation-delay: 20ms; }
+          .thought-starters-card:nth-child(3) { animation-delay: 40ms; }
+          .thought-starters-card:nth-child(4) { animation-delay: 60ms; }
+          .thought-starters-card:nth-child(5) { animation-delay: 80ms; }
           @keyframes thought-starters-card-in {
             from {
               opacity: 0;
-              transform: translateY(6px);
+              transform: translateY(4px);
             }
             to {
               opacity: 1;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Tooltip from '../components/ui/Tooltip'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -1103,7 +1104,11 @@ export default function HomePage() {
           <div ref={aiPromptsRecordRef} className="flex items-end gap-3">
             <Tooltip text="Thought starters" position="top">
               <button
-                onClick={() => setShowAiPrompts(!showAiPrompts)}
+                onMouseDown={(e) => {
+                  if (isEditingTranscript) return
+                  e.preventDefault()
+                  flushSync(() => setShowAiPrompts((prev) => !prev))
+                }}
                 className="mb-1 transition-colors flex items-center justify-center w-10 h-10 sm:w-8 sm:h-8 rounded-full"
                 aria-label="AI thought prompts"
                 disabled={isEditingTranscript}
@@ -1131,16 +1136,22 @@ export default function HomePage() {
               </button>
             </Tooltip>
             <div className="relative flex items-end">
-              {showAiPrompts && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 w-[min(90vw,28rem)] min-w-[18rem]">
-                  <ThoughtStartersFlow
-                    selectedPrompt={selectedPrompt}
-                    onRecordWithPrompt={handleRecordWithPrompt}
-                    onTypeWithPrompt={handleTypeWithPrompt}
-                    useInlineHover
-                  />
-                </div>
-              )}
+              <div
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 w-[min(90vw,28rem)] min-w-[18rem]"
+                aria-hidden={!showAiPrompts}
+                style={
+                  showAiPrompts
+                    ? undefined
+                    : { visibility: 'hidden', pointerEvents: 'none' }
+                }
+              >
+                <ThoughtStartersFlow
+                  selectedPrompt={selectedPrompt}
+                  onRecordWithPrompt={handleRecordWithPrompt}
+                  onTypeWithPrompt={handleTypeWithPrompt}
+                  useInlineHover
+                />
+              </div>
               <button
                 onClick={handleRecordClick}
                 className="group relative"

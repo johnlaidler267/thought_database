@@ -138,7 +138,7 @@ export function PeopleMetadataRow({
                       e.preventDefault()
                       onPersonClick?.(p.person_id)
                     }}
-                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors"
+                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors bg-transparent p-0"
                     style={textStyle}
                   >
                     {p.display_name}
@@ -153,7 +153,7 @@ export function PeopleMetadataRow({
                       e.preventDefault()
                       onMentionClick?.(name, thought.id)
                     }}
-                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors"
+                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors bg-transparent p-0"
                     style={textStyle}
                   >
                     {name}

@@ -143,6 +143,14 @@
     text-decoration-color: rgba(250, 204, 21, 0.75);
   }
 
+  /* Inline mention button: no extra vertical space (override global button min-height) */
+  button.mention-highlight {
+    min-height: 0;
+    min-width: 0;
+    line-height: inherit;
+    vertical-align: baseline;
+  }
+
   /* Prevent iOS Safari auto-zoom on input focus */
   input[type="text"]:not(.category-popover-new-input),
   input[type="email"],
