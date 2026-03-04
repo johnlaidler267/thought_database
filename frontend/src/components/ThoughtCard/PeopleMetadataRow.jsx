@@ -126,9 +126,9 @@ export function PeopleMetadataRow({
       )}
 
       {hasPeople && (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <User className="w-3 h-3 text-muted-foreground shrink-0" style={iconStyle} />
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {linkedPeople.length > 0
               ? linkedPeople.map((p) => (
                   <button
@@ -138,8 +138,16 @@ export function PeopleMetadataRow({
                       e.preventDefault()
                       onPersonClick?.(p.person_id)
                     }}
-                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors bg-transparent p-0"
+                    className="text-xs font-serif cursor-pointer transition-colors duration-200 bg-transparent p-0 border-0"
                     style={textStyle}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--ink)'
+                      e.currentTarget.style.opacity = '0.9'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--muted-foreground)'
+                      e.currentTarget.style.opacity = '1'
+                    }}
                   >
                     {p.display_name}
                     {p.clarifier ? ` (${p.clarifier})` : ''}
@@ -153,8 +161,16 @@ export function PeopleMetadataRow({
                       e.preventDefault()
                       onMentionClick?.(name, thought.id)
                     }}
-                    className="text-xs font-serif text-muted-foreground cursor-pointer border-b border-transparent hover:border-current hover:text-ink transition-colors bg-transparent p-0"
+                    className="text-xs font-serif cursor-pointer transition-colors duration-200 bg-transparent p-0 border-0"
                     style={textStyle}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = 'var(--ink)'
+                      e.currentTarget.style.opacity = '0.9'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--muted-foreground)'
+                      e.currentTarget.style.opacity = '1'
+                    }}
                   >
                     {name}
                   </button>
