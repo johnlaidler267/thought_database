@@ -5,17 +5,27 @@ import ThoughtTimeline from '../components/ThoughtTimeline'
 import EditableTitle from '../components/EditableTitle'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
+import { usePaginatedThoughts } from '../hooks/usePaginatedThoughts'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { Check, XCircle } from 'lucide-react'
 
+const TIMELINE_SCROLL_KEY = 'timelineScrollPosition'
+
 export default function TimelinePage() {
   const { user, signOut } = useAuth()
   const { showError } = useToast()
   const navigate = useNavigate()
-  const [thoughts, setThoughts] = useState([])
+  const {
+    thoughts,
+    setThoughts,
+    hasMore,
+    loading: timelineLoading,
+    loadingMore,
+    loadMore,
+  } = usePaginatedThoughts(user, {})
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
   const [showSignOutModal, setShowSignOutModal] = useState(false)
   const [suggestedTagsByThoughtId, setSuggestedTagsByThoughtId] = useState({})
@@ -24,61 +34,33 @@ export default function TimelinePage() {
   const [isEditingTranscript, setIsEditingTranscript] = useState(false)
   const transcriptTextareaRef = useRef(null)
   const thoughtsRef = useRef(thoughts)
+  const scrollRestoredRef = useRef(false)
   useEffect(() => { thoughtsRef.current = thoughts }, [thoughts])
   const { isRecording, error: recordingError, startRecording, stopRecording, setOnAutoStop } = useAudioRecorder()
 
-  // Load thoughts from Supabase on mount
+  // Restore scroll position when returning to the timeline
   useEffect(() => {
-    async function loadThoughts() {
-      if (!user) return
-
-      // In dev mode (no Supabase), use mock data
-      if (!supabase) {
-        const mockThoughts = [
-          {
-            id: '1',
-            raw_transcript: 'Um, so I was thinking, like, you know, maybe we should, uh, consider doing this project differently? Like, what if we, um, started with a simpler approach?',
-            cleaned_text: 'I was thinking maybe we should consider doing this project differently. What if we started with a simpler approach?',
-            tags: ['Idea', 'Task'],
-            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '2',
-            raw_transcript: 'Oh, I need to remember to call Sarah tomorrow. She mentioned something about, um, the meeting? Yeah, the meeting on Friday.',
-            cleaned_text: 'I need to remember to call Sarah tomorrow. She mentioned something about the meeting on Friday.',
-            tags: ['Person', 'Task'],
-            created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '3',
-            raw_transcript: 'The idea of, like, building a personal knowledge base is really interesting. It could help me, um, organize my thoughts better and, you know, make connections between different concepts.',
-            cleaned_text: 'The idea of building a personal knowledge base is really interesting. It could help me organize my thoughts better and make connections between different concepts.',
-            tags: ['Idea'],
-            created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          },
-        ]
-        setThoughts(mockThoughts)
-        return
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('thoughts')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        if (data) {
-          setThoughts(data)
-        }
-      } catch (err) {
-        console.error('Error loading thoughts:', err)
+    if (scrollRestoredRef.current || timelineLoading || thoughts.length === 0) return
+    const saved = sessionStorage.getItem(TIMELINE_SCROLL_KEY)
+    if (saved != null) {
+      const y = Number(saved)
+      if (Number.isFinite(y)) {
+        scrollRestoredRef.current = true
+        requestAnimationFrame(() => {
+          window.scrollTo(0, y)
+        })
       }
     }
+  }, [timelineLoading, thoughts.length])
 
-    loadThoughts()
-  }, [user])
+  // Save scroll position when leaving the timeline (unmount or navigate)
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.scrollingElement) {
+        sessionStorage.setItem(TIMELINE_SCROLL_KEY, String(window.scrollingElement.scrollTop))
+      }
+    }
+  }, [])
 
   const handleDeleteThought = (thoughtId) => {
     setThoughtToDelete(thoughtId)
@@ -364,12 +346,22 @@ export default function TimelinePage() {
           </div>
         )}
 
-        <ThoughtTimeline
-          thoughts={thoughts}
-          onDelete={handleDeleteThought}
-          suggestedTagsByThoughtId={suggestedTagsByThoughtId}
-          onConfirmSuggestedTag={handleConfirmSuggestedTag}
-        />
+        {timelineLoading ? (
+          <div className="flex items-center justify-center py-12 text-white/60">
+            <span className="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" aria-hidden />
+            <span>Loading timeline…</span>
+          </div>
+        ) : (
+          <ThoughtTimeline
+            thoughts={thoughts}
+            onDelete={handleDeleteThought}
+            suggestedTagsByThoughtId={suggestedTagsByThoughtId}
+            onConfirmSuggestedTag={handleConfirmSuggestedTag}
+            onLoadMore={loadMore}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+          />
+        )}
       </main>
 
       {/* Transcript Editor - Fixed at bottom */}

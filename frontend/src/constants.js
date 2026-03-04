@@ -11,3 +11,6 @@ export const APPRENTICE_TIER_TOKEN_LIMIT = 1_000_000
 
 // Pro tier has unlimited notarizations (no token cap).
 // Sovereign uses the user's own API key (no app token limit).
+
+/** Number of thoughts per page when loading the timeline from Supabase. */
+export const TIMELINE_PAGE_SIZE = 30
