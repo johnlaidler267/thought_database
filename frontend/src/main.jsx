@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import WelcomeScreen from './components/WelcomeScreen'
 import HomePage from './pages/HomePage'
@@ -34,6 +35,7 @@ createRoot(document.getElementById('root')).render(
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
+          <ToastProvider>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/welcome" element={<WelcomeScreen />} />
@@ -49,6 +51,7 @@ createRoot(document.getElementById('root')).render(
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

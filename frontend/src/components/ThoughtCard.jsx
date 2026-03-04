@@ -23,6 +23,7 @@ import { ActionBar } from './ThoughtCard/ActionBar'
 import { CopyToast } from './ThoughtCard/CopyToast'
 import { SavingOverlay } from './ThoughtCard/SavingOverlay'
 import { AiQuestionButton } from './ThoughtCard/AiQuestionButton'
+import { useToast } from '../contexts/ToastContext'
 
 function ThoughtCardInner({
   thought,
@@ -233,11 +234,11 @@ function ThoughtCardInner({
       setIsTranslated(true)
     } catch (error) {
       console.error('Translation failed:', error)
-      alert('Failed to translate. Please try again.')
+      showError('Failed to translate. Please try again.')
     } finally {
       setIsTranslating(false)
     }
-  }, [translationEnabled, isTranslated, originalText, translationLanguage])
+  }, [translationEnabled, isTranslated, originalText, translationLanguage, showError])
 
   const handleEditStart = useCallback(() => {
     setShowMenu(false)

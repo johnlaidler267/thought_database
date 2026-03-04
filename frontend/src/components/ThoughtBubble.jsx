@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import CopyButton from './CopyButton'
 import { translateText } from '../services/translation'
+import { useToast } from '../contexts/ToastContext'
 
 export default function ThoughtBubble({ thought, onDelete, suggestedTags = [], onConfirmSuggestedTag }) {
+  const { showError } = useToast()
   const [showRaw, setShowRaw] = useState(false)
   const [isTranslated, setIsTranslated] = useState(false)
   const [translatedText, setTranslatedText] = useState('')
@@ -66,7 +68,7 @@ export default function ThoughtBubble({ thought, onDelete, suggestedTags = [], o
       setIsTranslated(true)
     } catch (error) {
       console.error('Translation failed:', error)
-      alert('Failed to translate. Please try again.')
+      showError('Failed to translate. Please try again.')
     } finally {
       setIsTranslating(false)
     }

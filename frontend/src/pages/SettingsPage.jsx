@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useToast } from '../contexts/ToastContext'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../services/supabase'
 import { getAuthHeaders } from '../services/api'
@@ -72,7 +73,7 @@ export default function SettingsPage() {
 
   const handleExportData = async () => {
     if (!user?.id || !supabase) {
-      alert('Unable to export data. Please ensure you are logged in.')
+      showError('Unable to export data. Please ensure you are logged in.')
       return
     }
 
@@ -126,7 +127,7 @@ export default function SettingsPage() {
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Error exporting data:', error)
-      alert(`Failed to export data: ${error.message}`)
+      showError(`Failed to export data: ${error.message}`)
     } finally {
       setExportingData(false)
     }
@@ -244,8 +245,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
     }
   } catch (error) {
     console.error('Error creating checkout session:', error)
-    // Show the actual error message
-    alert(`Failed to start checkout: ${error.message}. Please check the console for details.`)
+    showError(`Failed to start checkout: ${error.message}. Please check the console for details.`)
   }
 }
   // Handle saving OpenAI API key
@@ -280,7 +280,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
       }
     } catch (error) {
       console.error('Error saving API key:', error)
-      alert('Failed to save API key. Please try again.')
+      showError('Failed to save API key. Please try again.')
     } finally {
       setSavingKey(false)
     }
@@ -339,7 +339,7 @@ const handleSubscribe = async (targetTier = 'pro') => {
           ? 'Cannot reach the billing server. Ensure VITE_API_URL is set to your backend URL in production.'
           : message
       }
-      alert(message)
+      showError(message)
     }
   }
   

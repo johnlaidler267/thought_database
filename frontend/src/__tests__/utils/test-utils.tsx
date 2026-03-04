@@ -3,6 +3,7 @@ import { render, RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '../../contexts/AuthContext'
 import { ThemeProvider } from '../../contexts/ThemeContext'
+import { ToastProvider } from '../../contexts/ToastContext'
 
 // Custom render function that includes providers
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
@@ -10,7 +11,9 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          {children}
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

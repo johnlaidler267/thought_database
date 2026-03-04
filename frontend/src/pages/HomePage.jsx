@@ -7,6 +7,7 @@ import { Mic, Pause, Keyboard } from 'lucide-react'
 import { TbPencilQuestion } from 'react-icons/tb'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useToast } from '../contexts/ToastContext'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useThoughts } from '../hooks/useThoughts'
 import { useCategories } from '../hooks/useCategories'
@@ -147,7 +148,7 @@ export default function HomePage() {
   const handleRecordStart = () => {
     // Free tier: block starting a recording if already at token limit
     if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
-      alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+      showError(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
       return
     }
     // Warm backend now so transcribe request hits a warm server (avoids 20s+ first-request delay on mobile)
@@ -179,7 +180,7 @@ export default function HomePage() {
       // Free tier: block before calling Whisper so we don't consume transcription
       if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
         setLoading(false)
-        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        showError(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
         return
       }
 
@@ -227,15 +228,15 @@ export default function HomePage() {
       
       // Show notification if auto-stopped
       if (isAutoStop) {
-        alert('Recording stopped at 5 minute limit. Your audio has been transcribed.')
+        showError('Recording stopped at 5 minute limit. Your audio has been transcribed.')
       }
     } catch (err) {
       console.error('Error processing recording:', err)
       const errorMessage = err.message || 'Failed to process recording. Please try again.'
-      alert(errorMessage)
+      showError(errorMessage)
       setLoading(false)
     }
-  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, isSilencePlaceholder])
+  }, [profile?.tier, profile?.tokens_used, user, supabase, refreshProfile, isSilencePlaceholder, showError])
 
   const handleRecordStop = async () => {
     const audioBlob = await stopRecording()
@@ -456,11 +457,11 @@ export default function HomePage() {
     } catch (err) {
       console.error('Error saving thought:', err)
       const errorMessage = err.message || 'Failed to save thought. Please try again.'
-      alert(errorMessage)
+      showError(errorMessage)
     } finally {
       setLoading(false)
     }
-  }, [activeCategory, selectedPrompt, user, supabase, setThoughts, thoughts, setSuggestedTagsByThoughtId, setThoughtPeople, setPeopleMap, setClarifierForPersonId, setClarifierForThoughtId, setDisambiguationPending, setConfirmationPending])
+  }, [activeCategory, selectedPrompt, user, supabase, setThoughts, thoughts, setSuggestedTagsByThoughtId, setThoughtPeople, setPeopleMap, setClarifierForPersonId, setClarifierForThoughtId, setDisambiguationPending, setConfirmationPending, showError])
 
   const handleCancelEdit = () => {
     setSelectedPrompt(null)
@@ -482,7 +483,7 @@ export default function HomePage() {
   const handleKeyboardToggle = () => {
     // Free tier: block opening editor if at token limit
     if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
-      alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+      showError(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
       return
     }
     skipPersistRef.current = false
@@ -546,7 +547,7 @@ export default function HomePage() {
       setSelectedPrompt(prompt)
       setShowAiPrompts(false)
       if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
-        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        showError(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
         return
       }
       warmApiConnection()
@@ -554,14 +555,14 @@ export default function HomePage() {
       isFromRecordingRef.current = true
       startRecording()
     },
-    [profile?.tier, profile?.tokens_used, startRecording]
+    [profile?.tier, profile?.tokens_used, startRecording, showError]
   )
 
   // When user picks Type from thought starters: set prompt, dismiss, open transcript editor
   const handleTypeWithPrompt = useCallback(
     (prompt) => {
       if (profile?.tier === 'trial' && (profile?.tokens_used || 0) >= FREE_TIER_TOKEN_LIMIT) {
-        alert(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
+        showError(`You've reached your free tier limit (${FREE_TIER_TOKEN_LIMIT.toLocaleString()} tokens this month). Upgrade in Settings to add more thoughts.`)
         return
       }
       setSelectedPrompt(prompt)
@@ -572,7 +573,7 @@ export default function HomePage() {
       setIsEditingTranscript(true)
       isFromRecordingRef.current = false
     },
-    [profile?.tier, profile?.tokens_used]
+    [profile?.tier, profile?.tokens_used, showError]
   )
 
   const handleDeleteThought = useCallback((thoughtId) => {

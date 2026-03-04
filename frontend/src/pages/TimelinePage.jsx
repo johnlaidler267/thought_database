@@ -6,12 +6,14 @@ import EditableTitle from '../components/EditableTitle'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../services/supabase'
 import { transcribeAudio, cleanTranscript, extractTags } from '../services/api'
 import { Check, XCircle } from 'lucide-react'
 
 export default function TimelinePage() {
   const { user, signOut } = useAuth()
+  const { showError } = useToast()
   const navigate = useNavigate()
   const [thoughts, setThoughts] = useState([])
   const [thoughtToDelete, setThoughtToDelete] = useState(null)
@@ -178,7 +180,7 @@ export default function TimelinePage() {
       
       // Show notification if auto-stopped
       if (isAutoStop) {
-        alert('Recording stopped at 5 minute limit. Your audio has been transcribed.')
+        showError('Recording stopped at 5 minute limit. Your audio has been transcribed.')
       }
       
       // Focus textarea after a brief delay to ensure it's rendered
@@ -194,10 +196,10 @@ export default function TimelinePage() {
     } catch (err) {
       console.error('Error processing recording:', err)
       const errorMessage = err.message || 'Failed to process recording. Please try again.'
-      alert(errorMessage)
+      showError(errorMessage)
       setLoading(false)
     }
-  }, [setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef])
+  }, [setDraftTranscript, setIsEditingTranscript, transcriptTextareaRef, showError])
 
   const handleRecordStart = () => {
     startRecording()
@@ -299,7 +301,7 @@ export default function TimelinePage() {
     } catch (err) {
       console.error('Error saving thought:', err)
       const errorMessage = err.message || 'Failed to save thought. Please try again.'
-      alert(errorMessage)
+      showError(errorMessage)
     } finally {
       setLoading(false)
     }
