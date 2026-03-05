@@ -22,7 +22,7 @@ export const headerStyle = {
 }
 
 export const searchBarBorder = { borderColor: 'var(--stroke)' }
-export const searchInputWrap = { backgroundColor: 'var(--card)', minHeight: '44px' }
+export const searchInputWrap = { backgroundColor: 'var(--card)' }
 export const tagChipStyle = { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }
 export const sortButtonStyle = {
   backgroundColor: 'var(--card)',
