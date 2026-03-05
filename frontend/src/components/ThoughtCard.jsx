@@ -52,6 +52,7 @@ function ThoughtCardInner({
   onDisambiguationChoose,
   categories = [],
   onCategoriesChange,
+  deletedPersonDisplayNames,
 }) {
   const { showError } = useToast()
   const menuRef = useRef(null)
@@ -371,6 +372,7 @@ function ThoughtCardInner({
             onMentionClick={onMentionClick}
             categories={categories}
             onCategoriesChange={onCategoriesChange}
+            deletedPersonDisplayNames={deletedPersonDisplayNames}
           />
 
           <ClarifierBannerPerson

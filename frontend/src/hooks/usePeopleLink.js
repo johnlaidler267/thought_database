@@ -31,6 +31,8 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
   const [disambiguationPending, setDisambiguationPending] = useState([])
   const [confirmationPending, setConfirmationPending] = useState([])
   const [clarifierForNewPerson, setClarifierForNewPerson] = useState(null)
+  /** Display names of profiles deleted this session; hide them from the persons section of thought cards. */
+  const [deletedPersonDisplayNames, setDeletedPersonDisplayNames] = useState(() => new Set())
 
   const linkedPeopleByThoughtId = useMemo(() => {
     const out = {}
@@ -449,6 +451,33 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
   )
 
   const handleClosePersonPanel = useCallback(() => setOpenPersonId(null), [])
+
+  /** Delete person profile and all thought_people links (thoughts unchanged). Closes panel and updates state.
+   * @param {string} personId - Person UUID
+   * @param {string} [displayName] - Display name to hide from persons section on thought cards after delete
+   */
+  const handleDeletePerson = useCallback(
+    async (personId, displayName) => {
+      if (!supabase || !personId) return
+      const { error } = await supabase.from('people').delete().eq('id', personId)
+      if (error) {
+        console.error('Delete person:', error)
+        throw error
+      }
+      if (displayName && String(displayName).trim()) {
+        setDeletedPersonDisplayNames((prev) => new Set([...prev, String(displayName).trim()]))
+      }
+      setOpenPersonId(null)
+      setThoughtPeople((prev) => prev.filter((tp) => tp.person_id !== personId))
+      setPeopleMap((prev) => {
+        const next = { ...prev }
+        delete next[personId]
+        return next
+      })
+    },
+    [setThoughtPeople, setPeopleMap]
+  )
+
   const handleScrollToThought = useCallback((thoughtId) => {
     const el = document.querySelector(`[data-thought-id="${thoughtId}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -477,6 +506,8 @@ export function usePeopleLink(user, thoughtPeople, peopleMap, setThoughtPeople, 
     handlePersonClick,
     handleMentionClick,
     handleClosePersonPanel,
+    handleDeletePerson,
+    deletedPersonDisplayNames,
     handleUnlinkThoughtPerson,
     handleEditClarifier,
     handleScrollToThought,

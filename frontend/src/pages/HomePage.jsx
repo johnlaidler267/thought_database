@@ -107,6 +107,8 @@ export default function HomePage() {
     handlePersonClick,
     handleMentionClick,
     handleClosePersonPanel,
+    handleDeletePerson,
+    deletedPersonDisplayNames,
     handleUnlinkThoughtPerson,
     handleEditClarifier,
     handleScrollToThought,
@@ -1038,6 +1040,7 @@ export default function HomePage() {
                     onDisambiguationChoose={handleDisambiguationChoose}
                     categories={categories}
                     onCategoriesChange={handleThoughtCategoriesChange}
+                    deletedPersonDisplayNames={deletedPersonDisplayNames}
                   />
                 </div>
               )}
@@ -1053,6 +1056,7 @@ export default function HomePage() {
           person={peopleMap[openPersonId]}
           thoughts={openPersonThoughts}
           onClose={handleClosePersonPanel}
+          onDeletePerson={handleDeletePerson}
           onUnlink={handleUnlinkThoughtPerson}
           onScrollToThought={handleScrollToThought}
           onEditClarifier={handleEditClarifier}

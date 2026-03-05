@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { X, Pencil, Unlink } from 'lucide-react'
+import { X, Pencil, Unlink, Trash2 } from 'lucide-react'
 import { supabase } from '../services/supabase'
+import ConfirmDialog from './ConfirmDialog'
 
 /**
  * Slide-in panel showing a person's profile: display name, clarifier, blurb, and all thoughts mentioning them.
  * Backdrop click closes; each thought is a condensed card; unlink removes the thought-person association.
+ * Delete removes the person profile and links; thoughts are unchanged.
  */
 export default function PersonProfilePanel({
   personId,
@@ -15,9 +17,12 @@ export default function PersonProfilePanel({
   onScrollToThought,
   onEditClarifier,
   onPersonUpdate,
+  onDeletePerson,
 }) {
   const [clarifierEdit, setClarifierEdit] = useState('')
   const [isEditingClarifier, setIsEditingClarifier] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (person) {
@@ -60,6 +65,20 @@ export default function PersonProfilePanel({
   const handleSaveClarifier = () => {
     onEditClarifier?.(personId, clarifierEdit.trim() || null)
     setIsEditingClarifier(false)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!onDeletePerson || !personId) return
+    setIsDeleting(true)
+    try {
+      await onDeletePerson(personId, person?.display_name)
+      setShowDeleteConfirm(false)
+      onClose()
+    } catch (err) {
+      console.error('Delete person failed:', err)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -220,8 +239,34 @@ export default function PersonProfilePanel({
               )
             })}
           </div>
+
+          {onDeletePerson && (
+            <div className="pt-4 mt-4 border-t shrink-0" style={{ borderColor: 'var(--stroke)' }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
+                className="flex items-center gap-2 w-full py-2.5 px-3 rounded-lg text-sm font-serif transition-colors"
+                style={{ color: 'var(--destructive)', border: '1px solid var(--destructive)' }}
+                aria-label="Delete person profile"
+              >
+                <Trash2 className="w-4 h-4 shrink-0" />
+                Delete profile
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => !isDeleting && setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title={`Delete ${displayName}?`}
+        message="This won't delete any of your thoughts."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </>
   )
 }

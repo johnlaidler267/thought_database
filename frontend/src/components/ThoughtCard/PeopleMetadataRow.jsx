@@ -14,6 +14,11 @@ function getThoughtCategories(thought) {
   return single ? [single] : []
 }
 
+/** Normalize for comparison (trim, lower). */
+function normalizeName(name) {
+  return String(name ?? '').trim().toLowerCase()
+}
+
 export function PeopleMetadataRow({
   thought,
   linkedPeople = [],
@@ -21,17 +26,35 @@ export function PeopleMetadataRow({
   onMentionClick,
   categories = [],
   onCategoriesChange,
+  /** Set or array of display names to hide (e.g. deleted profiles) so they don't show in the persons section. */
+  deletedPersonDisplayNames,
 }) {
   const categoryTriggerRef = useRef(null)
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false)
 
-  const mentionList = getMentionList(thought)
+  const rawMentionList = getMentionList(thought)
+  const deletedSet =
+    deletedPersonDisplayNames == null
+      ? null
+      : new Set(
+          [...(deletedPersonDisplayNames instanceof Set ? deletedPersonDisplayNames : Array.isArray(deletedPersonDisplayNames) ? deletedPersonDisplayNames : [])].map(
+            normalizeName
+          )
+        )
+  const mentionList =
+    deletedSet && deletedSet.size > 0
+      ? rawMentionList.filter((name) => !deletedSet.has(normalizeName(name)))
+      : rawMentionList
+  const linkedPeopleFiltered =
+    deletedSet && deletedSet.size > 0
+      ? linkedPeople.filter((p) => !deletedSet.has(normalizeName(p.display_name)))
+      : linkedPeople
   const thoughtTypeLabel = getThoughtTypeLabel(thought)
   const thoughtCategories = getThoughtCategories(thought)
   const hasCategoryBlock = thoughtCategories.length > 0
   const canAssignCategories = categories.length > 0 && onCategoriesChange
   const hasType = Boolean(thoughtTypeLabel)
-  const hasPeople = linkedPeople.length > 0 || mentionList.length > 0
+  const hasPeople = linkedPeopleFiltered.length > 0 || mentionList.length > 0
 
   const showCategoryBlock = hasCategoryBlock
 
@@ -129,8 +152,8 @@ export function PeopleMetadataRow({
         <div className="flex items-center gap-1">
           <User className="w-3 h-3 text-muted-foreground shrink-0" style={iconStyle} />
           <div className="flex flex-wrap gap-1">
-            {linkedPeople.length > 0
-              ? linkedPeople.map((p) => (
+            {linkedPeopleFiltered.length > 0
+              ? linkedPeopleFiltered.map((p) => (
                   <button
                     key={p.person_id}
                     type="button"
