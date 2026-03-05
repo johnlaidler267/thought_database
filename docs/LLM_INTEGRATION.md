@@ -121,6 +121,31 @@ This ensures users never lose their thoughts even if LLM services are unavailabl
 - **API Errors**: Logged and handled gracefully
 - **Missing Keys**: Services check configuration before attempting API calls
 
+## Troubleshooting: "LLM calls do not appear to be going through"
+
+If reflection questions, thought starters, distill, or tag suggestions never complete or show no result:
+
+1. **Check the toast message**  
+   The app now surfaces API errors in a toast. Look for messages like "Reflect service not configured", "Invalid or expired token", or "Failed to connect to server".
+
+2. **Backend environment (including Render)**  
+   Ensure the backend has:
+   - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — without these, all protected routes return **503** ("Authentication not configured").
+   - `GROQ_API_KEY` — required for reflect, thought-starters, tags, and transcription. Missing → **503** ("… service not configured").
+   - `GOOGLE_AI_API_KEY` — required for transcript cleaning. Missing → clean route may return 503 or fail.
+
+3. **Frontend API URL**  
+   In `frontend/.env`, `VITE_API_URL` must point at your backend (e.g. `https://your-backend.onrender.com` with no trailing slash). Wrong or missing URL → requests fail or hit the wrong server.
+
+4. **Auth**  
+   Protected routes require a valid Supabase JWT in the `Authorization: Bearer …` header. If the user is logged out or the session expired, the backend returns **401** ("Invalid or expired token"). Log in again and retry.
+
+5. **Rate limiting**  
+   Default limit is 100 requests per 15 minutes per IP. **429** ("Too many requests") means you hit the limit; wait or set `RATE_LIMIT_MAX` on the backend.
+
+6. **CORS**  
+   In production, set `FRONTEND_URL` (or `CORS_ORIGIN`) on the backend to your frontend origin so the browser allows the requests.
+
 ## Testing
 
 You can test without API keys:

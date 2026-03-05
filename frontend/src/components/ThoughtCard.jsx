@@ -86,7 +86,7 @@ function ThoughtCardInner({
       ? distilledFromThoughtRaw
       : null
 
-  const distill = useDistill(thought, baseDisplayText, onDistillStateChange)
+  const distill = useDistill(thought, baseDisplayText, onDistillStateChange, (msg) => showError(msg))
   const displayFromState = distill.displayFromState
   const displayText = (distilledFromThought ?? displayFromState) ?? baseDisplayText
 
@@ -202,10 +202,11 @@ function ThoughtCardInner({
     } catch (err) {
       console.error('Reflect question failed:', err)
       setAiQuestion(null)
+      showError(err?.message || 'Failed to get reflection question. Check Settings and backend config.')
     } finally {
       setIsLoadingReflect(false)
     }
-  }, [thought.cleaned_text, thought.content, thought.follow_ups, thought.followUps])
+  }, [thought.cleaned_text, thought.content, thought.follow_ups, thought.followUps, showError])
 
   const handleCopy = useCallback(async () => {
     try {

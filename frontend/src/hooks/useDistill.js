@@ -16,8 +16,9 @@ function getHistoryFromThought(t) {
 /**
  * Encapsulates distillation state and undo/redo for a thought.
  * Returns display text, level, and handlers; syncs from thought.id when it changes.
+ * @param {Function} [onDistillError] - Called with error message string when distill API fails (e.g. for toast).
  */
-export function useDistill(thought, baseDisplayText, onDistillStateChange) {
+export function useDistill(thought, baseDisplayText, onDistillStateChange, onDistillError) {
   const [distillationLevel, setDistillationLevel] = useState(() => {
     const raw = getDistilledFromThought(thought)
     const hasDistilled = raw != null && String(raw).trim() !== ''
@@ -62,6 +63,7 @@ export function useDistill(thought, baseDisplayText, onDistillStateChange) {
     } catch (err) {
       console.error('Distill failed:', err)
       setDistillationStack((s) => (s.length > 0 ? s.slice(0, -1) : []))
+      onDistillError?.(err?.message || 'Distill failed. Check Settings and backend config.')
     } finally {
       setIsDistilling(false)
     }
@@ -72,6 +74,7 @@ export function useDistill(thought, baseDisplayText, onDistillStateChange) {
     distillationStack,
     distillationLevel,
     onDistillStateChange,
+    onDistillError,
   ])
 
   const handleRestoreDistill = useCallback(() => {

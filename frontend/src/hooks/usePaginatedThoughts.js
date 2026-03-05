@@ -43,9 +43,10 @@ export function usePaginatedThoughts(user, filters = {}) {
         .order('created_at', { ascending: sortOrder === 'asc' })
         .range(from, to)
 
-      // Category: thoughts where categories contains the selected category (or legacy category column)
+      // Category: filter by legacy category column (singular). If you add the categories array
+      // (run SUPABASE_ADD_CATEGORIES_ARRAY migration), we could also match categories @> [category].
       if (category && category !== 'All') {
-        query = query.contains('categories', [category])
+        query = query.eq('category', category)
       }
 
       // Tags: thought must contain ALL selected tags (AND)
@@ -158,13 +159,13 @@ export function usePaginatedThoughts(user, filters = {}) {
       })
   }, [user?.id, hasMore, loading, loadingMore, fetchPage])
 
-  // Initial load and when filters change: reset and fetch page 0
+  // Initial load and when filters change: fetch page 0 (keep showing current list until new data arrives to avoid lag)
   useEffect(() => {
     const filtersKey = JSON.stringify({ searchQuery, category, tags: activeTags, sortOrder })
     if (filtersKey !== filtersKeyRef.current) {
       filtersKeyRef.current = filtersKey
-      setThoughts([])
       setHasMore(true)
+      // Don't clear thoughts here — loadFirstPage will replace with new data and avoids unmounting everything
     }
     loadFirstPage()
   }, [loadFirstPage, searchQuery, category, activeTags, sortOrder])

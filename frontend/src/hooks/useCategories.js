@@ -18,24 +18,35 @@ export function useCategories(userId) {
     }
     const key = `axiomCategories_${userId}`
     const saved = localStorage.getItem(key)
-    let list = ['All']
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed.includes('All') ? parsed : ['All', ...parsed]
-        }
-      } catch {
-        list = ['All']
-      }
+    if (!saved) {
+      setCategories(['All'])
+      setActiveCategory('All')
+      return
     }
-    setCategories(list)
-    setActiveCategory('All')
+    try {
+      const parsed = JSON.parse(saved)
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        setCategories(['All'])
+        setActiveCategory('All')
+        return
+      }
+      const list = parsed.includes('All') ? parsed : ['All', ...parsed]
+      setCategories(list)
+      setActiveCategory('All')
+    } catch {
+      // Don't overwrite state on parse error so we don't persist ['All'] over their list
+      setActiveCategory('All')
+    }
   }, [userId])
 
   useEffect(() => {
     if (!userId || !categories.length) return
     const key = `axiomCategories_${userId}`
+    // Don't overwrite existing saved list with just ['All'] (e.g. after a parse error)
+    if (categories.length === 1 && categories[0] === 'All') {
+      const current = localStorage.getItem(key)
+      if (current && current !== '["All"]') return
+    }
     localStorage.setItem(key, JSON.stringify(categories))
   }, [userId, categories])
 

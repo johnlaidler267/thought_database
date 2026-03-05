@@ -36,6 +36,7 @@ export default function HomePage() {
   const location = useLocation()
 
   const timelineScrollRef = useRef(null)
+  const [timelineScrollEl, setTimelineScrollEl] = useState(null)
   const categoriesState = useCategories(user?.id)
   const {
     categories,
@@ -438,7 +439,10 @@ export default function HomePage() {
                 }
               }
             })
-            .catch(() => {})
+            .catch((err) => {
+              console.error('Tag suggestions failed:', err)
+              showError(err?.message || 'Tag suggestions unavailable. Check backend config.')
+            })
 
           // Reset recording flag
           isFromRecordingRef.current = false
@@ -902,7 +906,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col" style={pageBackground}>
+    <div className="min-h-screen h-screen bg-paper flex flex-col overflow-hidden" style={pageBackground}>
       <HomePageHeader
         isDark={isDark}
         isAudioRecording={isAudioRecording}
@@ -942,8 +946,11 @@ export default function HomePage() {
 
       {/* Timeline - virtualized + paginated; scroll container for consistent viewport */}
       <main
-        ref={timelineScrollRef}
-        className={`flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
+        ref={(el) => {
+          timelineScrollRef.current = el
+          setTimelineScrollEl(el)
+        }}
+        className={`flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-6 transition-all duration-300 ${
           isEditingTranscript ? 'pb-80' : 'pb-52 sm:pb-56'
         }`}
       >
@@ -973,7 +980,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {timelineLoading ? (
+          {timelineLoading && thoughts.length === 0 ? (
             <div className="flex items-center justify-center py-12" style={{ color: 'var(--muted-foreground)' }}>
               <span className="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" aria-hidden />
               <span>Loading timeline…</span>
@@ -987,13 +994,21 @@ export default function HomePage() {
               </p>
             </div>
           ) : (
-            <VirtualizedThoughtList
-              scrollContainerRef={timelineScrollRef}
-              thoughts={thoughts}
-              hasMore={timelineHasMore}
-              loadingMore={timelineLoadingMore}
-              onLoadMore={timelineLoadMore}
-              renderCard={(thought) => (
+            <>
+              {timelineLoading && thoughts.length > 0 && (
+                <div className="flex items-center justify-center py-2 mb-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" aria-hidden />
+                  Updating…
+                </div>
+              )}
+              <VirtualizedThoughtList
+                scrollContainerRef={timelineScrollRef}
+                scrollContainerEl={timelineScrollEl}
+                thoughts={thoughts}
+                hasMore={timelineHasMore}
+                loadingMore={timelineLoadingMore}
+                onLoadMore={timelineLoadMore}
+                renderCard={(thought) => (
                 <div key={thought.id} data-thought-id={thought.id} className="mb-4 sm:mb-6">
                   <ThoughtCard
                     thought={thought}
@@ -1026,7 +1041,8 @@ export default function HomePage() {
                   />
                 </div>
               )}
-            />
+              />
+            </>
           )}
         </div>
       </main>
