@@ -151,6 +151,16 @@
     vertical-align: baseline;
   }
 
+  /* Search bar tag chips: slim on mobile, normal touch target on desktop */
+  @media (max-width: 639px) {
+    .search-tag-chip {
+      min-height: 0;
+      min-width: 0;
+      padding: 2px 6px;
+      line-height: 1;
+    }
+  }
+
   /* Prevent iOS Safari auto-zoom on input focus */
   input[type="text"]:not(.category-popover-new-input),
   input[type="email"],

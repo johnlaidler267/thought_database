@@ -34,27 +34,38 @@ export function SearchBar({
     onSortMenuToggle(false)
   }
 
+  const clearButton = (
+    <button
+      type="button"
+      onClick={handleClearClick}
+      className="shrink-0 p-1 rounded transition-colors"
+      style={{ color: 'var(--muted-foreground)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
+      aria-label="Clear search and tags"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  )
+
   return (
     <div className="border-b border-stroke px-4 sm:px-6 py-3 sm:py-4" style={searchBarBorder}>
       <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[46.2rem] mx-auto flex items-start gap-2">
-        {/* Search field */}
+
+        {/* ── MOBILE search field: tags row above, input row below ── */}
         <div
-          className="flex flex-col gap-1.5 min-h-10 py-2 px-3 rounded border border-stroke font-serif transition-colors focus-within:border-ink flex-1 min-w-0"
+          className="sm:hidden flex flex-col gap-1.5 min-h-10 py-2 px-3 rounded border border-stroke font-serif transition-colors focus-within:border-ink flex-1 min-w-0"
           style={searchInputWrap}
         >
-          {/* Tags row — only shown when at least one tag is active */}
           {activeTags.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <Search
-                className="w-4 h-4 shrink-0 pointer-events-none"
-                style={{ color: 'var(--muted-foreground)' }}
-              />
+              <Search className="w-4 h-4 shrink-0 pointer-events-none" style={{ color: 'var(--muted-foreground)' }} />
               {activeTags.map((tag) => (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => onTagClick(tag)}
-                  className="inline-flex items-center gap-1 rounded-sm font-serif text-xs leading-tight py-0.5 px-2 shrink-0 transition-opacity hover:opacity-70"
+                  className="search-tag-chip inline-flex items-center gap-0.5 rounded-sm font-serif text-xs shrink-0 transition-opacity hover:opacity-70"
                   style={tagChipStyle}
                   aria-label={`Remove tag ${tag}`}
                 >
@@ -64,14 +75,9 @@ export function SearchBar({
               ))}
             </div>
           )}
-
-          {/* Input row — always shown */}
           <div className="flex items-center gap-2">
             {activeTags.length === 0 && (
-              <Search
-                className="w-4 h-4 shrink-0 pointer-events-none"
-                style={{ color: 'var(--muted-foreground)' }}
-              />
+              <Search className="w-4 h-4 shrink-0 pointer-events-none" style={{ color: 'var(--muted-foreground)' }} />
             )}
             <input
               type="text"
@@ -81,20 +87,48 @@ export function SearchBar({
               className="flex-1 min-w-0 py-0.5 bg-transparent border-0 font-serif placeholder:text-muted-foreground focus:outline-none focus:ring-0"
               style={{ color: 'var(--ink)', fontSize: '16px' }}
             />
-            {(searchQuery || activeTags.length > 0) && (
+            {(searchQuery || activeTags.length > 0) && clearButton}
+          </div>
+        </div>
+
+        {/* ── DESKTOP search field: everything on one line ── */}
+        <div
+          className="hidden sm:flex items-center gap-2 min-h-10 py-2 px-3 rounded border border-stroke font-serif transition-colors focus-within:border-ink flex-1 min-w-0"
+          style={searchInputWrap}
+        >
+          <Search className="w-4 h-4 shrink-0 pointer-events-none" style={{ color: 'var(--muted-foreground)' }} />
+          {activeTags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-0.5 rounded-sm font-serif text-xs leading-tight py-0.5 px-2 shrink-0"
+              style={tagChipStyle}
+            >
+              <span>{tag}</span>
               <button
                 type="button"
-                onClick={handleClearClick}
-                className="shrink-0 p-1 rounded transition-colors"
+                onClick={() => onTagClick(tag)}
+                className="p-0 min-h-0 min-w-0 inline-flex items-center justify-center rounded-sm transition-colors"
                 style={{ color: 'var(--muted-foreground)' }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ink)' }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--muted-foreground)' }}
-                aria-label="Clear search and tags"
+                aria-label={`Remove tag ${tag}`}
               >
-                <X className="w-4 h-4" />
+                <X className="w-2.5 h-2.5" strokeWidth={2} />
               </button>
-            )}
-          </div>
+            </span>
+          ))}
+          {activeTags.length > 0 && (
+            <span className="w-px h-4 shrink-0" style={{ backgroundColor: 'var(--stroke)' }} aria-hidden />
+          )}
+          <input
+            type="text"
+            placeholder={activeTags.length > 0 ? 'More tags or search…' : 'Search or click a tag…'}
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            className="flex-1 min-w-[120px] py-0.5 bg-transparent border-0 font-serif placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+            style={{ color: 'var(--ink)', fontSize: '16px' }}
+          />
+          {(searchQuery || activeTags.length > 0) && clearButton}
         </div>
 
         <div className="relative flex-shrink-0" ref={sortMenuRef}>
