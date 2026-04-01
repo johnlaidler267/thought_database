@@ -15,6 +15,8 @@ export function ActionBar({
   isLoadingReflect,
   onDistillClick,
   isDistilling,
+  onRewriteClick,
+  isRewriting,
   distillationLevel,
   translationEnabled,
   isTranslated,
