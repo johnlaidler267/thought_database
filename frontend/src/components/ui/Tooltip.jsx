@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 const MOBILE_BREAKPOINT = 640 // sm; no tooltips below this width
 
@@ -18,7 +19,9 @@ export default function Tooltip({ children, text, position = 'top' }) {
   }, [])
 
   // useLayoutEffect: measure after DOM update, before paint — avoids wrong first-frame rects.
-  // Trigger must shrink-wrap children (inline-flex w-fit); a block div in a flex row was full-width and centered tooltips on the whole bar.
+  // Trigger must shrink-wrap children (inline-flex); a block div in a flex row was full-width and centered tooltips on the whole bar.
+  // Tooltip is portaled to document.body: ancestors with transform (e.g. virtualized list rows) make position:fixed relative to them,
+  // which breaks viewport coords from getBoundingClientRect() — tooltips appeared far offset (e.g. to the right).
   useLayoutEffect(() => {
     if (!isVisible || !triggerRef.current || !tooltipRef.current) return
 
@@ -94,31 +97,34 @@ export default function Tooltip({ children, text, position = 'top' }) {
       >
         {children}
       </div>
-      {isVisible && (
-        <div
-          ref={tooltipRef}
-          className="fixed z-50 pointer-events-none transition-opacity duration-150"
-          style={{
-            top: `${tooltipPosition.top}px`,
-            left: `${tooltipPosition.left}px`,
-            opacity: isVisible ? 1 : 0,
-            animation: 'fadeInUp 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
+      {isVisible &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="px-2.5 py-1 rounded-md font-serif text-xs whitespace-nowrap"
+            ref={tooltipRef}
+            className="fixed z-[100] pointer-events-none transition-opacity duration-150"
             style={{
-              backgroundColor: 'var(--muted)',
-              color: 'var(--muted-foreground)',
-              border: '1px solid var(--stroke)',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
-              letterSpacing: '0.01em',
+              top: `${tooltipPosition.top}px`,
+              left: `${tooltipPosition.left}px`,
+              opacity: isVisible ? 1 : 0,
+              animation: 'fadeInUp 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
-            {text}
-          </div>
-        </div>
-      )}
+            <div
+              className="px-2.5 py-1 rounded-md font-serif text-xs whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--muted)',
+                color: 'var(--muted-foreground)',
+                border: '1px solid var(--stroke)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
+                letterSpacing: '0.01em',
+              }}
+            >
+              {text}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   )
 }
