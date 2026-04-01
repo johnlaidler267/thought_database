@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 
 const MOBILE_BREAKPOINT = 640 // sm; no tooltips below this width
 
@@ -17,29 +17,32 @@ export default function Tooltip({ children, text, position = 'top' }) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  useEffect(() => {
-    if (isVisible && triggerRef.current && tooltipRef.current) {
+  // useLayoutEffect: measure after DOM update, before paint — avoids wrong first-frame rects.
+  // Trigger must shrink-wrap children (inline-flex w-fit); a block div in a flex row was full-width and centered tooltips on the whole bar.
+  useLayoutEffect(() => {
+    if (!isVisible || !triggerRef.current || !tooltipRef.current) return
+
+    const updatePosition = () => {
       const triggerRect = triggerRef.current.getBoundingClientRect()
       const tooltipRect = tooltipRef.current.getBoundingClientRect()
-      
+
       let top = 0
       let left = 0
 
       if (position === 'top') {
         top = triggerRect.top - tooltipRect.height - 8
-        left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2)
+        left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2
       } else if (position === 'bottom') {
         top = triggerRect.bottom + 8
-        left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2)
+        left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2
       } else if (position === 'left') {
-        top = triggerRect.top + (triggerRect.height / 2) - (tooltipRect.height / 2)
+        top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2
         left = triggerRect.left - tooltipRect.width - 8
       } else if (position === 'right') {
-        top = triggerRect.top + (triggerRect.height / 2) - (tooltipRect.height / 2)
+        top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2
         left = triggerRect.right + 8
       }
 
-      // Keep tooltip within viewport
       const padding = 8
       if (left < padding) left = padding
       if (left + tooltipRect.width > window.innerWidth - padding) {
@@ -52,7 +55,11 @@ export default function Tooltip({ children, text, position = 'top' }) {
 
       setTooltipPosition({ top, left })
     }
-  }, [isVisible, position])
+
+    updatePosition()
+    const id = requestAnimationFrame(updatePosition)
+    return () => cancelAnimationFrame(id)
+  }, [isVisible, position, text])
 
   const handleMouseEnter = () => {
     if (isMobile) return
@@ -83,7 +90,7 @@ export default function Tooltip({ children, text, position = 'top' }) {
         ref={triggerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="relative"
+        className="relative inline-flex max-w-full shrink-0"
       >
         {children}
       </div>
