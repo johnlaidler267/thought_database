@@ -434,6 +434,8 @@ function ThoughtCardInner({
         isLoadingReflect={isLoadingReflect}
         onDistillClick={distill.handleDistillClick}
         isDistilling={distill.isDistilling}
+        onRewriteClick={distill.handleRewriteClick}
+        isRewriting={distill.isRewriting}
         distillationLevel={distill.distillationLevel}
         translationEnabled={translationEnabled}
         isTranslated={isTranslated}

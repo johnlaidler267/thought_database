@@ -301,3 +301,23 @@ export async function distillText(text, level) {
   const data = await response.json()
   return data.distilled_text ?? text ?? ''
 }
+
+/**
+ * Rewrite thought text for clarity and optimal wording (not condensing).
+ * @param {string} text - Current displayed text
+ * @returns {Promise<string>} Rewritten text
+ */
+export async function rewriteText(text) {
+  const authHeaders = await getAuthHeaders()
+  const response = await fetch(`${API_URL}/rewrite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
+    body: JSON.stringify({ text: text || '' }),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || `HTTP ${response.status}`)
+  }
+  const data = await response.json()
+  return data.rewritten_text ?? text ?? ''
+}

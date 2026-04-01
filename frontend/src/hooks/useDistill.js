@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { distillText } from '../services/api'
+import { distillText, rewriteText } from '../services/api'
 
 function getDistilledFromThought(t) {
   return (t?.distilled_text ?? t?.distilledText) ?? null
@@ -33,6 +33,7 @@ export function useDistill(thought, baseDisplayText, onDistillStateChange, onDis
   const [distillationStack, setDistillationStack] = useState(() => getHistoryFromThought(thought))
   const [distillationForwardStack, setDistillationForwardStack] = useState([])
   const [isDistilling, setIsDistilling] = useState(false)
+  const [isRewriting, setIsRewriting] = useState(false)
 
   useEffect(() => {
     const raw = getDistilledFromThought(thought)
@@ -48,7 +49,7 @@ export function useDistill(thought, baseDisplayText, onDistillStateChange, onDis
     distillationLevel > 0 && distilledText ? distilledText : baseDisplayText
 
   const handleDistillClick = useCallback(async () => {
-    if (isDistilling) return
+    if (isDistilling || isRewriting) return
     if (!currentDisplayForDistill?.trim()) return
     setIsDistilling(true)
     setDistillationForwardStack([])
@@ -70,9 +71,40 @@ export function useDistill(thought, baseDisplayText, onDistillStateChange, onDis
   }, [
     thought.id,
     isDistilling,
+    isRewriting,
     currentDisplayForDistill,
     distillationStack,
     distillationLevel,
+    onDistillStateChange,
+    onDistillError,
+  ])
+
+  const handleRewriteClick = useCallback(async () => {
+    if (isDistilling || isRewriting) return
+    if (!currentDisplayForDistill?.trim()) return
+    setIsRewriting(true)
+    setDistillationForwardStack([])
+    try {
+      const newStack = [...distillationStack, currentDisplayForDistill]
+      setDistillationStack(newStack)
+      const next = await rewriteText(currentDisplayForDistill)
+      const nextText = (next || '').trim() || currentDisplayForDistill
+      setDistilledText(nextText)
+      setDistillationLevel((l) => l + 1)
+      onDistillStateChange?.(thought.id, { distilled_text: nextText, distill_history: newStack })
+    } catch (err) {
+      console.error('Rewrite failed:', err)
+      setDistillationStack((s) => (s.length > 0 ? s.slice(0, -1) : []))
+      onDistillError?.(err?.message || 'Rewrite failed. Check Settings and backend config.')
+    } finally {
+      setIsRewriting(false)
+    }
+  }, [
+    thought.id,
+    isDistilling,
+    isRewriting,
+    currentDisplayForDistill,
+    distillationStack,
     onDistillStateChange,
     onDistillError,
   ])
@@ -143,12 +175,14 @@ export function useDistill(thought, baseDisplayText, onDistillStateChange, onDis
     distillationStack,
     distillationForwardStack,
     isDistilling,
+    isRewriting,
     setDistillationStack,
     setDistilledText,
     setDistillationLevel,
     setDistillationForwardStack,
     displayFromState,
     handleDistillClick,
+    handleRewriteClick,
     handleRestoreDistill,
     handleRedoDistill,
     applyEditAsDistill,

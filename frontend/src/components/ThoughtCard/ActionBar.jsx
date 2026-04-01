@@ -1,4 +1,4 @@
-import { Copy, Languages, Sparkles, ChevronsDownUp } from 'lucide-react'
+import { Copy, Languages, Sparkles, ChevronsDownUp, PenLine } from 'lucide-react'
 import { RiChatFollowUpLine } from 'react-icons/ri'
 import Tooltip from '../ui/Tooltip'
 import { actionButtonMuted } from './styles'
@@ -78,7 +78,7 @@ export function ActionBar({
           <button
             type="button"
             onClick={(e) => { onDistillClick(); e.currentTarget.blur() }}
-            disabled={isDistilling}
+            disabled={isDistilling || isRewriting}
             className={actionButtonClass}
             style={{ color: distillColor }}
             onMouseEnter={(e) => {
@@ -97,6 +97,35 @@ export function ActionBar({
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
             ) : (
               <ChevronsDownUp className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+            )}
+          </button>
+        </Tooltip>
+      )}
+
+      {!isEditingCard && (
+        <Tooltip text="Rewrite for clarity" position="bottom">
+          <button
+            type="button"
+            onClick={(e) => { onRewriteClick(); e.currentTarget.blur() }}
+            disabled={isRewriting || isDistilling}
+            className={actionButtonClass}
+            style={{ color: 'var(--muted-foreground)' }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.color = 'var(--ink)'
+                e.currentTarget.style.backgroundColor = 'var(--muted)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--muted-foreground)'
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+            aria-label="Rewrite for clarity"
+          >
+            {isRewriting ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <PenLine className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
             )}
           </button>
         </Tooltip>

@@ -8,6 +8,7 @@ import cleanRouter from './routes/clean.js'
 import tagsRouter from './routes/tags.js'
 import reflectRouter from './routes/reflect.js'
 import distillRouter from './routes/distill.js'
+import rewriteRouter from './routes/rewrite.js'
 import stripeRouter from './routes/stripe.js'
 import peopleRouter from './routes/people.js'
 import thoughtStartersRouter from './routes/thoughtStarters.js'
@@ -69,6 +70,7 @@ app.get('/', (req, res) => {
       'POST /api/tags',
       'POST /api/reflect',
       'POST /api/distill',
+      'POST /api/rewrite',
       'POST /api/thought-starters',
       'POST /api/stripe/webhook'
     ]
@@ -213,6 +215,7 @@ app.use('/api/clean', auth, cleanRouter)
 app.use('/api/tags', auth, tagsRouter)
 app.use('/api/reflect', auth, reflectRouter)
 app.use('/api/distill', auth, distillRouter)
+app.use('/api/rewrite', auth, rewriteRouter)
 app.use('/api/people', auth, peopleRouter)
 app.use('/api/thought-starters', auth, thoughtStartersRouter)
 app.use('/api/stripe', auth, stripeRouter)
@@ -229,6 +232,7 @@ app.use((req, res) => {
     'POST /api/tags',
     'POST /api/reflect',
     'POST /api/distill',
+    'POST /api/rewrite',
     'POST /api/thought-starters',
     'POST /api/stripe/webhook'
   ])
@@ -244,6 +248,7 @@ app.use((req, res) => {
       'POST /api/tags',
       'POST /api/reflect',
       'POST /api/distill',
+      'POST /api/rewrite',
       'POST /api/thought-starters',
       'POST /api/stripe/webhook'
     ]
@@ -261,6 +266,7 @@ app.listen(PORT, () => {
   console.log(`  POST /api/tags`)
   console.log(`  POST /api/reflect`)
   console.log(`  POST /api/distill`)
+  console.log(`  POST /api/rewrite`)
   console.log(`  POST /api/stripe/webhook`)
 })
 
